@@ -64,7 +64,9 @@ async function child(phase, schemaName, auditPath) {
   };
   const threadId = `${schemaName}-memory`;
   const threads = new AgentThreadsService(service, runtime.redis);
-  const usageLedger = { beginAiOperation: async () => ({ run: work => work(), finish: async () => undefined }) };
+  let checkpoints = 0;
+  const usageLedger = { beginAiOperation: async () => ({ run: work => work(),
+    checkpoint: async () => { checkpoints++; return true; }, finish: async () => undefined }) };
   const handler = new HttpController(service, threads, usageLedger);
 
   if (phase === 'start') {
@@ -87,7 +89,11 @@ async function child(phase, schemaName, auditPath) {
     void handler.chat(ORG, USER, { threadId, messages: [{ id: 'memory-human', role: 'user', parts: [{ type: 'text', text: 'Запомни короткий ответ.' }] }] }, response)
       .catch(error => { console.error(error); process.exit(1); });
     await until(() => response.writableEnded, 'old memory approval card');
+    assert.deepEqual(response.parts().filter(part => part.type === 'error'), []);
+    assert.ok(response.parts().some(part => part.type === 'data-native-input-wait'));
+    assert.ok(checkpoints > 0, 'The old approval checkpoints its still-open admission.');
     const history = await handler.getThread(ORG, USER, threadId);
+    assert.equal(history.execution.state, 'running', 'Cold recovery requires a real parked task, not a failed HTTP fixture.');
     assert.equal(history.pending.length, 1);
     assert.equal(history.pending[0].toolName, 'updateWorkingMemory');
     assert.equal(modelCalls, 1);

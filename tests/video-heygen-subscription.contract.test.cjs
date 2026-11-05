@@ -10,6 +10,21 @@ const withFixture = async run => {
   finally { await f.close(); }
 };
 
+test('HeyGen polling refuses another job even when its result and charge agree with each other', async () => {
+  await withFixture(async (f, def, token) => {
+    for (const status of ['queued', 'running', 'completed', 'failed', 'canceled']) {
+      for (const job_id of ['foreign_job', undefined]) {
+        f.script('heygen', 'get_video', {data: {job_id, status, video_url: 'https://93.184.216.34/foreign.mp4',
+          charge: {job_id, unit: 'heygen_credit', amount: '0.5'}}});
+        await assert.rejects(f.heygen.poll(def, token, {id: 'expected_job'}),
+          e => codeOf(e) === 'VIDEO_PROVIDER_RECEIPT_MISMATCH');
+      }
+    }
+    assert.equal(f.state.submits.length, 0);
+    assert.equal(f.state.quotes.length, 0);
+  });
+});
+
 test('synthetic HeyGen exact-script MCP keeps dates/numbers/negations, explicit renderer, voice/locale and captions', async () => {
   await withFixture(async (f, def, token) => {
     const request = await f.heygen.prepare(def, token, settings(), brief, []);
@@ -41,6 +56,23 @@ test('HeyGen unknown trial eligibility, API key requirement and unavailable asse
     await assert.rejects(f.heygen.prepare(def, token, {...settings(), ...override}, brief, []), e => codeOf(e) === 'VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE');
     assert.equal(f.state.quotes.length, 0); assert.equal(f.state.submits.length, 0);
   });
+});
+
+test('HeyGen raw duplicate avatar/voice IDs are ambiguous before ownership and availability filtering', async () => {
+  for (const collection of ['avatars', 'voices']) {
+    for (const conflict of [{state: 'revoked'}, {owner_subject: 'foreign-wallet'}, {ownership: 'public'}, {ownership: undefined}, {}, {name: 'Another valid variant'}]) {
+      await withFixture(async (f, def, token) => {
+        const owned = {id: collection === 'avatars' ? settings().avatarId : settings().voiceId,
+          ownership: 'owned', state: 'available', owner_subject: f.state.subject,
+          engines: ['avatar_iii'], locales: ['ru']};
+        f.script('heygen', collection === 'avatars' ? 'list_avatars' : 'list_voices', {
+          eligibility: 'small_trial', account_subject: f.state.subject, [collection]: [owned, {...owned, ...conflict}],
+        });
+        await assert.rejects(f.heygen.prepare(def, token, settings(), brief, []), e => codeOf(e) === 'VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE');
+        assert.equal(f.state.quotes.length, 0); assert.equal(f.state.submits.length, 0);
+      });
+    }
+  }
 });
 
 test('HeyGen implicit/unknown renderer, non-exact script or unsupported settings cannot be submitted', async () => {

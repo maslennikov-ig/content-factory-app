@@ -42,6 +42,15 @@ export function videoWorkspacePath(params: { pieceId?: string; draftId?: string;
   for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
   return `/media?${query}`;
 }
+/** Only saved, strictly bounded identifiers may be returned through provider OAuth. */
+export function videoChatReturnPath(threadId?: string, draftId?: string, pieceId?: string, jobId?: string): string | null {
+  const valid = (value: string | undefined): value is string => !!value && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+  if (!valid(threadId) || !valid(draftId) || (pieceId !== undefined && !valid(pieceId)) || (jobId !== undefined && !valid(jobId))) return null;
+  const query = new URLSearchParams({ videoDraftId: draftId });
+  if (pieceId) query.set('pieceId', pieceId);
+  if (jobId) query.set('videoJobId', jobId);
+  return `/agents/${threadId}?${query}`;
+}
 export function videoSettingsForRoute(route: VideoRouteV1, locale: string): VideoSettingsV1 {
   return { provider: route.provider, model: route.model, mode: route.mode, locale,
     duration: route.durations.values?.[0] ?? route.durations.min,

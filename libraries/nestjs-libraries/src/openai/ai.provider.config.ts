@@ -261,11 +261,20 @@ const resolvedSearch = (
 
 const DEFAULT_MODELS: Record<AiProvider, { text: string; classify: string; image: string }> = {
   openai: { text: 'gpt-6.1-terra', classify: 'gpt-6-luna', image: 'chatgpt-image-latest' },
-  openrouter: { text: 'openai/gpt-6.1-terra', classify: 'openai/gpt-6-luna', image: 'openai/gpt-5-image' },
+  openrouter: { text: 'google/gemini-4-argon', classify: 'google/gemini-3.8-flash', image: 'openai/gpt-5-image' },
 };
 
-const operatorRoleDefaults = (provider: AiProvider) => ({
+/** Defaults apply only before a text model or role profile is explicitly selected. */
+export const defaultRoleModelsForProvider = (provider: AiProvider, selectedTextModel?: string | null): AiRoleModels => ({
   classify: DEFAULT_MODELS[provider].classify,
+  ...(provider === 'openrouter' && !selectedTextModel ? {
+    draft: DEFAULT_MODELS[provider].text, agent: DEFAULT_MODELS[provider].text,
+    review: DEFAULT_MODELS[provider].classify, judge: DEFAULT_MODELS[provider].classify,
+  } : {}),
+});
+
+const operatorRoleDefaults = (provider: AiProvider, selectedTextModel?: string | null) => ({
+  ...defaultRoleModelsForProvider(provider, selectedTextModel),
   ...parseRoleModels(readJson(process.env.AI_ROLE_MODELS, 'AI_ROLE_MODELS')),
 });
 
@@ -288,7 +297,7 @@ const envDefaults = () => {
      * ours, so nothing here may hold a table of them. Unparseable reads as
      * «none configured», which is the behaviour the product had before.
      */
-    roleModels: operatorRoleDefaults(provider),
+    roleModels: operatorRoleDefaults(provider, process.env.AI_TEXT_MODEL),
     search: {
       enabled: false,
       provider: 'tavily' as const,
@@ -497,6 +506,26 @@ export const defaultTextFallbackModelForProvider = (provider: AiProvider): strin
     ? DEFAULT_TEXT_FALLBACK_MODEL.slice('openai/'.length)
     : DEFAULT_TEXT_FALLBACK_MODEL;
 
+/** Keep legacy/explicit profiles intact; a new profile retries only its selected model. */
+export const hasConfiguredOperatorRoles = (provider: AiProvider): boolean =>
+  provider === ((process.env.AI_PROVIDER as AiProvider) || 'openai') &&
+  Object.keys(parseRoleModels(readJson(process.env.AI_ROLE_MODELS, 'AI_ROLE_MODELS'))).length > 0;
+
+export const resolveConfiguredTextChain = (
+  provider: AiProvider,
+  stored: StoredInstanceAiDefaults | null | undefined,
+  selectedTextModel?: string | null,
+  selectedRoles = false
+): TextChainSettings => {
+  const current = resolveTextChainSettings(stored);
+  const explicitModels = Boolean(selectedRoles || selectedTextModel || stored?.textModel || Object.keys(parseRoleModels(stored?.roleModels)).length);
+  const explicitChain = typeof stored?.textFlexEnabled === 'boolean' || Boolean(stored?.textFallbackModel) ||
+    Array.isArray(stored?.textFallbackModels) || typeof stored?.textFallbackDisabled === 'boolean';
+  if (provider !== 'openrouter' || explicitModels || explicitChain) return current;
+  return { ...current, flex: true, fallbackModel: '', fallbackModels: [], fallbackDisabled: true,
+    maxRetries: current.maxRetries ?? 1 };
+};
+
 const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
   const env = envDefaults();
   const provider =
@@ -523,12 +552,12 @@ const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
       (provider === env.provider
         ? env.imageModel
         : DEFAULT_MODELS[provider].image),
-    roleModels: Object.keys(storedRoles).length ? storedRoles : operatorRoleDefaults(provider),
+    roleModels: Object.keys(storedRoles).length ? storedRoles : operatorRoleDefaults(provider, instance?.textModel || (provider === env.provider ? process.env.AI_TEXT_MODEL : undefined)),
     modelRouting: resolveModelRoutingSettings(
       readStoredModelRouting(instance?.roleModels),
       defaultAdvancedModelForProvider(provider)
     ),
-    textChain: resolveTextChainSettings(instance),
+    textChain: resolveConfiguredTextChain(provider, instance, provider === env.provider ? process.env.AI_TEXT_MODEL : undefined, hasConfiguredOperatorRoles(provider)),
   };
 };
 
@@ -639,6 +668,7 @@ export const loadAiConfig = async (
           Array.isArray(stored.textFallbackModels) ||
           typeof stored.textFallbackDisabled === 'boolean' ||
           typeof stored.textMaxRetries === 'number';
+        const freshProfile = !stored.textModel && !Object.keys(parseRoleModels(stored.roleModels)).length;
         config = {
           provider,
           usageMode,
@@ -654,7 +684,8 @@ export const loadAiConfig = async (
           // and its names belong to the operator's provider: copied here they
           // would refuse at generation time, far from where anyone set them
           // (review of the 05.09 wave, P1).
-          roleModels: parseRoleModels(stored.roleModels),
+          roleModels: stored.textModel || Object.keys(parseRoleModels(stored.roleModels)).length
+            ? parseRoleModels(stored.roleModels) : defaultRoleModelsForProvider(provider),
           modelRouting: resolveModelRoutingSettings(
             readStoredModelRouting(stored.roleModels),
             defaultAdvancedModelForProvider(provider)
@@ -665,7 +696,9 @@ export const loadAiConfig = async (
           workspaceProvider: provider,
           includedAvailable: !!includedKey,
           search,
-          ...(hasWorkspaceTextChain
+          ...(freshProfile && provider === 'openrouter'
+            ? { textChain: resolveConfiguredTextChain(provider, { ...stored, textFallbackModel: workspaceTextChainRaw, ...(hasWorkspaceTextChain ? { textFlexEnabled: false } : {}) }) }
+            : hasWorkspaceTextChain
             ? {
                 textChain: resolveTextChainSettings({
                   textFlexEnabled: false,

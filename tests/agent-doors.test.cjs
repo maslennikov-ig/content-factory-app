@@ -200,6 +200,7 @@ const setup = ({ parts = [{ type: 'start' }, { type: 'finish' }], hang = false, 
       admissions.push(admission);
       return {
         run: (callback) => callback(),
+        checkpoint: async () => undefined,
         finish: async (succeeded) => void admission.finished.push(succeeded),
       };
     }),
@@ -575,6 +576,160 @@ describe('S2, S4, S7: nobody reaches another person’s conversation', () => {
 });
 
 describe('U2, U3, S6: how a turn ends is how it is billed', () => {
+  test.each(['data-tool-call-suspended','data-tool-call-approval'])('warm native next-gate mirror waits for the same real admission storage before showing %s', async gateType => {
+    const context = setup();
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    const identity = { organizationId: ORG.id, userId: USER_A.id, organizationCreatedAt: ORG.createdAt, role: 'EDITOR', language: 'ru', timeZone: 'UTC' };
+    const session = { suspensions: { has: () => true }, approval: { isArmed: () => true }, resolveToolApproval: () => 'ask' };
+    context.controller.threads.sessionFor = async () => session;
+    const rows = [], config = { usageMode: 'workspace_key', provider: 'openai', apiKey: 'synthetic', textModel: 'synthetic-text' };
+    let block = false, release, writing;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { writing = resolve; });
+    const update = jest.fn(async ({ where, data }) => {
+      if (block && data.costUsd !== undefined) { writing(); await blocked; }
+      Object.assign(rows.find(row => row.id === where.id), data);
+      return {};
+    });
+    const { AiUsageService } = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.usage.service.ts', {
+      '@contentfactory/nestjs-libraries/openai/ai.text-chain': require('./helpers/ai-text-chain.cjs'),
+      '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+        loadAiConfig: async () => config, getActiveAiOrganizationId: () => undefined,
+        getActiveAiConfig: () => undefined, withActiveAiConfig: (_org, _config, callback) => callback(),
+        setAiProviderSettingReader() {}, setInstanceAiDefaultsReader() {}, INSTANCE_AI_DEFAULTS_ID: 'instance',
+      },
+    });
+    const usage = new AiUsageService({ aiUsageRecord: { create: async ({ data }) => { const row = { id: 'shared-admission', ...data, costUsd: null }; rows.push(row); return row; }, update } });
+    let admission;
+    context.aiUsage.beginAiOperation.mockImplementation(async (...args) => { admission = await usage.beginAiOperation(...args); return admission; });
+    let transport;
+    context.handleChatStream.mockResolvedValueOnce(new ReadableStream({ start(controller) { transport = controller; controller.enqueue({ type: 'start' }); } }));
+    const ownerResponse = new FakeResponse();
+    const owning = context.controller.chat(ORG, USER_A, { threadId: 'thread-a-1', messages: [userMessage()] }, ownerResponse);
+    let mirror;
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      const owner = await context.controller.threads.activeTurnFor(identity, 'thread-a-1');
+      await context.controller.threads.rememberNativeRun(identity, 'thread-a-1', 'native-run', owner.requestId);
+      const record = costUsd => admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({ model: 'synthetic-text', attempt: 1, costUsd }));
+      record(0.125);
+      const part = call => ({ type: 'data-tool-call-suspended', data: { runId: 'native-run', toolCallId: call, toolName: 'avatar_activate' } });
+      transport.enqueue(part('first-question'));
+      await new Promise(resolve => setImmediate(resolve));
+      expect(ownerResponse.writableEnded).toBe(true);
+      expect(rows[0]).toMatchObject({ status: 'admitted', costUsd: 0.125 });
+      record(0.25); block = true;
+      const next = { ...part('next-question'), type: gateType };
+      transport.enqueue(next);
+      await started;
+      const res = new FakeResponse();
+      mirror = context.controller.pipeNativeAnswer(scriptedStream([next]).stream, identity, 'thread-a-1', session, res);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(res.parts()).toEqual([]);
+      expect(res.writableEnded).toBe(false);
+      expect(rows[0].costUsd).toBe(0.125);
+      block = false; release(); await mirror;
+      expect(res.parts()).toContainEqual(next);
+      expect(res.writableEnded).toBe(true);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'admitted', costUsd: 0.375 });
+      expect(context.aiUsage.beginAiOperation).toHaveBeenCalledTimes(1);
+    } finally { block = false; release(); transport.close(); await mirror; await owning; }
+    expect(rows[0]).toMatchObject({ status: 'succeeded', costUsd: 0.375 });
+    expect(await context.controller.threads.activeTurnFor(identity, 'thread-a-1')).toBeNull();
+  });
+
+  test('warm native barrier cannot invoke a foreign, stale-request, stale-run or replaced owner', async () => {
+    const context=setup();await threadOf(context,'thread-a-1',RESOURCE_A);
+    const identity={organizationId:ORG.id,userId:USER_A.id,organizationCreatedAt:ORG.createdAt,role:'EDITOR',language:'ru',timeZone:'UTC'};
+    const threads=context.controller.threads,checkpoint=jest.fn(async()=>true);
+    const owner=threads.registerActiveTurn({identity,threadId:'thread-a-1',requestId:'owner-request',onStop(){},checkpointUsage:checkpoint});
+    const event={type:'data-native-input-wait',data:{runId:'native-run'}};
+    await threads.rememberNativeRun(identity,'thread-a-1','native-run','different-request');
+    await context.controller.checkpointNativeMirror(identity,'thread-a-1',event);
+    await threads.rememberNativeRun(identity,'thread-a-1','native-run','owner-request');
+    await context.controller.checkpointNativeMirror(identity,'thread-a-1',{...event,data:{runId:'old-run'}});
+    await expect(context.controller.checkpointNativeMirror({...identity,userId:USER_B.id},'thread-a-1',event)).rejects.toMatchObject({response:{code:'AGENT_NOT_YOURS'}});
+    expect(checkpoint).not.toHaveBeenCalled();
+    const next=jest.fn(async()=>true),replacement=threads.registerActiveTurn({identity,threadId:'thread-a-1',requestId:'successor',onStop(){},checkpointUsage:next});
+    expect(await owner.checkpointUsage()).toBeUndefined();expect(checkpoint).not.toHaveBeenCalled();expect(next).not.toHaveBeenCalled();
+    owner.finishStream();expect(await threads.activeTurnFor(identity,'thread-a-1')).toBe(replacement);
+    replacement.finishStream();expect(await replacement.checkpointUsage()).toBeUndefined();
+    expect(await threads.activeTurnFor(identity,'thread-a-1')).toBeNull();
+  });
+
+  test('warm native approval preview is held before its display while the owner checkpoint is pending',async()=>{
+    const context=setup();await threadOf(context,'thread-a-1',RESOURCE_A);
+    const identity={organizationId:ORG.id,userId:USER_A.id,organizationCreatedAt:ORG.createdAt,role:'EDITOR',language:'ru',timeZone:'UTC'};
+    let release;const stored=new Promise(resolve=>{release=resolve;});
+    const checkpoint=jest.fn(async()=>{await stored;return true;});
+    const owner=context.controller.threads.registerActiveTurn({identity,threadId:'thread-a-1',requestId:'owner-request',onStop(){},checkpointUsage:checkpoint});
+    await context.controller.threads.rememberNativeRun(identity,'thread-a-1','native-run','owner-request');
+    const request={type:'tool-approval-request',approvalId:'native-run::call',toolCallId:'call'},res=new FakeResponse();
+    const mirrored=context.controller.pipeNativeAnswer(scriptedStream([request]).stream,identity,'thread-a-1',{},res);
+    try{await new Promise(resolve=>setImmediate(resolve));expect(checkpoint).toHaveBeenCalledTimes(1);expect(res.parts()).toEqual([]);expect(res.writableEnded).toBe(false);}
+    finally{release();await mirrored;owner.finishStream();}
+    expect(res.parts()).toContainEqual(request);
+  });
+
+  test('warm native question remains available and explicitly uncheckpointed on owner persistence failure',async()=>{
+    const context=setup();await threadOf(context,'thread-a-1',RESOURCE_A);
+    const identity={organizationId:ORG.id,userId:USER_A.id,organizationCreatedAt:ORG.createdAt,role:'EDITOR',language:'ru',timeZone:'UTC'};
+    const checkpoint=jest.fn(async()=>false),owner=context.controller.threads.registerActiveTurn({identity,threadId:'thread-a-1',requestId:'owner-request',onStop(){},checkpointUsage:checkpoint});
+    await context.controller.threads.rememberNativeRun(identity,'thread-a-1','native-run','owner-request');
+    const part={type:'data-tool-call-suspended',data:{runId:'native-run',toolCallId:'question',toolName:'avatar_activate'}},res=new FakeResponse();
+    const warning=jest.spyOn(context.controller.logger,'warn').mockImplementation(()=>{});
+    try{
+      await context.controller.pipeNativeAnswer(scriptedStream([part]).stream,identity,'thread-a-1',{suspensions:{has:()=>true}},res);
+      expect(checkpoint).toHaveBeenCalledTimes(1);expect(warning).toHaveBeenCalledWith('Agent usage checkpoint was not saved before waiting for input.');
+      expect(res.parts()).toContainEqual(part);expect(res.parts().some(value=>value.type==='error')).toBe(false);
+      expect(context.aiUsage.beginAiOperation).not.toHaveBeenCalled();
+    }finally{warning.mockRestore();owner.finishStream();}
+  });
+
+  test.each(['data-tool-call-approval', 'data-tool-call-suspended'])('native input wait checkpoints usage before exposing and detaching %s', async type => {
+    const part = { type, data: { runId: 'native-run', toolCallId: 'native-call', toolName: 'piece_delete' } };
+    const context = setup({ parts: [{ type: 'start' }, part, { type: 'finish' }] });
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    context.controller.threads.sessionFor = async () => ({ suspensions: { has: () => true }, approval: { isArmed: () => true }, resolveToolApproval: () => 'ask' });
+    let release;
+    const stored = new Promise(resolve => { release = resolve; });
+    const checkpoint = jest.fn(async () => { await stored; return true; }), finish = jest.fn();
+    context.aiUsage.beginAiOperation.mockResolvedValueOnce({ run: callback => callback(), checkpoint, finish });
+    const res = new FakeResponse();
+    const running = context.controller.chat(ORG, USER_A, { threadId: 'thread-a-1', messages: [userMessage()] }, res);
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      expect(checkpoint).toHaveBeenCalledTimes(1);
+      expect(res.parts().some(value => value.type === 'data-native-input-wait')).toBe(false);
+      expect(res.writableEnded).toBe(false);
+      expect(finish).not.toHaveBeenCalled();
+    } finally { release(); await running; }
+    expect(res.parts()).toContainEqual(part);
+    expect(res.parts()).toContainEqual({ type: 'data-native-input-wait', data: { runId: 'native-run' }, transient: true });
+    expect(context.aiUsage.beginAiOperation).toHaveBeenCalledTimes(1);
+    expect(finish).toHaveBeenCalledTimes(1);
+  });
+
+  test('native input wait remains available when its usage checkpoint could not be saved', async () => {
+    const part = { type: 'data-tool-call-suspended', data: { runId: 'native-run', toolCallId: 'native-call', toolName: 'avatar_activate' } };
+    const context = setup({ parts: [{ type: 'start' }, part, { type: 'finish' }] });
+    await threadOf(context, 'thread-a-1', RESOURCE_A);
+    context.controller.threads.sessionFor = async () => ({ suspensions: { has: () => true } });
+    const checkpoint = jest.fn(async () => false), finish = jest.fn();
+    context.aiUsage.beginAiOperation.mockResolvedValueOnce({ run: callback => callback(), checkpoint, finish });
+    const warning = jest.spyOn(context.controller.logger, 'warn').mockImplementation(() => {});
+    try {
+      const res = await chat(context, { threadId: 'thread-a-1', messages: [userMessage()] });
+      expect(checkpoint).toHaveBeenCalledTimes(1);
+      expect(warning).toHaveBeenCalledWith('Agent usage checkpoint was not saved before waiting for input.');
+      expect(res.parts()).toContainEqual(part);
+      expect(res.parts()).toContainEqual({ type: 'data-native-input-wait', data: { runId: 'native-run' }, transient: true });
+      expect(res.parts().some(value => value.type === 'error')).toBe(false);
+      expect(context.aiUsage.beginAiOperation).toHaveBeenCalledTimes(1);
+    } finally { warning.mockRestore(); }
+  });
+
   test('U2: a turn whose stream carries an error is closed as failed', async () => {
     const context = setup({
       parts: [
@@ -1247,4 +1402,22 @@ describe('A3: /agent/chat is throttled per person', () => {
       .map((match) => match[1]);
     expect(guardedMethods).toEqual(['chat', 'signalThread']);
   });
+});
+
+test.each([undefined,'fact'])('native fact delegation is rejected before admission or resume normalization (%s)',async questionPurpose=>{
+ const context=setup();await threadOf(context,'thread-a-1',RESOURCE_A);
+ const payload={question:'Actual price and currency?',...(questionPurpose?{questionPurpose}:{}),canDecideForPerson:false};
+ context.mastra.runs.push({runId:'fact-run',threadId:'thread-a-1',resourceId:RESOURCE_A,toolCalls:[{toolCallId:'fact-call',toolName:'ask_user',requiresApproval:false,suspendPayload:payload}]});
+ await expect(chat(context,{threadId:'thread-a-1',runId:'fact-run',toolCallId:'fact-call',cardId:CARD(payload),resumeData:{decideForPerson:true}})).rejects.toMatchObject({code:'AGENT_BAD_REQUEST'});
+ expect(context.aiUsage.beginAiOperation).not.toHaveBeenCalled();expect(context.handleChatStream).not.toHaveBeenCalled();
+});
+test('native creative delegation retains its typed object through controller admission and legacy fact deferral keeps its original card',async()=>{
+ const context=setup();await threadOf(context,'thread-a-1',RESOURCE_A);
+ const creative={question:'Which structure?',questionPurpose:'creative',canDecideForPerson:true};
+ const legacy={question:'Actual price and currency?'};
+ for(const [id,payload]of [['creative',creative],['legacy',legacy]])context.mastra.runs.push({runId:id,threadId:'thread-a-1',resourceId:RESOURCE_A,toolCalls:[{toolCallId:id,toolName:'ask_user',requiresApproval:false,suspendPayload:payload}]});
+ await chat(context,{threadId:'thread-a-1',runId:'creative',toolCallId:'creative',cardId:CARD(creative),resumeData:{decideForPerson:true}});
+ expect(context.handleChatStream.mock.calls[0][0].params.resumeData).toEqual({decideForPerson:true});
+ await chat(context,{threadId:'thread-a-1',runId:'legacy',toolCallId:'legacy',cardId:CARD(legacy),resumeData:{answer:'I cannot supply the price yet.'}});
+ expect(context.handleChatStream.mock.calls[1][0].params.resumeData).toBe('I cannot supply the price yet.');expect(context.admissions).toHaveLength(2);
 });

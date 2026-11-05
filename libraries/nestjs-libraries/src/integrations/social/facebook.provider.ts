@@ -1,4 +1,9 @@
 import {
+  normalizeAnalytics,
+  analyticsNumber,
+  completeAnalyticsSum,
+} from './analytics.data';
+import {
   AnalyticsData,
   AuthTokenDetails,
   PostDetails,
@@ -777,17 +782,12 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
     // page_media_view returns paid/organic breakdowns as an object; sum them to
     // keep the single-total UI working.
-    const sumValue = (value: any): number => {
-      if (value && typeof value === 'object') {
-        return Object.values(value as Record<string, number>).reduce(
-          (sum: number, v: number) => sum + (Number(v) || 0),
-          0
-        );
-      }
-      return Number(value) || 0;
-    };
+    const sumValue = (value: unknown): number | null =>
+      value && typeof value === 'object'
+        ? completeAnalyticsSum(Object.values(value))
+        : analyticsNumber(value);
 
-    return (
+    return normalizeAnalytics(
       data?.map((d: any) => ({
         label:
           d.name === 'page_total_media_view_unique'
@@ -797,7 +797,7 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
             : d.name === 'page_daily_follows'
             ? 'Page followers'
             : 'Media views',
-        percentageChange: 5,
+        percentageChange: null as number | null,
         data: d?.values?.map((v: any) => ({
           total: sumValue(v.value),
           date: dayjs(v.end_time).format('YYYY-MM-DD'),
@@ -833,7 +833,7 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
       for (const metric of data) {
         const value = metric.values?.[0]?.value;
-        if (value === undefined) continue;
+        if (value === undefined || value === null) continue;
 
         let label = '';
         let total = '';
@@ -847,38 +847,38 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
             label = 'Clicks';
             total = String(value);
             break;
-          case 'post_clicks_by_type':
-            // This returns an object with click types
-            if (typeof value === 'object') {
-              const totalClicks = Object.values(
-                value as Record<string, number>
-              ).reduce((sum: number, v: number) => sum + v, 0);
+          case 'post_clicks_by_type': {
+            const totalClicks = typeof value === 'object'
+              ? completeAnalyticsSum(Object.values(value))
+              : null;
+            if (totalClicks !== null) {
               label = 'Clicks by Type';
               total = String(totalClicks);
             }
             break;
-          case 'post_reactions_by_type_total':
-            // This returns an object with reaction types
-            if (typeof value === 'object') {
-              const totalReactions = Object.values(
-                value as Record<string, number>
-              ).reduce((sum: number, v: number) => sum + v, 0);
+          }
+          case 'post_reactions_by_type_total': {
+            const totalReactions = typeof value === 'object'
+              ? completeAnalyticsSum(Object.values(value))
+              : null;
+            if (totalReactions !== null) {
               label = 'Reactions';
               total = String(totalReactions);
             }
             break;
+          }
         }
 
         if (label) {
           result.push({
             label,
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total, date: today }],
           });
         }
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching Facebook post analytics:', err);
       return [];

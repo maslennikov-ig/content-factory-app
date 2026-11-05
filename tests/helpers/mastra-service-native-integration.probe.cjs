@@ -223,24 +223,22 @@ async function createRuntime(options = {}) {
     return model;
   };
   class PrismaService {}
+  const fixtureRisk = options.fixtureRisk || (options.fixtureMode === 'approval'
+    ? 'confirm' : options.fixtureMode === 'question' ? 'input' : 'read');
+  // Exercise real door/role filtering without inheriting unrelated production
+  // metadata. Catalogue order is not a fixture contract: the first confirm
+  // action can require ADMIN while these native sessions belong to EDITOR.
+  const fixtureDoorId = {
+    read: 'video.catalog', confirm: 'adaptation.delete',
+    input: 'avatar.activate', write: 'piece.rename',
+  }[fixtureRisk];
+  const fixtureDoor = registry.CAPABILITY_CATALOGUE.find(entry => entry.id === fixtureDoorId)?.door;
+  assert.ok(fixtureDoor, `Missing native fixture door for risk ${fixtureRisk}.`);
   const capability = {
-    ...registry.CAPABILITY_CATALOGUE.find(
-      (entry) =>
-        entry.risk ===
-        (options.fixtureRisk || (options.fixtureMode === 'approval'
-          ? 'confirm'
-          : options.fixtureMode === 'question'
-          ? 'input'
-          : 'read'))
-    ),
     id: 'fixture.persist',
     group: 'content',
-    risk: options.fixtureRisk || (
-      options.fixtureMode === 'approval'
-        ? 'confirm'
-        : options.fixtureMode === 'question'
-        ? 'input'
-        : 'read'),
+    risk: fixtureRisk,
+    door: fixtureDoor,
     label: { ru: 'Фикстура', en: 'Fixture' },
     description: 'Fixture operation.',
     input: z.object({}),
@@ -326,10 +324,14 @@ async function createRuntime(options = {}) {
   const aiUsage = {
     prepareModelExecution: async (_org, _operation, factory) => factory(),
     beginAiOperation: async (organizationId, operation, role) => {
-      const entry = { organizationId, operation, role, finishes: [] };
+      const entry = { organizationId, operation, role, finishes: [], checkpoints: 0 };
       admissions.push(entry);
       return {
         run: (work) => work(),
+        checkpoint: async () => {
+          entry.checkpoints++;
+          return true;
+        },
         voidUnstarted: async () => {
           entry.voided = true;
         },

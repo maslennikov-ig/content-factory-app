@@ -3,8 +3,11 @@
 The OAuth issuer, account subject, MCP tool names, schemas, eligibility,
 credit quotes and responses in this directory are **invented local contracts**.
 They are not captured Higgsfield or HeyGen account responses. The reviewed
-production schema digest allowlists remain empty and production subscription
-runtime definitions remain disabled.
+production schema digest allowlists remain empty and production generation
+runtime definitions remain disabled. First-party OAuth connection can proceed
+independently into non-spendable discovery_required; it does not approve a schema
+or wallet profile. Owned-asset account_subject/owner_subject/ownership/state fields
+are also synthetic, not asserted live provider responses.
 
 The fixtures exercise the actual pinned MCP SDK against an owned loopback HTTP
 server. Tool schemas are hashed through the application's canonical

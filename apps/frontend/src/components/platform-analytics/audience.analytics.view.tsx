@@ -12,9 +12,9 @@ import {
 
 export type AudienceMetric = Readonly<{
   label: string;
-  data: readonly Readonly<{ total: number; date: string }>[];
+  data: readonly Readonly<{ total: number | string; date: string }>[];
   average?: boolean;
-  percentageChange?: number;
+  percentageChange?: number | null;
 }>;
 
 export type AudienceChannel = Readonly<{
@@ -187,7 +187,7 @@ export function AudienceAnalyticsView({
                   headingLevel={3}
                   tone="subtle"
                   label={metric.label}
-                  value={value}
+                  value={value ?? '—'}
                   note={`${metric.data.length} ${ru ? 'точек' : 'points'}`}
                 />
               );

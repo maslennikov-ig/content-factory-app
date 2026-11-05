@@ -1,3 +1,4 @@
+import { normalizeAnalytics, completeAnalyticsSum } from './analytics.data';
 import type { TweetV2, TwitterApi } from 'twitter-api-v2';
 import { createHmac, randomBytes } from 'crypto';
 import {
@@ -736,48 +737,28 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         }
       );
 
-      const metrics = data.data.reduce(
-        (all, current) => {
-          all.impression_count =
-            (all.impression_count || 0) +
-            +current.public_metrics.impression_count;
-          all.bookmark_count =
-            (all.bookmark_count || 0) + +current.public_metrics.bookmark_count;
-          all.like_count =
-            (all.like_count || 0) + +current.public_metrics.like_count;
-          all.quote_count =
-            (all.quote_count || 0) + +current.public_metrics.quote_count;
-          all.reply_count =
-            (all.reply_count || 0) + +current.public_metrics.reply_count;
-          all.retweet_count =
-            (all.retweet_count || 0) + +current.public_metrics.retweet_count;
-
-          return all;
-        },
-        {
-          impression_count: 0,
-          bookmark_count: 0,
-          like_count: 0,
-          quote_count: 0,
-          reply_count: 0,
-          retweet_count: 0,
-        }
-      );
-
-      return Object.entries(metrics).map(([key, value]) => ({
-        label: key.replace('_count', '').replace('_', ' ').toUpperCase(),
-        percentageChange: 5,
-        data: [
-          {
-            total: String(0),
-            date: since.format('YYYY-MM-DD'),
-          },
-          {
-            total: String(value),
+      // All counters are observed now for tweets selected by publication
+      // date. No API observation exists at the start of the chosen period.
+      const metrics = [
+        'impression_count',
+        'bookmark_count',
+        'like_count',
+        'quote_count',
+        'reply_count',
+        'retweet_count',
+      ] as const;
+      return normalizeAnalytics(
+        metrics.map((key) => ({
+          label: key.replace('_count', '').replace('_', ' ').toUpperCase(),
+          percentageChange: null,
+          data: [{
+            total: data.data?.length === tweets.length
+              ? completeAnalyticsSum(data.data.map((tweet) => tweet.public_metrics?.[key]))
+              : null,
             date: until.format('YYYY-MM-DD'),
-          },
-        ],
-      }));
+          }],
+        }))
+      );
     } catch (err) {
       console.log(err);
     }
@@ -823,7 +804,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.impression_count !== undefined) {
         result.push({
           label: 'Impressions',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.impression_count), date: today }],
         });
       }
@@ -831,7 +812,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.like_count !== undefined) {
         result.push({
           label: 'Likes',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.like_count), date: today }],
         });
       }
@@ -839,7 +820,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.retweet_count !== undefined) {
         result.push({
           label: 'Retweets',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.retweet_count), date: today }],
         });
       }
@@ -847,7 +828,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.reply_count !== undefined) {
         result.push({
           label: 'Replies',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.reply_count), date: today }],
         });
       }
@@ -855,7 +836,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.quote_count !== undefined) {
         result.push({
           label: 'Quotes',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.quote_count), date: today }],
         });
       }
@@ -863,12 +844,12 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       if (metrics.bookmark_count !== undefined) {
         result.push({
           label: 'Bookmarks',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(metrics.bookmark_count), date: today }],
         });
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.log('Error fetching X post analytics:', err);
     }

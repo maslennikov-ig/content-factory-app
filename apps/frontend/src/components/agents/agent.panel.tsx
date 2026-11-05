@@ -47,6 +47,8 @@ import { AgentWorkspaceBrowserContent } from './agent.workspace-browser';
  * conversation that the person opens from the line in the chat.
  */
 
+const SocialFactoryCampaign = dynamic(() => import('../social-factory/campaign').then(module => module.SocialFactoryCampaign), { ssr: false, loading: () => <SkeletonRows rows={4} /> });
+
 const PieceContainer = dynamic(
   () =>
     import(
@@ -116,12 +118,19 @@ export function ArtifactEditor({
   words,
   onWriteFromLead,
   onSelectArtifact,
+  onRequest,
+  chatThreadId,
+  onBindChatVideo,
 }: {
   artifact: AgentArtifact;
   words: AgentWords;
   onWriteFromLead?: WriteFromLead;
   onSelectArtifact?: (artifact: AgentArtifact) => void;
+  onRequest?: (text:string) => void;
+  chatThreadId?: string | null;
+  onBindChatVideo?: (value: {threadId: string; draftId: string; pieceId?: string; jobId?: string}) => Promise<void>;
 }) {
+  if (artifact.kind === 'campaign') return <SocialFactoryCampaign key={artifact.id} campaignId={artifact.id} onRequest={onRequest} />;
   if (artifact.kind === 'workspace' || artifact.kind === 'channels') {
     return <AgentWorkspaceBrowserContent words={words} initialKind={artifact.kind === 'channels' ? 'channel' : 'piece'} onSelect={onSelectArtifact ?? ((selected) => window.location.assign(artifactHref(selected)))} />;
   }
@@ -181,7 +190,7 @@ export function ArtifactEditor({
   if (artifact.kind === 'media') {
     const videoJobId = textOf(artifact.data.videoJobId);
     const videoDraftId = textOf(artifact.data.videoDraftId);
-    if (videoJobId || videoDraftId) return <VideoWorkspace embedded key={`${videoJobId ?? ''}:${videoDraftId ?? ''}`} jobId={videoJobId ?? undefined} draftId={videoDraftId ?? undefined} pieceId={textOf(artifact.data.pieceId) ?? undefined} />;
+    if (videoJobId || videoDraftId) return <VideoWorkspace embedded key={`${videoJobId ?? ''}:${videoDraftId ?? ''}`} jobId={videoJobId ?? undefined} draftId={videoDraftId ?? undefined} pieceId={textOf(artifact.data.pieceId) ?? undefined} chatThreadId={chatThreadId ?? undefined} onBindChatVideo={onBindChatVideo} />;
     // «Медиатека» itself (`kcxz.25`), as its page shows it: newest first, so a
     // picture the chat generated or the composer uploaded is the first one.
     return <MediaBox standalone setMedia={keepMedia} closeModal={keepMedia} />;

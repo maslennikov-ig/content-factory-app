@@ -147,39 +147,84 @@ test('recovery activity selects V107 without changing IDs, tenant attributes or 
   expect(signalWithStart.mock.calls[0][1].typedSearchAttributes.get(attributes.organizationId)).toBe('org');
 });
 
-test('cron registration selects new recovery loop only under the existing RUN_CRON switch', async () => {
-  const saved = process.env.RUN_CRON;
+function recoveryRegistration(workflow) {
   const decorator = () => () => {};
   const { InfiniteWorkflowRegister } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts', {
       '@nestjs/common': { Injectable: decorator, Global: decorator, Module: decorator },
       'nestjs-temporal-core': { TemporalService: class {} },
     });
-  const start = jest.fn(async () => {});
-  const registration = new InfiniteWorkflowRegister({ client: { getRawClient: () => ({ workflow: { start } }) } });
+  return new InfiniteWorkflowRegister({ client: { getRawClient: () => ({ workflow }) } });
+}
+
+test('cron registration retires only the previous recovery before V110 under the existing RUN_CRON switch', async () => {
+  const saved = process.env.RUN_CRON, order = [];
+  const terminate = jest.fn(async () => { order.push('retired'); });
+  const getHandle = jest.fn(() => ({ terminate }));
+  const start = jest.fn(async () => { order.push('started'); });
+  const registration = recoveryRegistration({ getHandle, start });
   try {
     delete process.env.RUN_CRON;
     await registration.onModuleInit();
+    expect(getHandle).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
     process.env.RUN_CRON = '1';
     await registration.onModuleInit();
-    expect(start).toHaveBeenCalledWith('missingPostWorkflowV109', {
-      workflowId: 'missing-post-workflow-v108', taskQueue: 'main',
+    expect(getHandle.mock.calls).toEqual([['missing-post-workflow-v108']]);
+    expect(terminate).toHaveBeenCalledWith('guarded campaign publication recovery v110');
+    expect(start).toHaveBeenCalledWith('missingPostWorkflowV110', {
+      workflowId: 'missing-post-workflow-v110', taskQueue: 'main',
       workflowIdConflictPolicy: 'USE_EXISTING',
     });
+    expect(order).toEqual(['retired', 'started']);
   } finally {
     if (saved === undefined) delete process.env.RUN_CRON; else process.env.RUN_CRON = saved;
   }
 });
 
-test('new recovery loop invokes its versioned activity and retains hourly cadence', async () => {
+test.each(['WorkflowNotFoundError', 'already completed'])('recovery migration tolerates an old root that is %s', async absence => {
+  const saved = process.env.RUN_CRON;
+  const error = absence === 'WorkflowNotFoundError'
+    ? Object.assign(new Error('Synthetic absent recovery'), { name: absence })
+    : new Error('Synthetic recovery already completed');
+  const start = jest.fn(async () => {});
+  const registration = recoveryRegistration({ getHandle: () => ({ terminate: async () => { throw error; } }), start });
+  try {
+    process.env.RUN_CRON = '1';
+    await registration.onModuleInit();
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls[0][0]).toBe('missingPostWorkflowV110');
+  } finally {
+    if (saved === undefined) delete process.env.RUN_CRON; else process.env.RUN_CRON = saved;
+  }
+});
+
+test.each(['getHandle', 'terminate'])('recovery migration refuses to start V110 when %s fails', async failure => {
+  const saved = process.env.RUN_CRON;
+  const start = jest.fn(async () => {});
+  const error = new Error('Synthetic recovery migration permission failure');
+  const registration = recoveryRegistration({ getHandle: () => {
+    if (failure === 'getHandle') throw error;
+    return { terminate: async () => { throw error; } };
+  }, start });
+  try {
+    process.env.RUN_CRON = '1';
+    await expect(registration.onModuleInit()).rejects.toThrow('PUBLICATION_RECOVERY_MIGRATION_FAILED');
+    expect(start).not.toHaveBeenCalled();
+  } finally {
+    if (saved === undefined) delete process.env.RUN_CRON; else process.env.RUN_CRON = saved;
+  }
+});
+
+test.each([107, 110])('V%s recovery invokes its versioned activity and retains hourly cadence', async version => {
   const activity = jest.fn(async () => {});
   const stop = new Error('Owned fixture loop finished');
   const sleep = jest.fn(async () => { throw stop; });
-  const { missingPostWorkflowV107 } = loadTypeScriptModule('apps/orchestrator/src/workflows/missing.post.workflow.v107.ts', {
-    '@temporalio/workflow': { proxyActivities: () => ({ searchForMissingThreeHoursPostsV107: activity }), sleep },
+  const name = `missingPostWorkflowV${version}`;
+  const workflow = loadTypeScriptModule(`apps/orchestrator/src/workflows/missing.post.workflow.v${version}.ts`, {
+    '@temporalio/workflow': { proxyActivities: () => ({ [`searchForMissingThreeHoursPostsV${version}`]: activity }), sleep },
   });
-  await expect(missingPostWorkflowV107()).rejects.toBe(stop);
+  await expect(workflow[name]()).rejects.toBe(stop);
   expect(activity).toHaveBeenCalledTimes(1);
   expect(sleep).toHaveBeenCalledWith('1 hour');
 });

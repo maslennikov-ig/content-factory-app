@@ -12,6 +12,8 @@
   "delete": "حذف",
   "add_a_webhook": "إضافة رابط ويب",
   "save": "حفظ",
+  "refresh": "تحديث",
+  "saving": "جارٍ الحفظ…",
   "send_test": "إرسال اختبار",
   "select_role": "اختر الدور",
   "video_made_with_ai": "فيديو تم إنشاؤه بالذكاء الاصطناعي",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "تحميل النسخة المحفوظة",
   "video_v1_reviewSnapshot": "راجع النص والإعدادات قبل البدء",
   "video_v1_paymentNote": "قد تتجاوز رسوم المزوّد التقدير أو المبلغ المحجوز. الإلغاء والاسترداد غير مضمونين؛ HeyGen لا يدعم الإلغاء.",
-  "video_v1_approvalChanged": "تغيّرت المسودة المحفوظة. راجع النسخة الجديدة والسعر قبل البدء."
+  "video_v1_approvalChanged": "تغيّرت المسودة المحفوظة. راجع النسخة الجديدة والسعر قبل البدء.",
+  "validation_tiktok_privacy_required": "قبل النشر، اختر خصوصية TikTok من الخيارات الحالية للحساب.",
+  "validation_tiktok_account_unavailable": "إعدادات حساب TikTok غير متاحة. حاول مرة أخرى أو أعد ربط القناة.",
+  "validation_tiktok_interactions_changed": "تغيّرت إعدادات التفاعل في TikTok. راجع التعليقات وDuet وStitch قبل النشر.",
+  "validation_tiktok_disclosure_invalid": "يجب أن يتوافق الإفصاح التجاري في TikTok مع العلامات التجارية وإعدادات الخصوصية المحددة قبل النشر.",
+  "validation_tiktok_duration_invalid": "مدة فيديو TikTok غير متاحة أو تتجاوز الحد الحالي للحساب. تحقق من الفيديو قبل النشر."
 }

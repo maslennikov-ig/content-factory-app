@@ -43,8 +43,9 @@ const date = z.string().max(35).refine((value) => {
 });
 
 const contextSchema = z.object({
+  clipPilotId: id.optional(),
   version: z.literal(AGENT_WORK_CONTEXT_VERSION),
-  kind: z.enum(['workspace', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'calendar', 'ideas', 'facts', 'media']),
+  kind: z.enum(['workspace', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'campaign', 'calendar', 'ideas', 'facts', 'media']),
   id: id.optional(),
   pieceId: id.optional(),
   channelId: id.optional(),
@@ -56,6 +57,7 @@ const contextSchema = z.object({
   revision: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/).optional(),
 }).strict().superRefine((value, ctx) => {
   const invalid = () => ctx.addIssue({ code: 'custom', message: 'Inconsistent context scope.' });
+  if (value.clipPilotId && (value.kind !== 'piece' || !(value.id || value.pieceId))) invalid();
   if (value.kind === 'piece' && value.id && value.pieceId && value.id !== value.pieceId) invalid();
   if (value.kind === 'channel' && value.id && value.channelId && value.id !== value.channelId) invalid();
   if ((value.kind === 'adaptation' || value.kind === 'plan') && value.id && value.adaptationId && value.id !== value.adaptationId) invalid();
@@ -66,14 +68,14 @@ const contextSchema = z.object({
   if (video && (value.kind !== 'media' || value.id && value.id !== 'library')) invalid();
   if (value.pieceId && !['piece', 'adaptation', 'plan'].includes(value.kind) && !(value.kind === 'media' && video)) invalid();
   if (value.adaptationId && !['adaptation', 'plan'].includes(value.kind)) invalid();
-  if (value.channelId && !['channel', 'adaptation', 'plan', 'calendar'].includes(value.kind)) invalid();
+  if (value.channelId && !['channel', 'adaptation', 'plan', 'campaign', 'calendar'].includes(value.kind)) invalid();
   if ((value.from || value.to) && !['calendar', 'plan'].includes(value.kind)) invalid();
   if (!!value.from !== !!value.to) invalid();
   if (value.from && value.to && (Date.parse(value.to) <= Date.parse(value.from) || Date.parse(value.to) - Date.parse(value.from) > 366 * 86_400_000)) invalid();
 }) as z.ZodType<AgentWorkContextV1>;
 
 const artifactSchema = z.object({
-  kind: z.enum(['workspace', 'channels', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'ideas', 'facts', 'media']),
+  kind: z.enum(['workspace', 'channels', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'campaign', 'ideas', 'facts', 'media']),
   id,
   pieceId: id.optional(),
   channelId: id.optional(),

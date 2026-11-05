@@ -1,138 +1,183 @@
-# Content Factory current handoff — 1 November 2026
+# Content Factory current handoff — 5 November 2026 (Moscow)
 
-## Telegram editorial follow-up — local, 2 November 2026
+Current stage id: social-factory-20261103
 
-`content-factory-next-g4qy`: owner-reported live digest exposed optional length
-negotiation, metadata-only title and the prior explicit no-correction rule.
-Current changes share Telegram editorial rules across all three writing stages
-and permit one inline correction in the existing pre-save review call. Native
-agent generation proposes 2–3 task-specific length choices; manual channel
-numbers are only an explicit secondary choice. Selected/edited values persist
-per material, including after native recovery. No channel settings are silently
-changed. Applied corrections persist separately from remaining findings.
-Owner authorized push, merge and deployment; release acceptance is in progress.
-No paid model check or external send. See
-[local result and limits](stages/editorial-followup-20261102/outcome.md).
+## Current
 
-## Production release — Telegram editorial quality, 2 November 2026
+**Pre-release freeze snapshot.** Accepted integrated application source:
+`b3e5d38c76a27288f4861fb6136418eb03148b20`, tree
+`2d9a5351013681cd1389552ddb520a1818d8362b` (`.19` plus `.21` source accepted).
+This five-document followup freezes candidate C; later runtime/release facts live
+in the existing private execution checkpoint and immutable receipts, avoiding
+source churn that invalidates an exact-candidate gate. No current runtime follows
+HEAD automatically. QA still serves application `34f7fd454e03759e1e80410f98304c97380a2599`,
+tree `4c86e303fb7da7cf949a4c73f67bd425bf31dc31`, until D receives exact candidate GO.
+All three QA roles run APP34: backend PID 62488, frontend PID 63050 and sole worker
+PID 62758. Fresh-browser automatic sign-in and `/agents` HTTP 200 are accepted.
+Parent 62 / history 66 / pending 0, seven jobs / seventeen Media and existing
+assets, failed usage, accounts, grants and configuration were preserved.
 
-`content-factory-next-s1fi`: runtime/public source `0bdd01349db6`, private source
-`dc1be38711f1`, previous rollback `658f835b5f18`. Full local suite, application
-build and both exact-source public CI workflows passed. Runtime healthy, three
-processes online/zero restarts, schema diff empty and Mastra 47 tables unchanged.
-No paid model call or actual Telegram send; account-specific rendering and live
-editorial quality remain unverified. [Release evidence](stages/editorial-release-20261102/outcome.md).
+Per-pilot semi-manual review mode is implemented and runtime UI accepted. New
+pilots default to review in source/controlled tests; both existing pilots were
+already prepared, so a new paid manual journey is NOT accepted. A genuine human
+approves the script and image-pair preparation; actual frames and independent
+review then stop durably. A second human confirmation binds both loaded images,
+source, scenario and cap before a fresh quote for one clip. Prepared modes lock;
+historical V1 autopilot remains compatible. After asynchronous frames, type:
+«Покажи кадры для согласования и запроси моё подтверждение одного видео».
+Prepared-script changes or rejected references require separate new preparation.
 
-## Telegram editorial quality — local implementation, 2 November 2026
+Native40 produced a technically accepted saved/playable MP4; the owner explicitly
+REJECTED its creative result. Keep its bytes and failed vision/raw/usage history.
+Local reservations 15.75 / cap 18 are not wallet balance or verified charges.
+The native36 false-approval-card/pseudo-tool claim remains an open defect.
+HeyGen is connected with 108 tools observed, but account/funding/generation remain
+unqualified; login is not generation acceptance. Earlier 8a3/402/token-expiry
+blocks are historical, superseded by later recovery and APP34 activation.
 
-`content-factory-next-ncj4`, branch `codex/telegram-editorial-quality-20261102`,
-worktree `/home/me/.codex/worktrees/telegram-editorial-quality/content-factory-next`.
-Formatting survives editor/sanitizer/provider; structured text uses Telegram rich
-messages. Dates/availability retain evidence; practical-value and deterministic
-length findings use the existing advisory review. Native editable settings approval
-applies to this material only and persists the exact accepted values in history.
-Channel defaults require a separate explicit request.
-[Behavior and limits](../docs/operations/telegram-editorial-quality.md).
-[Local acceptance](stages/telegram-editorial-quality-20261102/acceptance.md).
-No production deployment, real social send or paid model call in this change.
-The production release and shared local stand below remain separate.
+**Latest owner authority, 5 November Moscow:** audit unfinished work, complete it
+under this same epic, and merge/deploy overnight. ROOT approved three bounded
+children: `.19` human review/revision continuity (prerequisite of `.14`), `.21`
+explicit owned API-source reuse (prerequisite of `.8/.14`), and `.20` engineering
+release after both, supporting full `.17/.18`. This authorizes
+release verification/delivery, NOT new paid generation, social publication or
+scheduling, invented Helixa/payment facts, or closure on fixtures. Existing eight
+open criteria and legacy `zlq6.7` remain unchanged. ROOT coordinates acceptance;
+release/platform owners audit independently; D alone operates QA/providers.
+Current source progress: `.21` F2 is ROOT source accepted at
+`12b8678c910c52d7e0a0aff3190aa94db4a2d313`. `.19` final source review and focused
+evidence are ROOT accepted and committed at `b3e5d38c` (exact 34 owned files).
+Final affected evidence is 7 suites / 118 passing tests (including six fixture
+consumers and UI), with focused type proof reporting zero diagnostics. Do not sum
+overlapping prior receipts. The cold-context failure was missing admission
+checkpoint in a test fixture; mock/initial-wait/no-error assertions were repaired
+without weakening the correct production settled fence. Visible first-gate
+request actions and supported immutable revision paths belong to `.19`.
+Integrated release full gate and candidate runtime remain pending; QA stays APP34.
+No live API-source credential action, paid manual trial or release pass is implied.
+One final verification owner uses an immutable candidate and reuses matching
+proof. Historical 52f Jest OOM remains a failed incomplete suite; the earlier
+four-target 8a3 build does not certify APP34. No final candidate build/suite/image/
+production acceptance is claimed. Current PR/delivery state awaits release audit.
 
-## Delivered release
+## Accepted historical evidence (superseded source/build/runtime below)
 
-Task `content-factory-next-io17`: owner authorized cleanup, closeout, push, merge
-and deployment after checking host capacity. Work is isolated in
-`/home/me/code/content-factory-next-worktrees/release-chat-quality-20261101`,
-branch `codex/release-chat-quality-20261101`. Private source `2e7f6c660ae7`
-is merged through PR https://github.com/maslennikov-ig/content-factory-next/pull/1213.
-Production is `658f835b5f18`; rollback `1fd383418d7a` remains verified.
-Capacity was sufficient before pull (24.6 GB free versus 14.8 GB required).
-After canonical retention, free space is 24.58 GB (22.89 GiB).
+- Native26 writer→fresh critic completed with normal SSE end and enabled Yes/No
+  without reload. Both creative reviews rejected; final-failed cause is UNKNOWN.
+  Native27 text scenario/review was accepted only as a one-pilot creative candidate.
+- Native28 both image jobs were saved once. Actual provider-reported Terra reviewed
+  both bytes and rejected heavier headline/name typography in the last frame.
+  Source/review bindings are current; CLIP_VISION_BLOCKED, no clip plan/job/submit.
+  Three credits are locally reserved, actual charges UNKNOWN. Native command
+  completion/pending 0 proves dispatch, not video or creative success.
+- The original real Higgsfield pilot is technically saved/playable but OWNER
+  CREATIVE REJECTED. Preserve its exact bytes/jobs; no publication approval.
+- B selective last-frame repair is source accepted: new intent/current quote/
+  separate scoped native approval, original first/source/scenario/old jobs/reserve/
+  rejected vision preserved, fresh actual Terra pair review before any clip.
+  Later native37–40 repair/recovery and owned playback were accepted; the resulting
+  clip remains owner-rejected. Historical D blocker cards update
+  without reload; the blocker is accessible above the untouched viewport.
+- B V2 source input fix validates the strict provider object before removing only
+  optional undefined entries, then applies the unchanged strict domain union.
+  Actual installed V2 persistent fixture RED→GREEN / 23 focused PASS is local proof.
+- C local engine + A durable operation/checkpoints/CAS/stream import, packaging and
+  review fixes are source accepted. Final 55 source bindings match. C's actual
+  600-second / 18000-frame fixture used repeated owned synthetic scenes; it does
+  not prove paid 120-scene content, real C→A import or native/owner long-video quality.
+  A import/operation checks are controlled; inherited failures remain in history.
+- Type-only emission includes C renderer/helper without changing adapter JavaScript.
+  HISTORICAL A donor-worktree compiler evidence had two TS2742 portability errors;
+  those are not the current clean-dependency build result. ROOT accepted all four
+  current18e6 targets as described above. No suite/image/release pass follows.
+- C tests: 9 regular and 6 distinct real-binary cases across receipts, not a new
+  combined run. A 376 unique reused cases + affected followups / 39 mock Docker
+  checks are qualified individually. Combined native/MCP name compatibility: two
+  exact tests PASS / 43 unselected. No repeated full suite.
+- Orphan upload checkpoint gap is already source-fixed using durable intent,
+  O_EXCL and hash-verified path; regression reuses one inode/Media. No historical
+  orphan cleanup or universal exactly-once filesystem claim.
 
-The candidate includes native Mastra questions/answers and approval recovery,
-question batches, source reads, semantic author comments, series grouping/history,
-context/avatar/channel selection, responsive UI and source/length guidance.
-[Scope and verification boundary](stages/honey-6013/release-closeout-20261101.md).
-[Chat/editor guide](../docs/operations/agent-chat-editor-guide.md).
+## Runtime and integration boundary
 
-All nine root-owned release checks passed: application builds/types, the complete
-Jest/Node/Python suite, branding, docs, process checks and clean diff. Exact-source
-[public Build CI](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41306821235)
-and [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41306821234)
-passed. Runtime, source archive, empty schema diff and preservation passed before
-and after retention. Public login passed at 390/1440 px; no production model calls.
-Image comes from the separately copied public tree, never private Git history.
-Registry remains `ghcr.io/maslennikov-ig/content-factory-next`.
+The exact 16b activation details below are retained historical operator evidence;
+current runtime is APP34 as recorded above. First frontend port-probe omission and
+API helper's wrong 200 expectation are historical failures resolved without replay;
+corrected controller/read-only evidence and actual single POST 201 are preserved.
 
-Evidence and temporary resources are under
-`/home/me/.local/state/content-factory-next/release-chat-quality-20261101`.
-It contains private rollback material; do not publish it. Owned PG/Redis fixtures,
-their volumes/network, temporary public clone, build outputs and host schema helpers
-have been removed. Accepted source, branch refs, unique evidence and rollback remain.
-Shared caches, original worktrees and their live services were preserved.
+Actual ProductionManifestV1 already supports 600 seconds / 50 scenes; 90 seconds /
+20 scenes is old localReel/C377 only. Accepted local V3/V2 contract is additive,
+600 seconds / 150 scenes, covers 120 five-second clips and landscape; old rows and
+Temporal V1 contracts are unchanged. Optional owned narration/music and bounded
+replace/mix are included. Probe real audio facts; physical caption/title/brand burn
+is distinct from speech alignment. A 720-source→1080 render is upscale/composition.
 
-## CI maintenance delivered — xanf
+D's accepted activation preserves frozen 5 completed jobs / 42 messages / 24
+HISTORICAL admitted rows; those rows are not active-call proof. Exact owned process
+identity, pidfd one TERM, no force/retry, quiescence and private wx receipts govern
+the switch. Worker financial/job code must update too; old b7 cannot drive repair.
+Only ECONNREFUSED proves a closed port; unknown socket state refuses. Rollback
+allows only the exact proven stopped own candidate poller and unchanged baseline.
+Use the existing tested WSL→Windows FFmpeg/ffprobe route and font, four private
+composition keys and a 0700 cache outside uploads. Original stand is immutable.
+No host install, second worker, DB seed/reset or protected-runtime mutation.
 
-PR https://github.com/maslennikov-ig/content-factory-next/pull/1216 merged at
-`5069e0614622`; public CI source `dfa9ae0c6b83`. Build/CodeQL are green, including
-full Jest/Node/Python and +400-day execution. Private PR/main jobs are deliberately
-skipped before runner allocation. Main/PR/merge-queue coverage remains public;
-ordinary branch pushes no longer duplicate PR runs. Cold component/SDK imports
-moved to test setup; the default 5-second behavior deadline remains unchanged.
-Production image remains `658f835b5f18`; original chats/drafts/services preserved.
-[Proof and limits](stages/ci-xanf-20261101/outcome.md).
+## Ownership and task truth
 
-## CI acceleration delivered — sbci
-
-Private source `9470882b6535`, public CI source `074e4105dd41`;
-[PR 1218](https://github.com/maslennikov-ig/content-factory-next/pull/1218).
-All 10 Build jobs and CodeQL pass. Complete CI wall time 51:30 -> 18:38
-(63.82% reduction / 2.76x); native full Jest parts 15:18. All original 821 files
-remain, one new CI test file added; 13,869 Jest pass in ordinary and +400-day
-modes, Node 170 / Python 50. Legacy coverage metrics are unchanged in all four
-categories. Canonical commands/diagnostics/deadlines remain; native 4-way full /
-2-way calendar partitioning plus checked Istanbul merge. No image/deploy needed.
-[Measurement, proof and limits](stages/ci-speed-20261101/outcome.md).
-
-## Local stand and preservation
-
-Live accepted source remains the dirty worktree
-`/home/me/code/content-factory-next-worktrees/honey-6013-20261027`.
-Local frontend http://localhost:4337/agents and backend 3516 stay running.
-Verified baseline: 37 chats, 10 pieces, 31 derivations, 31 posts; original histories,
-drafts and foreign edits were preserved. The ordinary checkout and existing public
-clone also have unrelated edits; do not reset, switch or clean those trees.
-No local chat, avatar, channel or test data is copied to production.
-
-Owner-selected primary/advanced model is now Terra 6.1, Luna for classification.
-Production instance defaults were updated through InstanceAiDefaultsService using
-the authorized owner identity after the healthy switch. Encrypted keys, workspace
-overrides and spending limits are unchanged; the previous row is retained privately.
-This release performs no paid model/search call. Prior paid local QA is separate
-from release verification; provider quota prevented one final quality-review turn
-after the draft had already been saved, so do not claim full paid end-to-end proof.
+Same A/B/C/D chats: A production/contracts, B native/UI/repair, C provider/local
+renderer, D sole runtime/browser/provider operator. Preserve concurrent edits.
+Eight original acceptance task IDs stay open: .8/.14/.17 in_progress; .9/.10/.13/.15/.18
+blocked. Existing closed children and legacy zlq6.7 identity/criteria stay intact.
+Linear is canonical, bd is the work interface; no duplicate task ledger.
+ROOT posted .10/.13 owner-defer comments once. Linear publication remains
+UNVERIFIED absent a matching managed receipt; no resend or old SSH retry.
 
 ## Explicit defers
 
-`eqh5`: broader editorial and real-provider/owner qualification.
-`uhkz`: legacy body behavior. `xyka`: local preview shutdown hang.
-Video `.7` and epic retain real account/tool-schema/quote/billing/output-quality
-gates. Other owner defers for Store32, finance/retention, legal/pricing, external
-ChatGPT, offsite backup and reference population remain unchanged.
-[Full prior handoff](stages/honey-6013/handoff-before-release-20261101.md).
-No global privacy, retention or host-loss recovery acceptance is implied.
+- ALL publication and scheduling, including test Telegram, are owner-deferred.
+  One Telegram connection is owner-reported, not live QA proof; other test social
+  accounts will be created later. Preview finished materials first; do not repeat
+  account/destination questions or wait full release just for preview feedback.
+- Helixa workspace/project and payment/refund authority are undecided and deferred
+  by owner (.13). No repeated questions, credential wiring or Helixa deploy.
+- The prior ONE-pilot credit authority is historical; after owner rejection, no
+  autonomous paid continuation is authorized. The new merge/deploy request does
+  not authorize new media generation. Keep manual human checkpoints intact.
+- Personal HeyGen generation/wallet/schema/identity qualification and F2 API
+  credential-source binding stay explicit. ROOT-approved `.21` implements optional
+  explicit API-source reuse without selecting API funding or altering personal
+  profiles; its engineering proof precedes `.20`. Login alone is not generation readiness;
+  do not silently change to API funding. Billing/partial-cost durability, broader
+  bulk/modes/live pilots/account/audit/creative and release gates remain open.
+- Graph is unavailable as previously accepted; graph-reviewed means exact named
+  source tracing, not a refreshed graph. Docs are prepared, not final delivery.
 
 ## Next recommended
 
 Accepted stage id: content-factory-next-j9p5-implementation-20261018
-The legacy process contract still names that accepted stage; its evidence stays.
-Current release has its own task and root-owned nine-command acceptance record.
-Next stage id: owner-selected-follow-up
-Recommended action: owner walkthrough of the delivered chat/editor; take a bounded
-follow-up only when requested. Do not repeat release gates or start deferred paid work.
+That prior accepted stage/history is retained; it is not current social acceptance.
+Next stage id: social-factory-20261103
+Recommended action: execute reviewed `.19` native revision/approval work and `.20`
+engineering delivery with one immutable-candidate release owner. Keep all eight
+original criteria and full `.17/.18` dependencies intact. Preserve pending provider/creative/business
+acceptance while delivering eligible engineering. No task closes on fixtures.
+Manifest/scope anchor retain the original eighteen outcomes; no retrospective
+acceptance or narrower scope is asserted.
 
 ## Starter prompt for next orchestrator
 
-Read current Linear/Beads, AGENTS.md and this handoff. Linear is canonical;
-local bd uses the protected central tunnel. Never reinitialize task databases.
-Use $orchestrator-stage when coordination materially helps. Resume from the
-release evidence directory and current owner request, reusing valid checks.
+Read AGENTS.md, this handoff, the current section of the existing plan and stage
+summary/acceptance.
+Use $orchestrator-stage for the existing cross-boundary continuation; keep the
+current epic in_progress and preserve its original eighteen criteria and defers. Reuse immutable evidence; separate source, runtime, costs and
+owner creative acceptance. Resume existing owners from private coordination.
+Merge/deploy and concrete new engineering children are now authorized; new paid
+media, social publishing/scheduling and Helixa business decisions remain deferred.
+
+## Evidence navigation
+
+- [Stage summary](stages/social-factory-20261103/summary.md) and
+  [acceptance/history](stages/social-factory-20261103/acceptance.md).
+- [Original/current plan](../docs/superpowers/plans/2026-11-03-social-content-factory.md).
+- Previous 796-line handoff bytes are retained privately as the readiness-compaction
+  audit; its SHA is recorded in acceptance.md. No original evidence was deleted.

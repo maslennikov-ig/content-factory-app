@@ -45,3 +45,16 @@ Before a paid pilot record account owner/payer, exact quotes, allowed assets/loc
 ## Focused verification
 
 `node --test tests/video-provider-v1.contract.test.cjs` (root-owned final run). Cases cover exact quote/submit payload, each clip image route, validation before network/spend, unchanged scripts, account assets/locale/engine, pagination, receipt URL fences, sanitized errors, lost submit with one call, provider states and cancellation request versus confirmed result. No real provider calls are part of these tests.
+
+
+## Explicit workspace HeyGen key source — 5 November 2026
+
+The existing `/third-party` hub passes only the selected provider's saved API source IDs/names to `VideoProviderSettings`. ADMIN can explicitly select a saved workspace HeyGen API connection or keep the separate encrypted video API key. Opening/changing the selector makes no write or provider request; Save applies the source. Personal subscription connections and `included`/`workspace_key` payer selection remain separate and unchanged.
+
+The additive descriptor is `videoSpendPolicy.heygen.credentialSource={kind:'third_party',integrationId}` in existing JSON. Omitted source updates preserve the current descriptor; explicit `null` chooses the existing inline video key. Higgsfield source descriptors are rejected. The dedicated workspace settings door validates an explicitly chosen source before saving. Shared operator/settings writes cannot introduce a workspace source into instance defaults. No schema, key copy, automatic source selection or fallback is added.
+
+`VideoCredentialsService` resolves a bound source through the existing ThirdParty service/repository, requiring exact organization, HeyGen identifier, non-deleted row and encrypted key. The source kind/ID/encrypted-key bytes join org/provider/payer in the opaque credential reference; public settings contain only ID/name/status. Existing inline reference hashes remain unchanged. Rotation, deletion, replacement, malformed source or explicit disconnection cannot reuse an old source reference. Disabling new launches retains pinned status/save reads while the same source remains valid; unknown job receipts/history are untouched. The UI's Disconnect video source clears the binding and disables new API launches, preserving both the existing integration and independent inline key.
+
+Included generation never resolves workspace third-party sources; its settings projection marks a configured workspace binding inactive without reading its key. Missing selected sources remain explicit and never cause inline or account fallback. Source code and controlled credential/hub tests establish this binding behavior only; no real API source was selected, credential wired, provider requested or paid generation accepted.
+
+Rollback boundary: a pre-source binary rejects the new policy field and cannot resolve the bound source. Its older settings writer may replace that unknown policy during a later budget edit. After a real binding is saved, use a source-aware rollback artifact or disable new API launches before downgrading and editing settings. This implementation has saved no real binding. No old job/history/key is migrated or removed.

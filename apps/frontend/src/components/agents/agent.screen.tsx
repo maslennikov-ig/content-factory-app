@@ -12,12 +12,13 @@ import { ErrorState, SkeletonRows } from '@contentfactory/frontend/components/ui
 import { AgentAvailabilityGate } from './agent.availability';
 import {
   AGENT_DOORS, AGENT_TIMEZONE_HEADER, artifactHref, artifactKey, artifactRefOf, artifactContextOf,
-  artifactsOf, readAgentWorkspace, readThreadHistory, refToArtifact,
+  artifactsOf, readAgentWorkspace, readThreadHistory, refToArtifact, withoutDraftChannelRefs,
   type AgentArtifact, type AgentThreadHistory, type AgentWorkContextV1, type AgentWritingSelection,
 } from './agent.contract';
 import { agentWordsFor, type AgentWords } from './agent.copy';
 import { AgentConversation } from './agent.conversation';
 import { AgentArtifactHost } from './agent.artifact-host';
+import { videoReturnFromHistory } from './agent.video-return';
 import { AgentArtifactPicker } from './agent.artifact-picker';
 import { AgentWorkspaceShell } from './agent.workspace-shell';
 import { AgentWorkspaceBrowser } from './agent.workspace-browser';
@@ -28,7 +29,7 @@ import { artifactName } from './agent.cards';
 import { pieceIdOf, useLoadedPiece, withPieceData } from './agent.piece-data';
 import { useAssistantWorkspace } from './assistant.workspace-context';
 import { assistantContextKey } from './assistant.route-context';
-import { artifactWorkspaceReducer, emptyArtifactWorkspace, persistedArtifactSelection, type ArtifactWorkspaceState } from './agent.workspace-state';
+import { artifactWorkspaceReducer, distinctArtifacts, emptyArtifactWorkspace, persistedArtifactSelection, type ArtifactWorkspaceState } from './agent.workspace-state';
 import { AgentGlyph } from './agent.icons';
 import { THREADS_KEY, ThreadSwitcher, useAgentThreads } from './agent.threads';
 import { screenTimeZone } from './agent.transport';
@@ -177,7 +178,17 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   }, [requested, user, onboarding.answered, onboarding.progress, words]);
   useEffect(() => { if (aiUnavailable && starter !== null) setStarter(null); }, [aiUnavailable, starter]);
   const onDraftUsed = useCallback(() => setDraft(null), []);
-  const onArtifacts = useCallback((artifacts: AgentArtifact[]) => dispatch({ type: 'produced', artifacts }), [dispatch]);
+  const verifiedDraftDestinations = useRef(new Map<string, ReadonlySet<string>>());
+  const [draftVerificationPending, setDraftVerificationPending] = useState<Record<string, boolean>>({});
+  const draftProofKey = `${user?.orgId ?? ''}:${user?.id ?? ''}:${session.key}`;
+  const onArtifacts = useCallback((artifacts: AgentArtifact[], draftDestinationIds: readonly string[] = [], verificationPending = false) => {
+    setDraftVerificationPending(previous => previous[draftProofKey] === verificationPending ? previous : {...previous, [draftProofKey]: verificationPending});
+    if (verificationPending) return;
+    verifiedDraftDestinations.current.set(draftProofKey, new Set(draftDestinationIds));
+    dispatch({ type: 'produced', artifacts, draftDestinationIds });
+    const context = assistantRef.current?.workContext;
+    if (context?.kind === 'channel' && context.id && draftDestinationIds.includes(context.id)) assistantRef.current?.setWorkContext(null);
+  }, [dispatch, draftProofKey]);
   const selectArtifact = useCallback((artifact: AgentArtifact) => {
     explicitSelection.current.add(session.key);
     dispatch({ type: 'select', artifact });
@@ -205,12 +216,26 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
     if (workspace.active) dispatch({ type: 'remove', key: workspace.active });
   }, [workspace.active, dispatch]);
   const onHistory = useCallback((history: AgentThreadHistory) => {
-    const saved = history.workspace ?? null;
+    const verified = verifiedDraftDestinations.current.get(draftProofKey) ?? new Set<string>();
+    const saved = withoutDraftChannelRefs(history.workspace ?? null, verified);
     setWritingSelections(previous => Object.prototype.hasOwnProperty.call(previous, session.key) ? previous : { ...previous, [session.key]: saved?.writingSelection });
-    dispatch({ type: 'restore', artifacts: [...(saved?.artifacts.map(refToArtifact) ?? []), ...artifactsOf(history.messages)], workspace: saved });
+    dispatch({ type: 'restore', artifacts: [...(saved?.artifacts.map(refToArtifact) ?? []), ...artifactsOf(history.messages, verified)], workspace: saved });
+    if (!contextual && current.current.key === session.key && session.threadId && !explicitSelection.current.has(session.key)) {
+      const selected = videoReturnFromHistory(session.threadId, window.location.pathname, window.location.search, history);
+      if (selected) {
+        explicitSelection.current.add(session.key);
+        dispatch({ type: 'select', artifact: selected });
+        setSelectionVersion(version => version + 1);
+        assistantRef.current?.setWorkContext(contextFor(selected), selected);
+        const query = new URLSearchParams(window.location.search);
+        query.delete('videoDraftId'); query.delete('pieceId'); query.delete('videoJobId');
+        const rest = query.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+      }
+    }
     if (saved) sessionContexts.current.set(session.key, { context: saved.workContext, artifact: saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null });
     if (current.current.key === session.key && (!contextual || !manualContextSessions.current.has(session.key)) && saved && !explicitSelection.current.has(session.key)) assistantRef.current?.setWorkContext(saved.workContext, saved.activeArtifact ? refToArtifact(saved.activeArtifact) : null);
-  }, [dispatch, contextual, session.key]);
+  }, [dispatch, contextual, session.key, session.threadId, draftProofKey]);
   const writeFromLead = useCallback((leadTitle: string) => {
     setDraft(words.panel.writeFromLead(leadTitle.trim().slice(0, LEAD_TITLE_IN_DRAFT)));
     if (window.innerWidth < 1280) dispatch({ type: 'hide' });
@@ -262,6 +287,12 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
 
   const saveQueue = useRef(Promise.resolve());
   const lastSaved = useRef<Record<string, string>>({});
+  const workspaceSaveTimer = useRef<number | null>(null);
+  const workspaceSavePending = useRef<Promise<void>>(Promise.resolve());
+  const workspaceSaveErrors = useRef(new Set<string>());
+  const bindingVideo = useRef(false);
+  const currentWorkspace = useRef(workspace);
+  currentWorkspace.current = workspace;
   const workContext = assistant?.workContext ?? null;
   const writingSelection = writingSelections[session.key];
   const effectiveSelection = effectiveWritingSelection(writingSelection, workContext, writingChoices.channels);
@@ -287,9 +318,12 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   }), [workContext, selection]);
   useEffect(() => {
     const id = session.threadId;
-    if (!id || !workspace.ready || lastSaved.current[id] === savedBody) return;
+    if (!id || !workspace.ready || draftVerificationPending[draftProofKey] || bindingVideo.current || lastSaved.current[id] === savedBody) return;
     const key = session.key;
+    let finishPending!: () => void;
+    workspaceSavePending.current = new Promise<void>(resolve => { finishPending = resolve; });
     const timer = window.setTimeout(() => {
+      workspaceSaveTimer.current = null;
       saveQueue.current = saveQueue.current.catch(() => undefined).then(async () => {
         if (lastSaved.current[id] === savedBody) return;
         try {
@@ -298,14 +332,54 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
           const next = readAgentWorkspace((await response.json()).workspace);
           if (!next) throw new Error('workspace unavailable');
           lastSaved.current[id] = savedBody;
+          workspaceSaveErrors.current.delete(id);
           if (current.current.key === key) setSaveFailed(null);
         } catch {
+          workspaceSaveErrors.current.add(id);
           if (current.current.key === key) setSaveFailed(key);
         }
       });
+      void saveQueue.current.finally(finishPending);
     }, 250);
-    return () => window.clearTimeout(timer);
-  }, [session.key, session.threadId, workspace.ready, savedBody, request, saveAttempt]);
+    workspaceSaveTimer.current = timer;
+    return () => { window.clearTimeout(timer); if (workspaceSaveTimer.current === timer) { workspaceSaveTimer.current = null; finishPending(); } };
+  }, [session.key, session.threadId, workspace.ready, draftProofKey, draftVerificationPending[draftProofKey], savedBody, request, saveAttempt]);
+
+  const bindChatVideo = useCallback(async (value: {threadId: string; draftId: string; pieceId?: string; jobId?: string}) => {
+    const valid = (id: string | undefined) => !!id && /^[A-Za-z0-9_-]{1,128}$/.test(id);
+    if (bindingVideo.current || !workspace.ready || value.threadId !== session.threadId || !valid(value.threadId) || !valid(value.draftId) || (value.pieceId !== undefined && !valid(value.pieceId)) || (value.jobId !== undefined && !valid(value.jobId))) throw new Error('VIDEO_CHAT_BIND_FAILED');
+    bindingVideo.current = true;
+    const snapshot = currentWorkspace.current, key = session.key;
+    const video: AgentArtifact = {kind:'media', id:'library', title:null, code:null, data:{videoDraftId:value.draftId, ...(value.pieceId ? {pieceId:value.pieceId} : {}), ...(value.jobId ? {videoJobId:value.jobId} : {})}};
+    try {
+      await workspaceSavePending.current;
+      await saveQueue.current.catch(() => undefined);
+      if (workspaceSaveErrors.current.has(value.threadId) || current.current.key !== key || current.current.threadId !== value.threadId || currentWorkspace.current !== snapshot) throw new Error('VIDEO_CHAT_BIND_CHANGED');
+      const response = await request(AGENT_DOORS.threadVideoBinding(value.threadId), {method:'POST', body:JSON.stringify({artifact:artifactRefOf(video)})});
+      const appended = response.ok ? readAgentWorkspace((await response.json()).workspace) : null;
+      if (!appended) throw new Error('VIDEO_CHAT_BIND_FAILED');
+      const readback = await request(AGENT_DOORS.thread(value.threadId));
+      if (!readback.ok) throw new Error('VIDEO_CHAT_BIND_FAILED');
+      const history = readThreadHistory(await readback.json());
+      const active = history.workspace?.activeArtifact;
+      const retained = history.workspace?.artifacts ?? [];
+      const boundArtifacts = distinctArtifacts([...retained.map(refToArtifact), ...snapshot.artifacts]);
+      if (history.thread?.id !== value.threadId || !active || artifactKey(active) !== artifactKey(video) || active.pieceId !== value.pieceId ||
+          appended.artifacts.some(item => !retained.some(ref => artifactKey(ref) === artifactKey(item) && ref.pieceId === item.pieceId)) ||
+          snapshot.artifacts.some(item => !retained.some(ref => artifactKey(ref) === artifactKey(item) && ref.pieceId === artifactRefOf(item).pieceId)) ||
+          current.current.key !== key || currentWorkspace.current !== snapshot) throw new Error('VIDEO_CHAT_BIND_FAILED');
+      const bound = persistedArtifactSelection(artifactWorkspaceReducer({...snapshot, artifacts:boundArtifacts}, {type:'select', artifact:video}));
+      if (boundArtifacts.some(item => !bound.artifacts.some(saved => artifactKey(saved) === artifactKey(item)))) throw new Error('VIDEO_CHAT_BIND_CAPACITY');
+      lastSaved.current[value.threadId] = JSON.stringify({workContext, artifacts:bound.artifacts.map(artifactRefOf), activeArtifact:artifactRefOf(video)});
+      explicitSelection.current.add(key);
+      dispatch({type:'restore', artifacts:bound.artifacts, workspace:history.workspace ?? null});
+      dispatch({type:'select', artifact:video}); setSelectionVersion(version => version + 1);
+      assistantRef.current?.setWorkContext(contextFor(video), video);
+    } catch (error) {
+      if (current.current.key === key) { setSaveFailed(key); setSaveAttempt(attempt => attempt + 1); }
+      throw error;
+    } finally { bindingVideo.current = false; }
+  }, [workspace.ready, session.key, session.threadId, workContext, request, dispatch]);
 
   const threads = useAgentThreads();
   const listed = session.threadId ? threads.data?.find((thread) => thread.id === session.threadId)?.title : null;
@@ -333,7 +407,7 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
           {workspace.active && workspace.dirty.includes(workspace.active) ? <span className="cf-caption text-cf-ink-muted">{t('assistant_manual_edits', 'Manual edits')}</span> : null}
           {picker}
           {artifact ? <ButtonLink href={artifactHref(artifact)} variant="quiet" density="dense">{t('assistant_open_in_section', 'Open in section')}</ButtonLink> : null}
-        </>} material={<AgentArtifactHost artifact={artifact} selectionVersion={selectionVersion} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
+              </>} material={<AgentArtifactHost onRequest={(text)=>setDraft(text)} artifact={artifact} chatThreadId={session.threadId} onBindChatVideo={bindChatVideo} selectionVersion={selectionVersion} available={workspace.artifacts} words={words} onSelectArtifact={selectArtifact} onDirty={(key) => dispatch({ type: 'dirty', key })} {...(aiUnavailable ? {} : { onWriteFromLead: writeFromLead })} />}>
           <section aria-label={t('agent', 'AI assistant')} className="flex min-h-0 min-w-0 flex-1 flex-col">
             {saveFailed === session.key ? <div role="status" className="flex flex-wrap items-center gap-[8px] border-b border-cf-border px-[16px] py-[8px] cf-body-sm text-cf-ink-muted">
               {words.threads.actionFailed}
@@ -385,7 +459,7 @@ function SessionView({
   workContext: AgentWorkContextV1 | null;
   writingSelection?: AgentWritingSelection;
   prepareWritingSelection: (selection: AgentWritingSelection | undefined) => Promise<void>;
-  onArtifacts: (artifacts: AgentArtifact[]) => void;
+  onArtifacts: (artifacts: AgentArtifact[], draftDestinationIds?: readonly string[], verificationPending?: boolean) => void;
   onNewConversation: () => void;
   onForked: (id: string) => void;
   onWorkContext: (context: AgentWorkContextV1 | null) => void;

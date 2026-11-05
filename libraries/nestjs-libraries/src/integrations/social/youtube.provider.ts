@@ -1,3 +1,5 @@
+import type { ProductionAssetV1, JsonValueV1 } from '../../content-intelligence/social-factory/contracts/social-factory.v1';
+import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -20,6 +22,7 @@ import dayjs from 'dayjs';
 import type { GaxiosResponse } from 'gaxios/build/src/common';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
 import { loadGoogleApis } from '@contentfactory/nestjs-libraries/integrations/social/google.sdk';
+import { YOUTUBE_THUMBNAIL_FAILED_STATUS } from '../publication-warnings';
 
 type Schema$Video = youtube_v3.Schema$Video;
 
@@ -56,6 +59,10 @@ const clientAndYoutube = async () => {
 export class YoutubeProvider extends SocialAbstract implements SocialProvider {
   override maxConcurrentJob = 200; // YouTube has strict upload quotas
   identifier = 'youtube';
+  nativeEditorialSettings(assets: Pick<ProductionAssetV1, 'mediaId'|'kind'|'role'|'url'>[]): Record<string, JsonValueV1> {
+    const cover=assets.find(asset=>asset.kind==='image'&&asset.role==='cover');
+    return cover?.url ? {thumbnail:{id:cover.mediaId,path:cover.url}} : {};
+  }
   name = 'YouTube';
   isBetweenSteps = true;
   dto = YoutubeSettingsDto;
@@ -458,29 +465,39 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       true
     );
 
+    const videoId = all?.data?.id;
+    if (typeof videoId !== 'string' || !videoId.trim() || videoId === 'missing') {
+      throw new Error('YouTube did not return a video id; publication outcome is unknown.');
+    }
+    let status = 'success';
     if (settings?.thumbnail?.path) {
-      await this.runInConcurrent(async () =>
-        youtubeClient.thumbnails.set({
-          videoId: all?.data?.id!,
-          media: {
-            body: (
-              await axios({
-                url: settings?.thumbnail?.path,
-                method: 'GET',
-                responseType: 'stream',
-              })
-            ).data,
-          },
-        })
-      );
+      try {
+        await this.runInConcurrent(async () =>
+          youtubeClient.thumbnails.set({
+            videoId,
+            media: {
+              body: (
+                await axios({
+                  url: settings?.thumbnail?.path,
+                  method: 'GET',
+                  responseType: 'stream',
+                })
+              ).data,
+            },
+          })
+        );
+      } catch {
+        // The upload already has an accepted id. Record the optional failure without retrying the upload.
+        status = YOUTUBE_THUMBNAIL_FAILED_STATUS;
+      }
     }
 
     return [
       {
         id: firstPost.id,
-        releaseURL: `https://www.youtube.com/watch?v=${all?.data?.id}`,
-        postId: all?.data?.id!,
-        status: 'success',
+        releaseURL: `https://www.youtube.com/watch?v=${videoId}`,
+        postId: videoId,
+        status,
       },
     ];
   }
@@ -567,7 +584,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
         })),
       });
 
-      return acc;
+      return normalizeAnalytics(acc);
     } catch (err) {
       return [];
     }
@@ -604,7 +621,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       if (stats.viewCount !== undefined) {
         result.push({
           label: 'Views',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(stats.viewCount), date: today }],
         });
       }
@@ -612,7 +629,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       if (stats.likeCount !== undefined) {
         result.push({
           label: 'Likes',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(stats.likeCount), date: today }],
         });
       }
@@ -620,20 +637,15 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       if (stats.commentCount !== undefined) {
         result.push({
           label: 'Comments',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(stats.commentCount), date: today }],
         });
       }
 
-      if (stats.favoriteCount !== undefined) {
-        result.push({
-          label: 'Favorites',
-          percentageChange: 0,
-          data: [{ total: String(stats.favoriteCount), date: today }],
-        });
-      }
+      // favoriteCount is deprecated and always 0, not an observed metric.
+      // https://developers.google.com/youtube/v3/docs/videos#statistics.favoriteCount
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching YouTube post analytics:', err);
       return [];

@@ -17,17 +17,20 @@ afterEach(() => {
   }
 });
 
-test.each(['openai', 'openrouter'])('stored provider %s chooses matching Terra/Luna ids even when the environment provider differs', async provider => {
+test.each([
+  ['openai', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6.1-terra'],
+  ['openrouter', 'google/gemini-4-argon', 'google/gemini-3.8-flash', 'google/gemini-3.8-flash'],
+])('stored provider %s chooses its unpinned primary and review defaults even when the environment provider differs', async (provider, primary, classify, review) => {
   process.env.AI_PROVIDER = provider === 'openai' ? 'openrouter' : 'openai';
   const config = await load().loadAiConfig('tenant', async () => ({ usageMode: 'included' }),
     async () => ({ provider, apiKey: 'test-only' }));
-  const prefix = provider === 'openrouter' ? 'openai/' : '';
-  expect(config.textModel).toBe(prefix + 'gpt-6.1-terra');
+  expect(config.textModel).toBe(primary);
   expect(config.modelRouting.advancedModel).toBe(config.textModel);
-  for (const role of ['agent', 'extract', 'research', 'draft', 'adapt', 'judge', 'review']) {
+  for (const role of ['agent', 'extract', 'research', 'draft', 'adapt']) {
     expect(roles.modelFor(role, config)).toBe(config.textModel);
   }
-  expect(roles.modelFor('classify', config)).toBe(prefix + 'gpt-6-luna');
+  expect(roles.modelFor('classify', config)).toBe(classify);
+  for (const role of ['judge', 'review']) expect(roles.modelFor(role, config)).toBe(review);
 });
 
 test('persisted instance and own-key selections survive the default change', async () => {

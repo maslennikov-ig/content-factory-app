@@ -591,8 +591,10 @@ export class AiUsageService {
   ) {
     try {
       await this.prisma.aiUsageRecord.update({ where: { id }, data: usage });
+      return true;
     } catch {
       console.error('Failed to record AI usage tokens and cost');
+      return false;
     }
   }
 
@@ -704,6 +706,12 @@ export class AiUsageService {
     );
     let closed = false;
     const ledger = new TextUsageLedger();
+    let pendingWrites = Promise.resolve();
+    const persist = <T>(write: () => Promise<T>): Promise<T> => {
+      const result = pendingWrites.then(write);
+      pendingWrites = result.then(() => undefined, () => undefined);
+      return result;
+    };
     return {
       get id(): string { return admission.id; },
       run: <T>(callback: () => T): T =>
@@ -724,6 +732,21 @@ export class AiUsageService {
        * `usageMode`, and spend of the other source does not belong on it.
        */
       track: <T>(callback: () => T): T => runWithUsageLedger(ledger, callback),
+      /** Save absolute known usage before a native wait, leaving admission open.
+       * False means not saved; undefined means no columns or already closed. */
+      checkpoint: (): Promise<boolean | undefined> => {
+        if (closed) return pendingWrites.then(() => undefined);
+        return persist(async () => {
+          let usage: ReturnType<TextUsageLedger['columns']>;
+          try { usage = ledger.columns(); }
+          catch {
+            console.error('Failed to checkpoint AI usage');
+            return false;
+          }
+          if (!usage || !Object.keys(usage).length) return undefined;
+          return this.recordUsageColumns(admission.id, usage);
+        });
+      },
       /** Only after a positive native ownership verdict that no driver started. */
       voidUnstarted: async () => {
         if (closed) return;
@@ -740,11 +763,13 @@ export class AiUsageService {
         if (closed) return;
         closed = true;
         this.closedLedgers.add(ledger);
-        if (isConfigurationRefusal(error)) {
-          await this.voidAdmission(organizationId, admission.id);
-        } else {
-          await this.finishAdmission(admission.id, succeeded, ledger);
-        }
+        await persist(async () => {
+          if (isConfigurationRefusal(error)) {
+            await this.voidAdmission(organizationId, admission.id);
+          } else {
+            await this.finishAdmission(admission.id, succeeded, ledger);
+          }
+        });
       },
     };
   }

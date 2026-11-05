@@ -334,6 +334,30 @@ test('rejectPendingAccount refuses a workspace with cascade-backed content befor
   expect(mutations).toEqual([]);
 });
 
+test.each(['socialFactoryRecords', 'videoProductionRevisions'])(
+  'rejectPendingAccount preserves a workspace with %s before any delete',
+  async (relation) => {
+    const { repository, mutations, tx } = rejectionRepository(
+      {
+        id: 'pending-user',
+        activated: false,
+        isSuperAdmin: false,
+        organizations: [{ organizationId: 'owned-org' }],
+      },
+      [{ userId: 'pending-user', organizationId: 'owned-org' }]
+    );
+    tx.organization.findFirst = jest.fn(async ({ where }) =>
+      where[relation]?.none ? null : { id: 'owned-org' }
+    );
+
+    await expect(
+      repository.rejectPendingAccount('pending-user')
+    ).rejects.toMatchObject({ status: 400 });
+    expect(tx.organization.findFirst.mock.calls[0][0].where[relation]).toEqual({ none: {} });
+    expect(mutations).toEqual([]);
+  }
+);
+
 /**
  * `content-factory-next-fn33.22`. The proof of an unused workspace used to
  * include its tags: the four starter labels, translated into the account's

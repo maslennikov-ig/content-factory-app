@@ -4,13 +4,21 @@ import clsx from 'clsx';
 import ImageWithFallback from '@contentfactory/react/helpers/image.with.fallback';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { ThirdPartyListComponent } from '@contentfactory/frontend/components/third-parties/third-party.list.component';
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import useCookie from 'react-use-cookie';
 import { SVGLine } from '@contentfactory/frontend/components/launches/launches.component';
+import type { ThirdPartyHubV1 } from '@contentfactory/nestjs-libraries/3rdparties/thirdparty-hub.v1';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { useUser } from '../layout/user.context';
+import { ErrorState, SkeletonRows } from '../ui/surface';
+import { useIntegrationHubWords } from './integration-hub.copy';
+import { useVideoAccessWords } from '../videos/video-access.copy';
+import { videoHubReturnPathV1 } from '../videos/video-integration-hub.v1';
+import { Button } from '@contentfactory/react/form/button';
 
 export const ThirdPartyMenuComponent: FC<{
   reload: () => void;
@@ -21,6 +29,7 @@ export const ThirdPartyMenuComponent: FC<{
   const [show, setShow] = useState(false);
   const t = useT();
   const toaster = useToaster();
+  const canAdmin = isOrganizationAdmin(useUser()?.role);
 
   const changeShow = () => {
     setShow((prev) => !prev);
@@ -58,6 +67,7 @@ export const ThirdPartyMenuComponent: FC<{
     }
   };
 
+  if (!canAdmin) return null;
   return (
     <div className="cursor-pointer relative select-none" onClick={changeShow}>
       <svg
@@ -108,12 +118,22 @@ export const ThirdPartyMenuComponent: FC<{
 export const ThirdPartyComponent = () => {
   const t = useT();
   const fetch = useFetch();
-
-  const integrations = useCallback(async () => {
-    return (await fetch('/third-party')).json();
+  const user = useUser(); const words = useIntegrationHubWords(); const access = useVideoAccessWords();
+  const [returnPath, setReturnPath] = useState<string | null | undefined>();
+  const [connectionError, setConnectionError] = useState(false);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setReturnPath(query.getAll('videoReturn').length > 1 ? null : videoHubReturnPathV1(query.get('videoReturn') ?? '/third-party'));
+    setConnectionError(query.has('connectionError'));
   }, []);
 
-  const { data, isLoading, mutate } = useSWR('third-party', integrations, {
+  const integrations = useCallback(async () => {
+    const response = await fetch('/third-party/hub');
+    if (!response.ok) throw new Error('INTEGRATIONS_UNAVAILABLE');
+    return response.json();
+  }, []);
+
+  const { data: hub, error, isLoading, mutate } = useSWR<ThirdPartyHubV1>(user ? ['third-party-hub', user.orgId, user.id] : null, integrations, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,
@@ -121,6 +141,7 @@ export const ThirdPartyComponent = () => {
     refreshWhenHidden: false,
     refreshWhenOffline: false,
   });
+  const data = hub?.providers.flatMap(p => p.api.connections.map(c => ({...c, identifier: p.identifier, title: p.title})));
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
 
   return (
@@ -164,8 +185,8 @@ export const ThirdPartyComponent = () => {
                   'gap-[16px] flex flex-col relative justify-center rounded-e-[8px]'
                 )}
               >
-                {!isLoading && !data?.length ? (
-                  <div>{t('no_integrations_yet', 'No Integrations Yet')}</div>
+                {!error && !isLoading && !data?.length ? (
+                  <div>{hub?.video.connections.some(c => c.state !== 'disconnected') ? words.personal : t('no_integrations_yet', 'No Integrations Yet')}</div>
                 ) : (
                   data?.map((p: any) => (
                     <div
@@ -214,7 +235,10 @@ export const ThirdPartyComponent = () => {
         </div>
       </div>
       <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
-        <ThirdPartyListComponent reload={mutate} />
+        {connectionError && <p role="alert" className="cf-body-sm text-cf-danger">{access.loginFailed}</p>}
+        {returnPath === null && !isLoading && <p role="alert" className="cf-body-sm text-cf-danger">{words.invalidReturn}</p>}
+        {returnPath && returnPath !== '/third-party' && <a href={returnPath} className="cf-body-sm text-cf-accent underline">{words.returnSaved}</a>}
+        {error ? <ErrorState title={t('error', 'Error')} action={<Button variant="secondary" onClick={() => mutate()}>{t('refresh', 'Refresh')}</Button>} /> : hub ? <ThirdPartyListComponent hub={hub} returnPath={returnPath ?? null} reload={() => { void mutate(); }} /> : <SkeletonRows rows={3} label={t('loading', 'Loading')} />}
       </div>
     </>
   );

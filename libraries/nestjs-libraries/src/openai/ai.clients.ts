@@ -40,6 +40,7 @@ import {
   maxTextChainBudgetMs,
   isModelCompatibleWithProvider,
   withReasoningHeadroom,
+  allowsDefaultTierRetry,
 } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import { Classifier, type MastraDecisionModelInterface } from '@mastra/core/classifier';
 import { withoutSecretShapes } from '../chat/conductor/secret-shapes';
@@ -48,7 +49,7 @@ import { AISDKTranscription } from '@mastra/core/voice';
 import { Agent } from '@mastra/core/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import { getNativeTerminalModelError, createNativeTextRetryConfig, nativeTextAbortSignal, setNativeTextMaxRetries } from './ai.native-retries';
+import { getNativeTerminalModelError, createNativeTextRetryConfig, nativeTextAbortSignal, setNativeTextMaxRetries, setNativeTextTierPolicy } from './ai.native-retries';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -416,10 +417,6 @@ export const getMastraAgentModelEntries = async (
     throw new Error('The selected model is incompatible with the configured AI provider.');
   }
   const primaryModel = override || modelFor(chosen, config);
-  if (config.modelRouting?.advancedFlex && primaryModel === config.modelRouting.advancedModel &&
-      config.provider === 'openrouter' && !primaryModel.startsWith('openai/')) {
-    throw new Error('The selected advanced model has no supported Flex route. Disable Flex for that profile or choose a compatible model.');
-  }
   const policy = resolveOrderedTextChainPolicy(chainSourceOf(config).textChain, {
     provider: config.provider,
     usageMode: config.usageMode,
@@ -454,6 +451,12 @@ export const getMastraAgentModelEntries = async (
 const stageSelections = new WeakMap<object, Map<string, Promise<RoutedMastraSelection>>>();
 export type RoutedMastraSelection = Awaited<ReturnType<typeof getMastraAgentModelEntries>> & {
   decision?: { choice: string; modelId: string };
+};
+
+const registerNativeTiers = (context: object | undefined, selection: RoutedMastraSelection, config: AiConfig) => {
+  const flexModels = selection.policy.effectiveChain.filter(entry => entry.flex).map(entry => entry.model);
+  setNativeTextTierPolicy(context, {provider: config.provider, models: selection.entries.map(entry => entry.model.modelId), flexModels,
+    defaultRetryModels: flexModels.filter(model => allowsDefaultTierRetry(model, chainSourceOf(config)))});
 };
 
 /** Native semantic selection precedes the native fallback array: no step override duplicates a fallback. */
@@ -553,7 +556,10 @@ export const getRoutedMastraModelEntries = async (
       },
     };
   };
-  const pending = resolve();
+  const pending = resolve().then(selection => {
+    registerNativeTiers(options?.requestContext, selection, config);
+    return selection;
+  });
   cache?.set(key, pending);
   return pending;
 };
@@ -585,14 +591,17 @@ export const getClassifyDecisionModel = async (
     },
     doDecide: async (options) => {
       let maxRetries = 0;
+      let tierSelection: RoutedMastraSelection | undefined;
       const resolve = async () => {
         const selection = await getMastraAgentModelEntries(organizationId, 'classify');
+        tierSelection = selection;
         maxRetries = execution?.singleAttempt ? 0 : selection.policy.maxRetries;
         return execution?.singleAttempt ? selection.entries.slice(0, 1) : selection.entries;
       };
       const entries = await (execution?.prepareModels ? execution.prepareModels(resolve) : resolve());
       const requestContext = new RequestContext();
       setNativeTextMaxRetries(requestContext, maxRetries);
+      if (tierSelection) registerNativeTiers(requestContext, tierSelection, config);
       const classifier = new Agent({
         id: 'content-factory-routing-classifier',
         name: 'Routing classifier',

@@ -1,5 +1,79 @@
 # Content Factory video: subscription, API and manual access
 
+## Personal pilot preparation — owner selection, 4 November 2026
+
+The social-factory owner selected personal HeyGen/Higgsfield subscriptions,
+their own avatar/voice and their real social accounts. Prepare the product before
+the owner connects those accounts. API-funded scene generation, final composition
+and fallback are excluded from this pilot. Existing API users and old jobs remain
+supported. This selection does not turn previous fixture evidence into real
+provider acceptance or supply a credit budget.
+
+The intended settings entry is `/settings?tab=global_settings`, under AI/video
+settings and personal subscriptions; `/settings?tab=ai` is not a valid tab.
+This is an optional administration surface. The primary flow begins in chat and
+must return to the same owned conversation and saved draft after OAuth. Connection,
+own identity, native credit quote, approval, revision and result use the existing
+chat actions/artifacts; a separate settings-first journey does not satisfy it.
+Connection readiness and paid-generation readiness must be separate. Confirm
+the selected account, workspace grant, available owned assets, exact operations,
+wallet and credit unit before asking for a finite limit. Missing personal assets
+lead to the provider's supported creation/consent flow and return to the saved
+draft, never to automatic stock replacement. A provider-required account login
+or recorded identity consent is performed by the owner.
+
+Final owner inputs, collected together when preparation is accepted:
+
+- The intended Content Factory workspace and personal provider sign-ins through
+  the product. Passwords, cookies and tokens do not belong in chat. An existing
+  Codex plugin connection is not a product connection.
+- Available owned avatar/voice, or source footage plus the provider's own consent
+  step. Channel/topic, audience and an approved factual source are shared with
+  the editorial profile; the owner need not write the pilot scripts.
+- Actual subscription credit balance and a finite allowed credit amount for each
+  provider. Quote the two short pilots first, then long pilots and one scene
+  revision. An optional revision reserve is explicit; do not infer a USD-to-credit
+  conversion, purchase credits, enable auto-refill or promise web Unlimited.
+- Intended Telegram, Instagram, YouTube and Threads destinations and visibility;
+  TikTok remains wave two. Use native channel authorization. Actual publishing
+  needs the chosen audience and material, not an arbitrary test post.
+- For separate attribution acceptance, the intended Helixa organization/project,
+  existing CRM source and real received-payment/refund source. A small sanitized
+  example with event/deal/order IDs, amount, currency, status and timestamps is
+  enough to define missing payment ingestion; won deals are not cash receipts.
+
+Prepare and verify the connection/asset/quote/recovery flow with labelled local
+fixtures. Keep real receipts, credit debits, playable final videos, actual social
+publication and release evidence open until observed. Provider capability gaps
+remain explicit even after connection; manual upload does not prove automated
+subscription composition. See the amended social-factory plan for stream ownership.
+
+The native agent can call `video.access_v2` with an actual owned `VideoPromptDraft`
+to open its existing inline workspace. `video.personal_assets`,
+`video.personal_readiness` and `video.personal_discover` expose the selected
+actor's owned catalogue and exact capability gaps. A raw editable draft can be
+saved with `video.prepare` (`prepareWithAi:false`) and opened with `video.draft`.
+A production revision ID is not a prompt-draft ID. OAuth/consent remains a human
+action; these tools never select a payer, manufacture credit limits or log in.
+
+Personal long-form production uses an additive V2 manifest and the same
+`VideoSubscriptionJob` reservations as single videos. Final composition readiness
+and its finite reservation are checked before admitting paid scenes. The final
+reservation cannot dispatch until owned scene results are available. Frozen
+approval, source, stop state and account generation are checked again before a
+paid submission. Unknown outcomes retain their liability; saving an existing
+result never creates another generation. Existing explicit API V1 stays separate.
+
+These contracts do not establish current provider entitlement. Until the owner's
+actual account provides a reviewed tool schema, wallet, native-unit quote and
+supported composition workflow, generation remains disabled for that operation.
+Provider-hosted Higgsfield recipes are research evidence, not an implemented or
+quoted production-account composer. Audio-only narration import remains gated;
+the current durable subscription importer handles video. Account discovery may
+therefore require a provider-specific adapter follow-up before full automation.
+
+## Prior local implementation
+
 Local implementation of [subscription plan revision 1](../superpowers/plans/2026-10-23-video-subscription-access.md)
 and [A1–A10](../superpowers/specs/2026-10-23-video-subscription-access.md#8-acceptance-examples-and-ownership),
 additive to [API plan revision 3](../superpowers/plans/2026-10-22-video-generation.md).

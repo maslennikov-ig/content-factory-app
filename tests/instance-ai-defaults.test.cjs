@@ -25,6 +25,7 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const root = path.resolve(__dirname, '..');
 const CONFIG = 'libraries/nestjs-libraries/src/openai/ai.provider.config.ts';
+const chain = require('./helpers/ai-text-chain.cjs');
 const SERVICE =
   'libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts';
 
@@ -73,6 +74,7 @@ const loadUsage = () =>
         },
         HttpStatus: { TOO_MANY_REQUESTS: 429, SERVICE_UNAVAILABLE: 503 },
         Injectable: () => (target) => target,
+        Optional: require('@nestjs/common').Optional,
       },
       '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
         PrismaService: class PrismaService {},
@@ -110,7 +112,7 @@ const loadService = (rows) => {
     },
   };
   const { InstanceAiDefaultsService } = loadTypeScriptModule(SERVICE, {
-    '@nestjs/common': { Injectable: () => (target) => target },
+    '@nestjs/common': { Injectable: () => (target) => target, Optional: require('@nestjs/common').Optional },
     '@contentfactory/helpers/auth/auth.service': {
       AuthService: {
         fixedEncryption: (value) => `enc:${value}`,
@@ -126,6 +128,8 @@ const loadService = (rows) => {
       defaultAdvancedModelForProvider: provider => loadConfig(null,null).defaultAdvancedModelForProvider(provider),
       defaultTextModelForProvider: provider => loadConfig(null,null).defaultTextModelForProvider(provider),
       defaultTextFallbackModelForProvider: provider => loadConfig(null,null).defaultTextFallbackModelForProvider(provider),
+      resolveConfiguredTextChain: (...args) => loadConfig(null,null).resolveConfiguredTextChain(...args),
+      hasConfiguredOperatorRoles: provider => loadConfig(null,null).hasConfiguredOperatorRoles(provider),
     },
     '@contentfactory/nestjs-libraries/openai/ai.roles': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/openai/ai.roles.ts'
@@ -160,33 +164,37 @@ describe('service-managed model defaults preserve own-model choices (8o2z)', () 
     roleModels: {},
   };
 
-  test('included settings and runtime use Terra then Sol6.1 when no override is saved', async () => {
+  test('new OpenRouter settings and runtime select Argon for author/chat and Flash for independent review', async () => {
     await withEnvironment(
       { AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: undefined },
       async () => {
         const { loadAiConfig } = loadConfig(includedRow, operator);
         const config = await loadAiConfig('included-defaults');
-        expect(config.textModel).toBe('openai/gpt-6.1-terra');
-        expect(config.roleModels).toEqual({ classify: 'openai/gpt-6-luna' });
+        expect(config.textModel).toBe('google/gemini-4-argon');
+        expect(config.roleModels).toEqual({classify: 'google/gemini-3.8-flash', draft: 'google/gemini-4-argon', agent: 'google/gemini-4-argon', review: 'google/gemini-3.8-flash', judge: 'google/gemini-3.8-flash'});
+        const {modelFor} = loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.roles.ts');
+        expect(modelFor('agent', config)).toBe('google/gemini-4-argon');
+        expect(modelFor('review', config)).toBe('google/gemini-3.8-flash');
         expect(config.modelRouting.advancedModel).toBe(config.textModel);
-        const policy = chain.resolveOrderedTextChainPolicy(config.textChain, {
+        const policy = chain.resolveOrderedTextChainPolicy(chain.withModelRoutingTextChain(config), {
           provider: config.provider, usageMode: config.usageMode,
           primaryModel: config.textModel, hasKey: Boolean(config.apiKey),
         });
         expect(policy.effectiveChain.map(({ model }) => model)).toEqual([
-          'openai/gpt-6.1-terra', 'openai/gpt-6.1-sol',
+          'google/gemini-4-argon',
         ]);
-        expect(policy.inheritedDefault).toBe(true);
+        expect(policy.fallbackDisabled).toBe(true);
+        expect(policy.maxRetries).toBe(1);
         const { service } = loadService({ row: operator });
         const view = await service.read();
-        expect(view.textChain.defaultFallbackModel).toBe('openai/gpt-6.1-sol');
+        expect(view.textChain.defaultFallbackModel).toBe('');
         expect(view.textChain.effectiveChain).toEqual(policy.effectiveChain);
         expect(JSON.stringify(view)).not.toContain('operator-key');
 
         await service.update('operator-user', { textFallbackModel: 'custom/operator' });
         expect((await service.read()).textChain.fallbackModels).toEqual(['custom/operator']);
         await service.update('operator-user', { textFallbackModel: '' });
-        expect((await service.read()).textChain.fallbackModels).toEqual(['openai/gpt-6.1-sol']);
+        expect((await service.read()).textChain.fallbackModels).toEqual([]);
       }
     );
   });
@@ -213,7 +221,7 @@ describe('service-managed model defaults preserve own-model choices (8o2z)', () 
     expect(config.textModel).toBe('custom/primary');
     expect(config.roleModels).toEqual({ draft: 'custom/draft' });
     expect(config.apiKey).toBe('plain:workspace-key');
-    const policy = chain.resolveOrderedTextChainPolicy(config.textChain, {
+    const policy = chain.resolveOrderedTextChainPolicy(chain.withModelRoutingTextChain(config), {
       provider: config.provider, usageMode: config.usageMode,
       primaryModel: config.textModel, hasKey: Boolean(config.apiKey),
     });
@@ -740,5 +748,46 @@ describe('ordered fallback chain, explicit empty fallback, and maxRetries (A29)'
     expect(config.textChain.fallbackDisabled).toBe(true);
     expect(config.textChain.fallbackModels).toEqual([]);
     expect(config.textChain.maxRetries).toBe(3);
+  });
+});
+
+
+test('fresh Gemini profile preserves explicit zero retries and existing tenant model selections', async () => {
+  await withEnvironment({AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: undefined}, async () => {
+    const fresh = loadConfig(includedRow, {provider: 'openrouter', apiKey: 'synthetic', textMaxRetries: 0});
+    expect((await fresh.loadAiConfig('fresh-zero')).textChain.maxRetries).toBe(0);
+    const old = loadConfig(includedRow, {provider: 'openrouter', apiKey: 'synthetic', textModel: 'custom/author', roleModels: {agent: 'custom/coordinator', review: 'custom/critic'}, textFallbackModel: 'custom/fallback'});
+    const config = await old.loadAiConfig('existing-choices');
+    expect(config.textModel).toBe('custom/author');
+    expect(config.roleModels).toEqual({agent: 'custom/coordinator', review: 'custom/critic'});
+    expect(config.textChain.fallbackModel).toBe('custom/fallback');
+  });
+});
+
+
+test.each([
+  {version: 1, models: [], disabled: true, maxRetries: 0},
+  {version: 1, models: ['custom/only-fallback'], maxRetries: 0},
+  {version: 1, inherited: true, models: [], maxRetries: 0},
+])('metadata-only own-key chain remains explicit when no model or role is pinned (%j)', async envelope => {
+  await withEnvironment({AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: undefined}, async () => {
+    const column = JSON.stringify(envelope);
+    const {loadAiConfig} = loadConfig({usageMode: 'workspace_key', provider: 'openrouter', apiKey: 'owned-synthetic', searchEnabled: false, roleModels: {__textChain: column}}, null);
+    const config = await loadAiConfig('metadata-only');
+    const expected = chain.resolveTextChainSettings({textFlexEnabled: false, textFallbackModel: column});
+    expect(config.textChain).toEqual(expected);
+    expect(config.textChain.maxRetries).toBe(0);
+  });
+});
+
+test('admin chain preview matches runtime when operator model roles are configured only by environment', async () => {
+  await withEnvironment({AI_PROVIDER: 'openrouter', AI_TEXT_MODEL: undefined, AI_ROLE_MODELS: JSON.stringify({agent: 'custom/selected-agent'})}, async () => {
+    const row = {provider: 'openrouter', apiKey: 'synthetic'};
+    const config = await loadConfig(includedRow, row).loadAiConfig('operator-env-roles');
+    const {service} = loadService({row});
+    const view = await service.read();
+    expect(view.textChain.fallbackDisabled).toBe(chain.resolveOrderedTextChainPolicy(chain.withModelRoutingTextChain(config), {provider: 'openrouter', usageMode: 'included', primaryModel: config.textModel, hasKey: true}).fallbackDisabled);
+    expect(view.textChain.maxRetries).toBe(config.textChain.maxRetries ?? 0);
+    expect(view.textChain.defaultFallbackModel).toBe(chain.DEFAULT_TEXT_FALLBACK_MODEL);
   });
 });

@@ -25,6 +25,8 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 
 const CHAT = 'libraries/nestjs-libraries/src/chat';
+const CLIP_AUXILIARY = 'libraries/nestjs-libraries/src/content-intelligence/social-factory/native-clip-preproduction.service.v1.ts';
+const EDITORIAL_AUXILIARY = 'libraries/nestjs-libraries/src/content-intelligence/social-factory/autonomy/editorial-decision.service.ts';
 
 const sourceFiles = (directory) => {
   const found = [];
@@ -56,6 +58,8 @@ describe('the web agent is the conductor, with the hooks', () => {
     expect(mastraAgents.sort()).toEqual([
       agentFile,
       `${CHAT}/conductor/conductor.autonomy.ts`,
+      EDITORIAL_AUXILIARY,
+      CLIP_AUXILIARY,
       'libraries/nestjs-libraries/src/openai/ai.clients.ts',
       'libraries/nestjs-libraries/src/openai/ai.stage-model.ts',
     ].sort());
@@ -68,6 +72,43 @@ describe('the web agent is the conductor, with the hooks', () => {
     expect(service).toMatch(/gate:\s*this\.gate\(\)/);
     expect(service).toMatch(/prepareModelExecution\(\s*organizationId,\s*'agent'/);
     expect(service).toMatch(/getRoutedMastraModelEntries\(\s*organizationId,\s*'agent'/);
+  });
+
+  test('the editorial auxiliary admits one configured-model decision without tools or a second executor', () => {
+    const code = withoutComments(read(EDITORIAL_AUXILIARY));
+    expect(code.match(/new Agent\(/g)).toHaveLength(1);
+    expect(code.match(/agent\.generate\(/g)).toHaveLength(1);
+    expect(code).toMatch(/this\.usage\.executeAiOperation\(org,\s*'agent',\s*async/);
+    expect(code).toMatch(/new Agent\(\{\s*id:\s*'social-factory-editorial-decision-v1'/);
+    expect(code).toMatch(/model:\s*\[\{\s*\.\.\.candidate,\s*maxRetries:\s*0\s*\}\]/);
+    expect(code).toContain("models.policy?.fallbackDisabled === false");
+    expect(code).toContain('if (!modelNotFound(error, models.provider, candidate.model.modelId)) throw error');
+    expect(code).toMatch(/agent\.generate\(prompt,\s*\{\s*maxSteps:\s*1,\s*structuredOutput:\s*\{\s*schema:\s*input.questions\s*\?\s*questionBatchSchema\s*:\s*answerSchema/);
+    expect(code).toMatch(/maxRetries:\s*0/);
+    expect(code).toContain('await this.autonomy.decide(org, decisionInput)');
+    expect(code).not.toMatch(/\btools\s*:|createDurableAgent|buildConductorController|createWorkflow|createTool|\.stream\s*\(/);
+  });
+
+  test('the versioned clip auxiliary binds one configured stage to admissions, measured usage and durable recovery', () => {
+    const code = withoutComments(read(CLIP_AUXILIARY));
+    expect(code.match(/new Agent\(/g)).toHaveLength(1);
+    expect(code.match(/agent\.generate\(/g)).toHaveLength(1);
+    expect(code).toContain('getMastraAgentModelEntries');
+    expect(code).toContain('modelId: selected');
+    expect(code).toContain('this.usage.beginAiOperation');
+    expect(code).toMatch(/maxSteps:\s*1,\s*modelSettings:\s*\{\s*maxRetries:\s*0,\s*maxOutputTokens:\s*3500/);
+    expect(code).toContain('currentUsageLedger()?.calls');
+    expect(code).toContain('await this.sources.assertCurrent');
+    expect(code).toContain("state: 'started'");
+    expect(code).toContain("state: 'captured'");
+    expect(code).toContain('CLIP_MODEL_POLICY_CHANGED');
+    expect(code).not.toMatch(/\btools\s*:|createDurableAgent|buildConductorController|createWorkflow|createTool|\.stream\s*\(/);
+    // Native nested requests retain the conductor's cancellation and total-budget
+    // scope in the shared transport; this auxiliary cannot add another scheduler.
+    const transport = withoutComments(read('libraries/nestjs-libraries/src/openai/ai.text-chain.ts'));
+    expect(transport).toContain('execution?.beforeProviderCall');
+    expect(transport).toContain('assertAiExecutionBudget()');
+    expect(transport).toContain('execution.signal');
   });
 
   test('the doors run the conductor through handleChatStream pinned to v7 with onError', () => {
@@ -187,11 +228,13 @@ describe('the card contract the screen mirrors', () => {
       'data-avatar',
       'data-adaptation',
       'data-plan',
+      'data-campaign',
       // A channel beside the chat, and connecting one in the conversation (kcxz.19).
       'data-channel',
       'data-channel-connect',
       // The key card, drawn in the conversation (kcxz.20).
       'data-secret',
+      'data-clip-preproduction',
       // «Откуда идеи» beside the chat (kcxz.23).
       'data-ideas',
       // «Откуда факты» beside the chat (kcxz.24).

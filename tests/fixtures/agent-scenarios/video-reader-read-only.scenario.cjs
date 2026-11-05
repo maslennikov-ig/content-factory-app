@@ -32,6 +32,7 @@ module.exports = {
     expect(summary(run.turns[1], 'video_jobs').jobs.map((one) => one.id)).toEqual([IDS.apiJob]);
     expect(summary(run.turns[1], 'video_jobs_v2').jobs.map((one) => one.id)).toEqual([IDS.apiJob, IDS.subscriptionJob]);
     for (const tool of ['video_status', 'video_status_v2']) expect(summary(run.turns[1], tool)).toMatchObject({ state: 'completed', result: { id: IDS.media } });
+    // Provider-backed personal assets/readiness borrow the editor-only door; stored video reads remain available.
     expect(run.firstCall.tools.filter((name) => name.startsWith('video_')).sort()).toEqual([
       'video_catalog', 'video_drafts', 'video_draft', 'video_jobs', 'video_status', 'video_access_v2', 'video_jobs_v2', 'video_status_v2',
     ].sort());

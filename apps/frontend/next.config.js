@@ -2,6 +2,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  logging: process.env.CF_OWNER_PREVIEW === 'true' ? false : undefined,
   experimental: {
     proxyTimeout: 90_000,
     // Release containers do not reuse compiler state between builds.

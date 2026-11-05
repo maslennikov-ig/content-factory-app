@@ -110,11 +110,34 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
     const live = await seed('live-owner');
     const claimed = await workflows.claimRunOwnership({runId: live.runId, ownerId: 'another-live-driver', leaseMs: 10_000});
     assert.equal(claimed.acquired, true);
-    await assert.rejects(stop(live), /settlement/);
+    const ownerBefore = await workflows.getRunOwnership({runId: live.runId});
+    assert.equal(ownerBefore.live, true);
+    const finalize = runtime.service.finalizeNativeStop.bind(runtime.service);
+    let deadlineVerified = false;
+    runtime.service.finalizeNativeStop = async (input, options) => {
+      assert.deepEqual(input, {threadId: live.threadId, resourceId, requestId: live.requestId, runId: live.runId});
+      assert.equal(options?.waitForOwnerMs, 35_000, 'Production Stop retains its configured owner wait.');
+      try { return await finalize(input, {waitForOwnerMs: 20}); }
+      catch (error) {
+        assert.equal(error.code, 'NATIVE_STOP_OWNER_PENDING');
+        assert.equal(error.message, 'Native Stop still has an active or changed native owner.');
+        deadlineVerified = true;
+        throw error;
+      }
+    };
+    try {
+      await assert.rejects(stop(live), error => error.getStatus?.() === 503 && error.message === 'Native Stop is waiting for its current owner.');
+    } finally { runtime.service.finalizeNativeStop = finalize; }
+    const ownerAfter = await workflows.getRunOwnership({runId: live.runId});
+    assert.equal(ownerAfter.live, true);
+    assert.equal(ownerAfter.ownerId, ownerBefore.ownerId);
+    assert.equal(ownerAfter.generation, ownerBefore.generation);
+    assert.equal(deadlineVerified, true);
+    report.liveOwnerDeadlineVerified = true;
     report.liveOwnerProtected = (await history(live)).execution.state !== 'settled';
 
     const replaced = await seed('successor');
-    let injected = false;
+    let injected = false, successorBefore;
     memoryStore.updateThreadMetadata = async input => {
       if (input.id === replaced.threadId && !injected) {
         injected = true;
@@ -122,11 +145,14 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
           assistantNativeRun: {runId: 'successor-run', logicalRequestId: 'successor-request', state: 'running'},
           assistantExecution: {requestId: 'successor-request', state: 'running'},
         }});
+        successorBefore = await runtime.memory.getThreadById({threadId: replaced.threadId});
       }
       return update(input);
     };
-    await assert.rejects(stop(replaced), /settlement/);
+    await assert.rejects(stop(replaced), error => error.message === 'Native Stop task changed.');
     const successor = await runtime.memory.getThreadById({threadId: replaced.threadId});
+    assert.deepEqual(successor.metadata, successorBefore.metadata, 'Refusing the stale Stop preserves all successor metadata.');
+    assert.equal(successor.resourceId, successorBefore.resourceId);
     report.successorPreserved = successor.metadata.assistantNativeRun.runId === 'successor-run' &&
       successor.metadata.assistantExecution.requestId === 'successor-request' && successor.metadata.assistantExecution.state === 'running';
     report.modelCalls = runtime.attempts.length;

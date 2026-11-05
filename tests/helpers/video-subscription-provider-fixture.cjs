@@ -31,7 +31,7 @@ function loadSubscriptionModules(extra = {}) {
 /** Invented protocol contract. It is never an account/provider/schema/billing proof. */
 async function createProviderFixture(options = {}) {
   const nativeFetch = options.fetch || globalThis.fetch.bind(globalThis);
-  const modules = loadSubscriptionModules();
+  const modules = loadSubscriptionModules(options.moduleMocks || {});
   const { VideoSubscriptionRuntime, boundedSubscriptionResponse, subscriptionHash } = modules.registry;
   let clock = options.now ? new Date(options.now) : new Date();
   let origin;
@@ -39,7 +39,8 @@ async function createProviderFixture(options = {}) {
   const clients = new Map(), codes = new Map(), access = new Map(), refresh = new Map();
   const state = {
     requests: [], registrations: [], authorizations: [], exchanges: [], refreshes: [], revocations: [], identities: [],
-    rpc: [], quotes: [], submits: [], polls: [], egress: [], jobs: new Map(),
+    rpc: [], toolCalls: [], quotes: [], submits: [], polls: [], egress: [], jobs: new Map(),
+    respondMcp: null,
     scripts: {higgsfield: {}, heygen: {}},
     tools: structuredClone(schemas), eligibility: 'small_trial', quoteAmount: '0.125',
     quoteUpperBound: null, defaultStatus: 'completed', confirmedCharge: null,
@@ -65,8 +66,8 @@ async function createProviderFixture(options = {}) {
       }
       return scripted;
     }
-    if (name === 'list_avatars') return {eligibility: state.eligibility, avatars: [{id: 'fixture_avatar', engines: ['avatar_iii', 'avatar_iv']}]};
-    if (name === 'list_voices') return {eligibility: state.eligibility, voices: [{id: 'fixture_voice_ru', engines: ['avatar_iii', 'avatar_iv'], locales: ['ru', 'ru-RU']}]};
+    if (name === 'list_avatars') return {eligibility: state.eligibility, account_subject: state.subject, avatars: [{id: 'fixture_avatar', ownership: 'owned', state: 'available', owner_subject: state.subject, engines: ['avatar_iii', 'avatar_iv']}]};
+    if (name === 'list_voices') return {eligibility: state.eligibility, account_subject: state.subject, voices: [{id: 'fixture_voice_ru', ownership: 'owned', state: 'available', owner_subject: state.subject, engines: ['avatar_iii', 'avatar_iv'], locales: ['ru', 'ru-RU']}]};
     if (name === 'quote_video' || (name === 'generate_clip' && args.get_cost === true)) {
       return {kind: 'quote', unit: `${provider}_credit`, credits: state.quoteAmount, expires_at: new Date(clock.getTime() + 300_000).toISOString(), upper_bound: state.quoteUpperBound};
     }
@@ -146,8 +147,9 @@ async function createProviderFixture(options = {}) {
       else if (rpc.method === 'tools/list') result = {tools: state.tools[provider]};
       else if (rpc.method === 'tools/call') {
         const {name, arguments: args = {}} = rpc.params;
-        if (!schemas[provider].some(tool => tool.name === name)) return send(res, 200, {jsonrpc: '2.0', id: rpc.id, error: {code: -32601, message: 'Fixture tool refused'}});
+        if (!state.tools[provider].some(tool => tool.name === name)) return send(res, 200, {jsonrpc: '2.0', id: rpc.id, error: {code: -32601, message: 'Fixture tool refused'}});
         const call = {provider, name, args: structuredClone(args)};
+        state.toolCalls.push(call);
         if (name === 'quote_video' || (name === 'generate_clip' && args.get_cost === true)) state.quotes.push(call);
         else if (name === 'generate_clip' || name === 'create_video') state.submits.push(call);
         else if (name === 'jobs_wait' || name === 'get_video') state.polls.push(call);
@@ -157,6 +159,7 @@ async function createProviderFixture(options = {}) {
         else if (value === 'isError') result = {isError: true, content: [{type: 'text', text: 'Synthetic error'}]};
         else result = {content: [{type: 'text', text: JSON.stringify(value)}]};
       } else return send(res, 200, {jsonrpc: '2.0', id: rpc.id, error: {code: -32601, message: 'Fixture method refused'}});
+      if (state.respondMcp && await state.respondMcp({res, rpc, result})) return;
       return send(res, 200, {jsonrpc: '2.0', id: rpc.id, result});
     } catch { if (!res.headersSent) send(res, 500, {error: 'fixture_request_invalid'}); else res.end(); }
   });
@@ -167,7 +170,7 @@ async function createProviderFixture(options = {}) {
       if (!schemas[provider]) throw new Error('Fixture provider refused');
       const issuer = `${origin}/${provider}`;
       return {provider, issuer, resource: `${issuer}/mcp`, resourceMetadata: `${issuer}/.well-known/oauth-protected-resource`,
-        identityEndpoint: `${issuer}/identity`, origins: [origin], enabled: true,
+        identityEndpoint: `${issuer}/identity`, origins: [origin], connectEnabled: true, enabled: true, ownedAssetProfile: 'scoped_owned_v1',
         schemaDigests: [subscriptionHash(schemas[provider].map(({name, inputSchema}) => ({name, inputSchema})).sort((a,b) => a.name.localeCompare(b.name)))]};
     }
     now() { return new Date(clock); }
@@ -175,9 +178,11 @@ async function createProviderFixture(options = {}) {
       const url = new URL(value);
       if (url.origin !== origin || url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password || url.hash || !url.pathname.startsWith(`/${def.provider}/`)) throw new Error('Fixture refused endpoint egress');
     }
-    async fetch(def, value, init = {}) {
+    async fetch(def, value, init = {}, qualification) {
       await this.validateUrl(def, String(value)); state.egress.push({method: init.method || 'GET', url: String(value)});
-      return boundedSubscriptionResponse(await nativeFetch(value, {...init, redirect: 'manual', signal: AbortSignal.timeout(5000)}));
+      const signal = AbortSignal.timeout(qualification ? 20_000 : 5000);
+      const response = await nativeFetch(value, {...init, redirect: 'manual', signal: qualification ? AbortSignal.any([signal, qualification.signal]) : signal});
+      return boundedSubscriptionResponse(response, qualification ? {...qualification, signal: AbortSignal.any([signal, qualification.signal])} : undefined);
     }
   }
   const runtime = new FixtureSubscriptionRuntime();

@@ -1,3 +1,4 @@
+import { audienceMetricValue, audienceMetricAggregation } from '@contentfactory/nestjs-libraries/integrations/audience-analytics.rules';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
@@ -11,9 +12,9 @@ import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organ
 
 interface AnalyticsDataItem {
   label: string;
-  data: Array<{ total: number; date: string }>;
+  data: Array<{ total: number | string; date: string }>;
   average?: boolean;
-  percentageChange?: number;
+  percentageChange?: number | null;
 }
 
 const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
@@ -86,7 +87,7 @@ const AnalyticsCard: FC<{
               {item.label}
             </span>
           </div>
-          {item.percentageChange !== undefined && (
+          {typeof item.percentageChange === 'number' && Number.isFinite(item.percentageChange) && (
             <TrendIndicator
               value={item.percentageChange}
               average={item.average}
@@ -102,6 +103,7 @@ const AnalyticsCard: FC<{
               <div className="h-[120px] relative">
                 <ChartSocial
                   data={item.data}
+                  aggregation={audienceMetricAggregation(item)}
                   color={color}
                   key={`chart-${index}`}
                 />
@@ -239,15 +241,10 @@ export const RenderAnalytics: FC<{
 
   const totals = useMemo(() => {
     return data?.map((p: AnalyticsDataItem) => {
-      const value =
-        (p?.data.reduce(
-          (acc: number, curr: { total: number }) => acc + curr.total,
-          0
-        ) || 0) / (p.average ? p.data.length : 1);
-      if (p.average) {
-        return value.toFixed(2) + '%';
-      }
-      return new Intl.NumberFormat().format(Math.round(value));
+      const value = audienceMetricValue(p);
+      return value === null ? '—' : typeof value === 'string'
+        ? value
+        : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
     });
   }, [data]);
 

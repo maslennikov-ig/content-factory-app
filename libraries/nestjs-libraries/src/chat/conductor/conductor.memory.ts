@@ -7,6 +7,7 @@ import { wrapUntrusted } from '../capabilities/untrusted-data';
 import { AGENT_THREAD_TITLE_MAX } from '../capabilities/agent-parts.contract';
 import { redactSecretShapes } from './secret-shapes';
 import { conversationHistoryTool } from './conversation-history';
+import { historyMessageForCountingV1 } from './native-history-errors.v1';
 
 /**
  * The conductor's memory (`content-factory-next-kcxz.7`, spec §4.7).
@@ -91,6 +92,18 @@ export const conductorMemoryOptions = {
 };
 
 class ConductorMemory extends Memory {
+  protected override createMemoryTokenCounter() {
+    const counter = super.createMemoryTokenCounter();
+    // The SDK counts old typed errors with .trim(). Adapt only each counter's
+    // input; stored history and concurrent UI reads keep the original values.
+    return new Proxy(counter, { get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === 'countMessage') return (message: Parameters<typeof counter.countMessage>[0]) =>
+        target.countMessage(historyMessageForCountingV1(message));
+      return typeof value === 'function' ? value.bind(target) : value;
+    } });
+  }
+
   override async getInputProcessors(...args: Parameters<Memory['getInputProcessors']>) {
     const processors = await super.getInputProcessors(...args);
     const inject = async ({ messageList, requestContext }: ProcessInputArgs | ProcessInputStepArgs) => {

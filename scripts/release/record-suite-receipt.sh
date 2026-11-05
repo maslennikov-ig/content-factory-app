@@ -43,8 +43,12 @@ out_dir="$root/var/release"
 receipt="$out_dir/suite-receipt.json"
 mkdir -p "$out_dir"
 
-log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
+# Every attempt has a fresh HEAD-bound directory. Failed attempts and a prior
+# receipt remain evidence, but an old green receipt must not stay active.
+mkdir -p "$out_dir/suite-runs"
+run_dir="$(mktemp -d "$out_dir/suite-runs/$commit.XXXXXX")"
+if [ -e "$receipt" ]; then mv "$receipt" "$run_dir/previous-suite-receipt.json"; fi
+log="$run_dir/suite.log"
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -52,7 +56,12 @@ echo "Running the full suite for $(git rev-parse --short=12 HEAD). This takes mi
 echo
 
 status=0
-pnpm test 2>&1 | tee "$log" || status="${PIPESTATUS[0]}"
+CF_RELEASE_JEST_MODE=full CF_RELEASE_SUITE_HEAD="$commit" CF_RELEASE_JEST_ARTIFACT_DIR="$run_dir/jest" \
+  pnpm test 2>&1 | tee "$log" || {
+    pipeline=("${PIPESTATUS[@]}")
+    status="${pipeline[0]}"
+    if [ "$status" -eq 0 ]; then status="${pipeline[1]}"; fi
+  }
 
 if [ "$status" -ne 0 ]; then
   echo >&2
@@ -72,6 +81,17 @@ node_pass="$(grep -m1 '^# pass' "$log" || echo '# pass (not reported)')"
 node_fail="$(grep -m1 '^# fail' "$log" || echo '# fail (not reported)')"
 python_line="$(grep -m1 -E '^(OK|FAILED)' "$log" || echo '(not reported)')"
 
+# Re-read all four native artifacts and their exact discovery membership after
+# the complete command. A shard's first summary cannot stand in for the whole.
+verified="$(node scripts/ci/jest-shards.cjs verify-local "$run_dir/jest" "$commit")" || {
+  echo 'Incomplete Jest artifacts; no receipt was written.' >&2
+  exit 1
+}
+if [ "$verified" != "$(printf '%s\n%s' "$jest_suites" "$jest_tests")" ]; then
+  echo 'Jest summary does not match the verified complete population; no receipt was written.' >&2
+  exit 1
+fi
+
 # A signal can leave an apparently successful pipeline without complete output.
 # Never create a receipt unless all three runs actually reported success.
 if ! [[ "$jest_suites" =~ [0-9]+\ passed ]] || ! [[ "$jest_tests" =~ [0-9]+\ passed ]] ||
@@ -81,23 +101,31 @@ if ! [[ "$jest_suites" =~ [0-9]+\ passed ]] || ! [[ "$jest_tests" =~ [0-9]+\ pas
   exit 1
 fi
 
-cat >"$receipt" <<JSON
-{
-  "commit": "$commit",
-  "command": "pnpm test",
-  "node": "$(node --version)",
-  "recordedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "jest": {
-    "suites": "$jest_suites",
-    "tests": "$jest_tests"
-  },
-  "nodeTest": {
-    "pass": "$node_pass",
-    "fail": "$node_fail"
-  },
-  "python": "$python_line"
-}
+# Source identity must still be the one that started the run. Use the same
+# authoritative exclusion list as the initial check and source archive.
+if [ "$(git rev-parse HEAD)" != "$commit" ]; then
+  echo 'HEAD changed during the suite; no receipt was written.' >&2
+  exit 1
+fi
+differences="$("$script_dir/tree-differences.sh")"
+if [ -n "$differences" ]; then
+  echo 'The working tree differs from HEAD after the suite; no receipt was written.' >&2
+  echo "$differences" >&2
+  exit 1
+fi
+
+# Build JSON without shell interpolation and publish the complete receipt with
+# one rename on the same filesystem. No partial receipt can be observed.
+node - "$run_dir/receipt.tmp" "$commit" "${run_dir#"$root/"}" \
+  "$jest_suites" "$jest_tests" "$node_pass" "$node_fail" "$python_line" <<'JSON'
+const fs = require('node:fs');
+const [file, commit, artifacts, suites, tests, pass, fail, python] = process.argv.slice(2);
+fs.writeFileSync(file, JSON.stringify({
+  commit, command: 'pnpm test', node: process.version, recordedAt: new Date().toISOString(), artifacts,
+  jest: { suites, tests }, nodeTest: { pass, fail }, python,
+}, null, 2) + '\n', { flag: 'wx' });
 JSON
+mv "$run_dir/receipt.tmp" "$receipt"
 
 echo
 echo "Suite receipt written for $(git rev-parse --short=12 HEAD)"

@@ -30,7 +30,37 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 2 November 2026: 0bdd01349db6
+## Current release 2 November 2026: 9c88a65a368b
+
+Native agents propose 2–3 task-specific post lengths before generation; manual
+channel defaults are a secondary explicit choice. The accepted/edited range is
+stored per material and in approval history. Common Telegram rules require an
+in-post headline where appropriate, readable structure and evidence-supported
+practical value. The existing pre-save review can apply bounded corrections.
+
+Private source `7c718ffc6754691d85d695899b0aaf30475c5e8a` (PRs #1223/#1224);
+public/runtime `9c88a65a368ba5408db490e975aeb12c6dffa60e`.
+Registry digest `sha256:239d55c7daf5e28aa3635aa136d6b8542a808c614db402267f5be875d739067c`.
+Full local Jest/Node/Python (13,942 / 170 / 50), build/types,
+[public Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41457143617)
+and [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/41457143835)
+passed. Public CI also covers the complete +400-day suite.
+
+App healthy/zero restarts, all three processes online and worker ready. Empty
+schema diff before/after; no SQL applied. Read-only hashes preserve chat/message,
+workflow, settings and usage data; foreign containers/mounts/volumes are unchanged.
+Public login passes at 390/1440 px, public API/source pages return 200, and the
+downloaded source archive matches the release manifest. No real-provider generation
+or live Telegram send was performed. [Evidence and limits](../../.codex/stages/editorial-followup-20261102/outcome.md).
+
+Canonical retention preserved current/rollback images, removed two older own tags
+and four excess own config backups. Post-retention checks passed; 22.85 GB
+(21.29 GiB) remains free. Foreign workloads and volumes are unchanged.
+
+Rollback: `CF_DEPLOY_HOST=helixa-prod scripts/release/switch-host-image.sh 0bdd01349db6`.
+No schema rollback or channel/model-default change belongs to this release.
+
+## Previous release 2 November 2026: 0bdd01349db6
 
 Telegram editorial quality and per-material settings approval, private source
 `dc1be38711f1`, public source `0bdd01349db6`, rollback `658f835b5f18`. Exact-source

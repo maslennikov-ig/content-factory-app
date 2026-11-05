@@ -1,7 +1,26 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { useSWRConfig } from 'swr';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import useSWR, { useSWRConfig } from 'swr';
 import { PIECES_API_BASE, VOICE_API_BASE } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { AgentArtifact } from './agent.contract';
+
+/** Authenticated profile reads recheck the current workspace; missing or connected channels are never pruned. */
+export const useVerifiedDraftDestinations = (candidates: readonly string[], scope: {organizationId?: string; actorId?: string; threadId?: string | null}, request: (url: string) => Promise<Response>) => {
+  const key = scope.organizationId && scope.actorId && scope.threadId && candidates.length
+    ? ['assistant-draft-destinations', scope.organizationId, scope.actorId, scope.threadId, candidates.join(',')] : null;
+  const enabled = key !== null;
+  const {data, error} = useSWR<string[]>(key, async () => (await Promise.all(candidates.map(async id => {
+    try {
+      const response = await request(`/social-factory/channels/${encodeURIComponent(id)}/profile`);
+      if (!response.ok) return null;
+      const value = await response.json();
+      const destination = value?.destination;
+      return value?.profile?.channelId === id && destination?.id === id && destination.kind === 'draft' && destination.publishable === false &&
+        (destination.actorId === undefined || destination.actorId === scope.actorId) &&
+        (destination.organizationId === undefined || destination.organizationId === scope.organizationId) ? id : null;
+    } catch { return null; }
+  }))).filter((id): id is string => id !== null), {revalidateOnFocus: false, revalidateOnReconnect: false, shouldRetryOnError: false, keepPreviousData: false});
+  return useMemo(() => ({ids: new Set(data ?? []), pending: enabled && data === undefined && !error}), [data, error, enabled]);
+};
 
 /** Existing readers of this object only; neighbouring ids and other avatars stay untouched. */
 export const artifactReadMatches = (artifact: AgentArtifact, key: unknown): boolean => {
@@ -14,6 +33,7 @@ export const artifactReadMatches = (artifact: AgentArtifact, key: unknown): bool
   }
   if (typeof key !== 'string') return false;
   const [path, query = ''] = key.split('?');
+  if (artifact.kind === 'campaign') return path === `/social-factory/campaigns/${encodeURIComponent(artifact.id)}`;
   const under = (root: string) => path === root || path.startsWith(`${root}/`);
   if (artifact.kind === 'avatar') {
     return path === `${VOICE_API_BASE}/avatars` || path === `${VOICE_API_BASE}/overview` ||

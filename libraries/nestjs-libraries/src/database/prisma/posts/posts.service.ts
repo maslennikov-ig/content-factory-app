@@ -868,7 +868,7 @@ export class PostsService {
     try {
       await this._temporalService.client
         .getRawClient()
-        ?.workflow.start('postWorkflowV108', {
+        ?.workflow.start(await this._postRepository.isSocialFactoryPublication(orgId, postId) ? 'postWorkflowV109' : 'postWorkflowV108', {
           workflowId: `post_${postId}`,
           taskQueue: 'main',
           workflowIdConflictPolicy: 'TERMINATE_EXISTING',

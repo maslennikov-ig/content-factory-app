@@ -84,7 +84,7 @@ export class HeygenProviderV1 implements VideoProviderV1 {
     const result = await requestV1(request.endpoint, { ...this.headers(credential), 'Idempotency-Key': key }, 'POST', request.body, this.id);
     try {
       const id = handleV1(this.videoData(result).video_id);
-      return { id, statusUrl: `${BASE}/v3/videos/${id}` };
+      return { id, statusUrl: `${BASE}/v3/videos/${id}`, ...(request.body.caption !== undefined ? {captionsRequested:true} : {}) } as VideoProviderReceiptV1;
     } catch { throw new VideoProviderErrorV1('video_invalid_submit_receipt', true, false); }
   }
 
@@ -99,7 +99,10 @@ export class HeygenProviderV1 implements VideoProviderV1 {
       case 'processing': return { state: 'running' };
       case 'failed': return { state: 'failed', errorCode: 'video_provider_generation_failed' };
       // VideoDetail reports duration, but no documented actual-cost field.
-      case 'completed': return { state: 'succeeded', url: httpsV1(result.captioned_video_url || result.video_url), ...(finiteNumberV1(result.duration) === undefined ? {} : { duration: finiteNumberV1(result.duration) }) };
+      case 'completed': {
+        const requested=(receipt as VideoProviderReceiptV1 & {captionsRequested?:boolean}).captionsRequested;
+        if(requested && !result.captioned_video_url) failV1('video_captioned_result_missing');
+        return { state: 'succeeded', ...(requested ? {captionsBurned:true} : {}), url: httpsV1(requested ? result.captioned_video_url : (result.captioned_video_url || result.video_url)), ...(finiteNumberV1(result.duration) === undefined ? {} : { duration: finiteNumberV1(result.duration) }) } as VideoProviderStatusV1; }
       default: return failV1('video_invalid_provider_status');
     }
   }

@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient, type Post } from '@prisma/client';
 import type { PostResponse } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
+import { appendPublicationDiagnostic, publicationWarning, YOUTUBE_THUMBNAIL_WARNING } from '../../../integrations/publication-warnings';
 
 export const PUBLICATION_UNCERTAIN_V106 =
   'Результат публикации не подтверждён. Проверьте публикацию в канале; автоматическая повторная отправка заблокирована.';
@@ -120,6 +121,7 @@ export class PublicationStoreV106 {
     if (!validReceipts(receipts, key.postId)) throw new Error('Invalid provider receipt');
     // Persist the receipt contract, never extra provider payload fields.
     receipts = receiptFields(receipts);
+    const warning = publicationWarning(receipts);
     for (let retry = 0; retry < 5; retry++) {
       const post = await this.read(key);
       if (!post) throw new Error('Publication post not found');
@@ -140,10 +142,12 @@ export class PublicationStoreV106 {
       const result = await this.client.post.updateMany({ where: {
         id: key.postId, organizationId: key.organizationId, integrationId: key.integrationId,
         publicationJournal: { equals: post.publicationJournal },
+        ...(warning ? {error: post.error} : {}),
       }, data: {
         publicationJournal: next as unknown as Prisma.InputJsonValue,
         state: 'PUBLISHED', releaseId: receipts[0].postId, releaseURL: receipts[0].releaseURL,
-        ...(post.error === PUBLICATION_UNCERTAIN_V106 ? { error: null } : {}),
+        ...(warning ? { error: appendPublicationDiagnostic(post.error === PUBLICATION_UNCERTAIN_V106 ? null : post.error, warning) }
+          : post.error === PUBLICATION_UNCERTAIN_V106 ? { error: null } : {}),
       } });
       if (result.count === 1) return receipts;
     }
@@ -192,9 +196,10 @@ export class PublicationStoreV106 {
         a === own ? { ...a, auxiliaryFailure: 'streak' } : a) };
       const result = await this.client.post.updateMany({ where: {
         id: key.postId, organizationId: key.organizationId, integrationId: key.integrationId,
-        publicationJournal: { equals: post.publicationJournal },
+        publicationJournal: { equals: post.publicationJournal }, error: post.error,
       }, data: { publicationJournal: next as unknown as Prisma.InputJsonValue,
-        ...(post.state === 'PUBLISHED' && !post.error ? { error: STREAK_FAILED } : {}),
+        ...(post.state === 'PUBLISHED' && (!post.error || post.error.split('\n').includes(YOUTUBE_THUMBNAIL_WARNING))
+          ? { error: appendPublicationDiagnostic(post.error, STREAK_FAILED) } : {}),
       } });
       if (result.count === 1) return;
     }

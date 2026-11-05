@@ -3,9 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 /**
  * One transport for every text call, and the ledger that learns what it cost.
  *
- * Primary and role models come from configuration. Since 27.10.2026 the
- * defaults are Terra6.1 (medium), with Luna (low) for classification. The
- * configured ordered fallback chain keeps its own model and tier policy.
+ * Primary and role models come from configuration. The configured ordered
+ * fallback chain keeps its own model and tier policy.
  * Batch is not used, because a person is waiting on every call.
  *
  * The chain is a `fetch`, not a wrapper around one SDK. LangChain's
@@ -14,11 +13,11 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  * both kinds of call and needs no change at their call sites. A chain inside
  * one SDK would leave the other one on a single attempt.
  *
- * OpenRouter facts this relies on (docs, 2026-09-23): top-level
- * `service_tier: "flex"` sends the request only to flex endpoints and reports
- * missing capacity as an error instead of falling back; the response carries
- * the tier that served it and a `usage` object, and `usage: {include: true}`
- * adds `cost` to that object.
+ * OpenRouter service-tiers docs, checked 2026-11-05:
+ * https://openrouter.ai/docs/guides/features/service-tiers
+ * Flex prefers discounted endpoints with price-bounded provider fallback;
+ * without a Flex endpoint the provider may serve Standard. Only a response
+ * establishes the actual tier, which may be null. Requested tier is separate.
  *
  * Imports only `node:async_hooks`. `ai.clients.ts` and `ai.usage.service.ts`
  * both depend on it, and the Jest map loads the real module for every suite
@@ -85,8 +84,20 @@ const usesFlexOnlyTier = (
   model: string,
   source: { provider: string; usageMode: string; textChain?: TextChainSettings }
 ): boolean => typeof source.textChain?.modelTiers?.[model] === 'boolean'
-  ? source.textChain.modelTiers[model]
+  ? source.textChain.modelTiers[model] && (source.provider !== 'openrouter' || model.startsWith('openai/'))
   : model === 'openai/gpt-6.1-sol' && source.provider === 'openrouter' && source.usageMode === 'included';
+
+const prefersFlexTier = (
+  model: string,
+  source: {provider: string; usageMode: string; textChain?: TextChainSettings},
+  primary = true
+): boolean => source.textChain?.modelTiers?.[model] ?? (usesFlexOnlyTier(model, source) ||
+  (primary && source.provider === 'openrouter' &&
+    (source.textChain?.flex ?? (source.usageMode === 'included' && DEFAULT_TEXT_FLEX_ENABLED))));
+
+/** Newly supported vendor tiers are preferences; historical OpenAI tier pins keep their funding limit. */
+export const allowsDefaultTierRetry = (model: string, source: TextChainSource): boolean =>
+  source.provider === 'openrouter' && !usesFlexOnlyTier(model, source);
 
 /** What the operator or workspace set on the row; absent reads as the defaults. */
 export interface TextChainSettings {
@@ -526,11 +537,7 @@ export const resolveOrderedTextChainPolicy = (
       model: primaryModel,
       role: 'primary',
       flex:
-        usesFlexOnlyTier(primaryModel, tierSource) ||
-        (flex &&
-          usageMode === 'included' &&
-          provider === 'openrouter' &&
-          primaryModel.startsWith('openai/')),
+        prefersFlexTier(primaryModel, tierSource),
       maxRetries,
     });
   }
@@ -538,7 +545,7 @@ export const resolveOrderedTextChainPolicy = (
     effectiveChain.push({
       model: fallback,
       role: 'fallback',
-      flex: usesFlexOnlyTier(fallback, tierSource),
+      flex: prefersFlexTier(fallback, tierSource, false),
       maxRetries,
     });
   }
@@ -623,6 +630,7 @@ export const textChainApplies = (source: TextChainSource): boolean => {
   }
   const settings = source.textChain;
   if (!settings) return false;
+  if (source.provider === 'openrouter' && settings.flex) return true;
   if (Object.values(settings.modelTiers ?? {}).some(Boolean)) return true;
   const hasExplicitFallbacks =
     Array.isArray(settings.fallbackModels) &&
@@ -646,13 +654,6 @@ const defaultReasoningEffort = (model: string): 'low' | 'medium' | undefined =>
   isLunaModel(model) ? 'low' :
   /^(openai\/)?gpt-6\.1-(terra|sol)$/.test(model) ? 'medium' : undefined;
 
-/**
- * OpenRouter's flex endpoints are OpenAI's (`openai/flex`). Asking a model of
- * another vendor for flex would be refused on every call, and each refusal
- * costs a round trip before the standard attempt.
- */
-const flexCapable = (model: string) => model.startsWith('openai/');
-
 export const planTextAttempts = (
   model: string,
   source: TextChainSource
@@ -665,12 +666,7 @@ export const planTextAttempts = (
   const settings = source.textChain ?? defaultTextChainSettings();
   const primaryDiscountedOnly = usesFlexOnlyTier(model, source);
   if (source.singleModelAttempt) {
-    const flex = primaryDiscountedOnly || Boolean(
-      settings.flex &&
-      source.usageMode === 'included' &&
-      source.provider === 'openrouter' &&
-      flexCapable(model)
-    );
+    const flex = prefersFlexTier(model, {...source, textChain: settings});
     // The native agent owns all retries and failover. Selecting Flex changes
     // this attempt's tier/deadline; it must never add a hidden Standard call.
     return [{
@@ -693,10 +689,7 @@ export const planTextAttempts = (
   const steps: Array<Omit<TextAttempt, 'number'>> = [];
   if (
     primaryDiscountedOnly ||
-    (settings.flex &&
-      source.usageMode === 'included' &&
-      source.provider === 'openrouter' &&
-      flexCapable(model))
+    prefersFlexTier(model, {...source, textChain: settings})
   ) {
     // One flex attempt (`97dq.94`): the interactive chat keeps its shorter
     // time to first token.
@@ -710,7 +703,11 @@ export const planTextAttempts = (
     });
   }
   const standardTriesPerModel = 1 + policy.maxRetries;
-  for (let retry = primaryDiscountedOnly ? 1 : 0; retry < standardTriesPerModel; retry += 1) {
+  // One Default availability retry, never an extra retry loop around Flex.
+  // An absent legacy retry setting retains its old initial Standard attempt.
+  const primaryTries = steps.length && !primaryDiscountedOnly
+    ? settings.maxRetries === 0 ? 0 : 1 : standardTriesPerModel;
+  for (let retry = primaryDiscountedOnly ? 1 : 0; retry < primaryTries; retry += 1) {
     steps.push({
       model,
       flex: primaryDiscountedOnly,
@@ -720,11 +717,14 @@ export const planTextAttempts = (
     });
   }
   for (const fallback of policy.fallbackModels) {
-    for (let retry = 0; retry < standardTriesPerModel; retry += 1) {
+    const flexOnly = usesFlexOnlyTier(fallback, source), flex = prefersFlexTier(fallback, source, false);
+    if (flex && !flexOnly) steps.push({model: fallback, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS});
+    const tries = flex && !flexOnly ? settings.maxRetries === 0 ? 0 : 1 : standardTriesPerModel;
+    for (let retry = 0; retry < tries; retry += 1) {
       steps.push({
         model: fallback,
-        flex: usesFlexOnlyTier(fallback, source),
-        timeoutMs: usesFlexOnlyTier(fallback, source) && source.profile === 'interactive'
+        flex: flexOnly,
+        timeoutMs: flexOnly && source.profile === 'interactive'
           ? INTERACTIVE_FLEX_TIMEOUT_MS
           : STANDARD_ATTEMPT_TIMEOUT_MS,
       });
@@ -812,22 +812,20 @@ export const buildAttemptBody = (
   attempt: Pick<TextAttempt, 'model' | 'flex'>,
   /** The attempt model's known output ceiling, when there is one (F12). */
   outputLimit?: number,
-  provider: 'openai' | 'openrouter' = 'openrouter'
+  provider: 'openai' | 'openrouter' = 'openrouter',
+  flexOnly = false
 ): Record<string, unknown> => {
   const body: Record<string, unknown> = { ...original, model: attempt.model };
   delete body.service_tier;
   if (attempt.flex) {
-    if (provider === 'openrouter' && !attempt.model.startsWith('openai/')) {
-      throw new Error('The selected model has no supported Flex route. Disable Flex for that profile or choose a compatible model.');
-    }
     body.service_tier = 'flex';
-    if (provider === 'openrouter' && attempt.model.startsWith('openai/')) {
+    if (provider === 'openrouter' && flexOnly) {
       const providerOptions = original.provider && typeof original.provider === 'object'
         ? original.provider as Record<string, unknown>
         : {};
       body.provider = { ...providerOptions, only: ['openai/flex'], allow_fallbacks: false };
     }
-  }
+  } else if (provider === 'openrouter') body.service_tier = 'default';
   const usage =
     original.usage && typeof original.usage === 'object'
       ? (original.usage as Record<string, unknown>)
@@ -888,17 +886,22 @@ export const lengthRetryCap = (cap: number, outputLimit?: number): number =>
 /** What one served call reported. Absent means the provider did not say. */
 export interface TextCallUsage {
   attempt: number;
+  /** Model explicitly returned by the provider, never the requested fallback.
+   * `model` keeps its historical billing/display fallback when this is absent.
+   */
+  providerReportedModel?: string;
   model?: string;
-  serviceTier?: string;
+  /** Requested tier is policy, never evidence that the provider served it. */
+  requestedServiceTier?: 'flex' | 'default';
+  serviceTier?: string | null;
   promptTokens?: number;
   completionTokens?: number;
   reasoningTokens?: number;
   cachedTokens?: number;
   costUsd?: number;
   /**
-   * An attempt that did not serve the call (correctness review F15,
-   * `97dq.66`): refused, failed in transport or out of time. It carries no
-   * tokens and no cost, because the provider never reported any to us.
+   * An attempt that failed or did not serve the call. A partial provider
+   * receipt is retained; missing tokens/cost are never invented.
    */
   failed?: boolean;
   /**
@@ -1170,11 +1173,15 @@ export const readUsage = (
   const usage = (payload?.usage ?? {}) as Record<string, any>;
   return {
     attempt: attempt.number,
+    requestedServiceTier: attempt.flex ? 'flex' : 'default',
     model:
       typeof payload?.model === 'string' && payload.model
         ? payload.model
         : attempt.model,
-    ...(typeof payload?.service_tier === 'string'
+    ...(typeof payload?.model === 'string' && payload.model.trim()
+      ? { providerReportedModel: payload.model }
+      : {}),
+    ...(typeof payload?.service_tier === 'string' || payload?.service_tier === null
       ? { serviceTier: payload.service_tier }
       : {}),
     promptTokens: num(usage.prompt_tokens ?? usage.input_tokens),
@@ -1192,15 +1199,23 @@ export const readUsage = (
 const RETRYABLE_MESSAGE =
   /capacity|overloaded|rate.?limit|temporarily|unavailable|timed? ?out|try again/i;
 
+/** Established availability statuses, shared by raw and native tier budgets. */
+export const isTextAvailabilityStatus = (status: number | undefined): boolean =>
+  status !== undefined && [408, 429, 500, 502, 503, 504, 529].includes(status);
+
+/** A model-not-found 404 is terminal; only an explicit Flex endpoint refusal qualifies. */
+export const isFlexEndpointCapacityRefusal = (status: number | undefined, message: string): boolean =>
+  status === 404 && /no endpoints?\b/i.test(message) && /\bflex\b|service[_ -]?tier/i.test(message) &&
+  !/invalid|unknown|model[^\n]*(?:not found|does not exist)|(?:not found|unknown)[^\n]*model/i.test(message);
+
 /**
  * Only a failure that a different moment or endpoint could fix moves to the
  * next attempt: rate limits, the provider's own errors, timeouts, missing
  * capacity. A 4xx validation error is our request's fault. GLM would refuse
  * the same request, and the chain would only pay for the refusal again.
  *
- * One 4xx is capacity on a flex attempt: OpenRouter answers «no endpoints
- * found» with 404 when routing is restricted to flex and no flex endpoint is
- * available.
+ * Only an explicit Flex endpoint-capacity 404 qualifies; model-not-found and
+ * tier parameter errors remain terminal.
  */
 export const isRetryableFailure = (
   status: number | undefined,
@@ -1208,21 +1223,18 @@ export const isRetryableFailure = (
   attempt: TextAttempt
 ): boolean => {
   if (status === undefined) return RETRYABLE_MESSAGE.test(message);
-  if (status === 408 || status === 425 || status === 429 || status >= 500) {
+  if (isTextAvailabilityStatus(status)) {
     return true;
   }
-  if (attempt.flex && status === 404 && /no endpoints/i.test(message)) {
+  if (attempt.flex && isFlexEndpointCapacityRefusal(status, message)) {
     return true;
   }
-  if (isFlexRefusal(status, message, attempt)) return true;
   return false;
 };
 
 /**
- * A flex attempt refused for the tier itself (review F18, `97dq.66`): a 4xx
- * whose message names `service_tier` or flex, as a model without flex support
- * would answer. The standard attempt can serve it; another flex attempt
- * cannot, so the chain skips the rest of flex.
+ * Recognises a tier parameter refusal for diagnostics. This classification
+ * does not authorise a paid retry of a 400/403/422 response.
  */
 export const isFlexRefusal = (
   status: number | undefined,
@@ -1336,6 +1348,22 @@ const abortable = <T>(promise: Promise<T>, signal: AbortSignal) =>
     );
   });
 
+const hasObservedProviderOutput = (payload: Record<string, any> | undefined): boolean => {
+  if (!payload) return false;
+  return !!(Array.isArray(payload.choices) && payload.choices.some((choice: any) => {
+    const value = choice.delta ?? choice.message ?? choice;
+    return !!(value?.content || value?.text || value?.reasoning || value?.reasoning_content || value?.reasoning_details?.length ||
+      value?.tool_calls?.length || value?.function_call);
+  }) || payload.type === 'response.output_text.delta' && payload.delta ||
+    payload.type === 'response.function_call_arguments.delta' || payload.item?.type === 'function_call');
+};
+
+const hasObservedProviderSpend = (usage: Record<string, any> | undefined): boolean => [
+  usage?.cost, usage?.prompt_tokens, usage?.input_tokens, usage?.completion_tokens, usage?.output_tokens, usage?.total_tokens,
+  usage?.completion_tokens_details?.reasoning_tokens, usage?.output_tokens_details?.reasoning_tokens,
+  usage?.prompt_tokens_details?.cached_tokens, usage?.input_tokens_details?.cached_tokens,
+].some(value => typeof value === 'number' && value > 0);
+
 /**
  * Reads server-sent events incrementally and remembers the last model, tier
  * and usage they carried. OpenRouter sends usage in the final chunk.
@@ -1344,8 +1372,12 @@ class SseObserver {
   private pending = '';
   private readonly decoder = new TextDecoder();
   model?: string;
-  serviceTier?: string;
+  serviceTier?: string | null;
   usage?: Record<string, unknown>;
+  outputSeen = false;
+  sawError = false;
+  get hasReportedSpend() { return hasObservedProviderSpend(this.usage); }
+  get nonReplayable() { return this.sawError && (this.outputSeen || this.hasReportedSpend); }
   /** The first `data:` payload, parsed; `null` for a non-JSON one. */
   first?: Record<string, unknown> | null;
 
@@ -1372,8 +1404,10 @@ class SseObserver {
     if (this.first === undefined) this.first = payload;
     if (!payload) return;
     if (payload.type === 'response.completed' && payload.response) payload = payload.response;
+    this.outputSeen ||= hasObservedProviderOutput(payload);
+    this.sawError ||= !!errorOf(payload);
     if (typeof payload.model === 'string') this.model = payload.model;
-    if (typeof payload.service_tier === 'string') {
+    if (typeof payload.service_tier === 'string' || payload.service_tier === null) {
       this.serviceTier = payload.service_tier;
     }
     if (payload.usage && typeof payload.usage === 'object') {
@@ -1384,7 +1418,7 @@ class SseObserver {
   result(): Record<string, unknown> {
     return {
       ...(this.model ? { model: this.model } : {}),
-      ...(this.serviceTier ? { service_tier: this.serviceTier } : {}),
+      ...(this.serviceTier !== undefined ? { service_tier: this.serviceTier } : {}),
       ...(this.usage ? { usage: this.usage } : {}),
     };
   }
@@ -1400,11 +1434,17 @@ type SkipReason = {
   possiblyBilled?: boolean;
 };
 
+/** The request may already be billed or have emitted text/tool intent. */
+const nonReplayableTextError = (cause: unknown): Error => Object.assign(
+  new Error(cause instanceof Error ? cause.message : 'Model request ended after output started.'),
+  {name: 'NonReplayableTextAttempt', cause, textAttemptNonReplayable: true}
+);
+
 /** A failed attempt in the ledger: attempt, model and tier, no tokens, no cost. */
 const failedCall = (attempt: TextAttempt, possiblyBilled: boolean): TextCallUsage => ({
   attempt: attempt.number,
   model: attempt.model,
-  ...(attempt.flex ? { serviceTier: 'flex' } : {}),
+  requestedServiceTier: attempt.flex ? 'flex' : 'default',
   failed: true,
   ...(possiblyBilled ? { possiblyBilled: true } : {}),
 });
@@ -1477,24 +1517,6 @@ export const isOpenRouterInFlightBudgetError = (error: unknown): boolean => {
     isOpenRouterInFlightBudgetBody(value.responseBody);
 };
 
-/** OpenRouter's temporary credit reservation is capacity, not exhausted credit. */
-const withOpenRouterInFlightBudget = (source: TextChainSource, fetch: FetchLike): FetchLike =>
-  async (input, init) => {
-    const response = await fetch(input, init);
-    if (source.provider !== 'openrouter' || response.status !== 402 ||
-      !isChatCompletions(urlOf(input), { method: init?.method ?? (input instanceof Request ? input.method : 'GET') }) ||
-      !isOpenRouterChatUrl(urlOf(input))) return response;
-    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
-    const text = await (signal ? abortable(response.text(), signal) : response.text());
-    // limit_source is authoritative; reason and human hints may change.
-    const status = isOpenRouterInFlightBudgetBody(text) ? 429 : response.status;
-    return new Response(text, {
-      status,
-      statusText: status === 429 ? 'Too Many Requests' : response.statusText,
-      headers: copyHeaders(response.headers),
-    });
-  };
-
 /**
  * The shared `fetch` for every text-capable client.
  *
@@ -1523,7 +1545,7 @@ export const createTextChainFetch = (
     budgetMs?: number;
   } = {}
 ): FetchLike =>
-  withLengthRetry(source, sendText(source, withOpenRouterInFlightBudget(source, baseFetch)), options.budgetMs);
+  withLengthRetry(source, sendText(source, baseFetch), options.budgetMs);
 
 /* ------------------------------------------------------------------------ */
 /* An answer cut at the ceiling                                             */
@@ -1811,10 +1833,12 @@ const sendText = (
     }
 
     const attempts = planTextAttempts(original.model, source);
-    let flexRefused = false;
-    for (const attempt of attempts) {
-      // A tier refusal will not change on the second flex attempt (F18).
-      if (flexRefused && attempt.flex) continue;
+    for (const plannedAttempt of attempts) {
+      // Native retry processors choose the next tier through SDK providerOptions.
+      // They retain the single central attempt budget; this fetch still sends once.
+      const attempt = source.singleModelAttempt && source.provider === 'openrouter' &&
+        original.service_tier === 'default' && allowsDefaultTierRetry(plannedAttempt.model, source)
+        ? {...plannedAttempt, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS} : plannedAttempt;
       assertAiExecutionBudget();
       const recordedAttempt =
         source.singleModelAttempt && ledger
@@ -1830,7 +1854,8 @@ const sendText = (
             original,
             recordedAttempt,
             source.outputLimits?.[recordedAttempt.model],
-            source.provider
+            source.provider,
+            usesFlexOnlyTier(recordedAttempt.model, source)
           ),
           recordedAttempt,
           attempt.number === attempts.length,
@@ -1845,11 +1870,6 @@ const sendText = (
             textChainSkipLine(recordedAttempt, attempts.length, error.reason, Date.now() - startedAt)
           );
           ledger?.record(failedCall(recordedAttempt, !!error.reason.possiblyBilled));
-          if (
-            isFlexRefusal(error.reason.status, error.reason.message, recordedAttempt)
-          ) {
-            flexRefused = true;
-          }
           continue;
         }
         throw error;
@@ -1978,9 +1998,11 @@ const runAttempt = async (
       throw error;
     }
     const surfaced = deadline.state.timedOut ? new AttemptTimeout() : error;
-    if (last) {
+    if (last || isOpenRouterChatUrl(urlOf(input))) {
       ledger?.record(failedCall(attempt, true));
-      throw surfaced;
+      // No provider refusal arrived. A second paid call could duplicate an
+      // accepted request, even if the client has not seen its first token.
+      throw isOpenRouterChatUrl(urlOf(input)) ? nonReplayableTextError(surfaced) : surfaced;
     }
     throw new RetryableAttempt({
       possiblyBilled: true,
@@ -2031,6 +2053,13 @@ const runAttempt = async (
         headers,
       });
     };
+    const refuseObservedFailure = (payload: Record<string, any> | undefined) => {
+      if (isOpenRouterChatUrl(urlOf(input)) &&
+        (hasObservedProviderOutput(payload) || hasObservedProviderSpend(payload?.usage))) {
+        ledger?.record({...readUsage(payload, attempt), failed: true, possiblyBilled: true});
+        throw nonReplayableTextError(new Error('Provider JSON response failed after generated output or reported spend.'));
+      }
+    };
 
     if (!response.ok) {
       let text = '';
@@ -2040,11 +2069,14 @@ const runAttempt = async (
         return failure(error);
       }
       let message = text;
+      let payload: Record<string, any> | undefined;
       try {
-        message = errorOf(JSON.parse(text))?.message || text;
+        payload = JSON.parse(text);
+        message = errorOf(payload)?.message || text;
       } catch {
         /* keep the raw text */
       }
+      refuseObservedFailure(payload);
       if (retry(response.status, message))
         throw new RetryableAttempt({ status: response.status, message });
       ledger?.record(failedCall(attempt, false));
@@ -2068,6 +2100,7 @@ const runAttempt = async (
       // failure came after the headers were sent.
       const error = errorOf(payload);
       if (error) {
+        refuseObservedFailure(payload);
         if (retry(error.status, error.message))
           throw new RetryableAttempt({
             status: error.status ?? response.status,
@@ -2099,13 +2132,20 @@ const runAttempt = async (
       }
       held.push(chunk.value);
       observer.push(chunk.value);
+      if (observer.nonReplayable && isOpenRouterChatUrl(urlOf(input))) {
+        void reader.cancel().catch(() => undefined);
+        ledger?.record({...readUsage(observer.result(), attempt), failed: true, possiblyBilled: true});
+        throw nonReplayableTextError(new Error('Provider stream failed after generated output or reported spend.'));
+      }
     }
     if (singleModelAttempt && ended && observer.first === undefined && isOpenRouterChatUrl(urlOf(input))) {
       const decoder = new TextDecoder();
       const text = held.map(bytes => decoder.decode(bytes, { stream: true })).join('') + decoder.decode();
       let error: ReturnType<typeof errorOf>;
-      try { error = errorOf(JSON.parse(text)); } catch { /* Not a provider error envelope. */ }
+      let payload: Record<string, any> | undefined;
+      try { payload = JSON.parse(text); error = errorOf(payload); } catch { /* Not a provider error envelope. */ }
       if (error) {
+        refuseObservedFailure(payload);
         ledger?.record(failedCall(attempt, false));
         return rebuild(text, error.status);
       }
@@ -2129,7 +2169,7 @@ const runAttempt = async (
     const served = () => {
       if (settled) return;
       settled = true;
-      ledger?.record(readUsage(observer.result(), attempt));
+      ledger?.record({...readUsage(observer.result(), attempt), ...(observer.sawError ? {failed: true} : {})});
     };
     /**
      * A stream that stops before its end — the caller's abort, a cancel, a
@@ -2139,7 +2179,7 @@ const runAttempt = async (
     const cut = () => {
       if (settled) return;
       settled = true;
-      ledger?.record(failedCall(attempt, true));
+      ledger?.record({...readUsage(observer.result(), attempt), failed: true, possiblyBilled: true});
     };
     // Delivered. From here the deadline no longer applies; the caller's own
     // signal still does, through the same controller.
@@ -2161,7 +2201,7 @@ const runAttempt = async (
             chunk = await reader.read();
           } catch (error) {
             cut();
-            throw error;
+            throw isOpenRouterChatUrl(urlOf(input)) ? nonReplayableTextError(error) : error;
           }
           if (chunk.done) {
             ended = true;
@@ -2170,6 +2210,10 @@ const runAttempt = async (
             return;
           }
           observer.push(chunk.value);
+          if (observer.nonReplayable && isOpenRouterChatUrl(urlOf(input))) {
+            cut();
+            throw nonReplayableTextError(new Error('Provider stream failed after generated output or reported spend.'));
+          }
           controller.enqueue(chunk.value);
         },
         cancel: (reason) => {

@@ -12,6 +12,8 @@
   "delete": "Sil",
   "add_a_webhook": "Bir web kancası ekle",
   "save": "Kaydet",
+  "refresh": "Yenile",
+  "saving": "Kaydediliyor…",
   "send_test": "Test Gönder",
   "select_role": "Rol Seç",
   "video_made_with_ai": "Video yapay zeka ile oluşturuldu",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "Kayıtlı sürümü yükle",
   "video_v1_reviewSnapshot": "Başlatmadan önce metni ve ayarları inceleyin",
   "video_v1_paymentNote": "Sağlayıcı ücreti tahmini veya ayrılan tutarı aşabilir. İptal ve iade garanti edilmez; HeyGen iptali desteklemez.",
-  "video_v1_approvalChanged": "Kaydedilen taslak değişti. Başlatmadan önce yeni sürümü ve fiyatı kontrol edin."
+  "video_v1_approvalChanged": "Kaydedilen taslak değişti. Başlatmadan önce yeni sürümü ve fiyatı kontrol edin.",
+  "validation_tiktok_privacy_required": "Yayınlamadan önce TikTok gizliliğini hesabın güncel seçeneklerinden seçin.",
+  "validation_tiktok_account_unavailable": "TikTok hesap ayarları kullanılamıyor. Tekrar deneyin veya kanalı yeniden bağlayın.",
+  "validation_tiktok_interactions_changed": "TikTok etkileşim ayarları değişti. Yayınlamadan önce yorumları, Duet ve Stitch ayarlarını kontrol edin.",
+  "validation_tiktok_disclosure_invalid": "Yayınlamadan önce TikTok ticari içerik bildirimi seçilen markalar ve gizlilik ayarlarıyla eşleşmelidir.",
+  "validation_tiktok_duration_invalid": "TikTok video süresi kullanılamıyor veya hesabın geçerli sınırını aşıyor. Yayınlamadan önce videoyu kontrol edin."
 }

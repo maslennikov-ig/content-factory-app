@@ -113,13 +113,13 @@ describe('text chain plan', () => {
     ]);
   });
 
-  test('a model without a flex endpoint and the fallback itself are not doubled', () => {
+  test('configured vendor models can prefer Flex while the implicit discounted fallback stays strict', () => {
     expect(
       chain.planTextAttempts('openai/gpt-6.1-sol', included).map((a) => [a.model, a.flex])
     ).toEqual([['openai/gpt-6.1-sol', true]]);
     expect(
       chain.planTextAttempts('z-ai/glm-5.3', included).map((a) => [a.model, a.flex])
-    ).toEqual([['z-ai/glm-5.3', false], ['openai/gpt-6.1-sol', true]]);
+    ).toEqual([['z-ai/glm-5.3', true], ['z-ai/glm-5.3', false], ['openai/gpt-6.1-sol', true]]);
   });
 
   test('an explicitly empty chain preserves a single attempt for either key provider', () => {
@@ -158,7 +158,7 @@ describe('text chain transport', () => {
     expect(response.status).toBe(200);
     expect(calls.map(({ body }) => [body.model, body.service_tier, body.reasoning])).toEqual([
       [LUNA, 'flex', { effort: 'low' }],
-      [LUNA, undefined, { effort: 'low' }],
+      [LUNA, 'default', { effort: 'low' }],
       ['openai/gpt-6.1-sol', 'flex', { effort: 'medium' }],
     ]);
     for (const { body } of calls) expect(body.usage).toEqual({ include: true });
@@ -176,11 +176,9 @@ describe('text chain transport', () => {
     });
   });
 
-  test('network failure and an error in a 200 body both move on', async () => {
+  test('explicit provider failure and an error in a 200 body both move on', async () => {
     const { fetch, calls } = scripted(
-      async () => {
-        throw new TypeError('fetch failed');
-      },
+      json(503, { error: { code: 503, message: 'Unavailable before output' } }),
       json(200, { error: { code: 429, message: 'Rate limit exceeded' } }),
       json(200, completion({ service_tier: 'default' }))
     );
@@ -205,8 +203,8 @@ describe('text chain transport', () => {
     );
     await chain.createTextChainFetch(source, fetch)(URL_, post(request));
     expect(calls.map(({ body }) => [body.model, body.service_tier])).toEqual([
-      [LUNA, undefined],
-      ['z-ai/glm-5.3', undefined],
+      [LUNA, 'default'],
+      ['z-ai/glm-5.3', 'default'],
     ]);
   });
 
@@ -246,7 +244,7 @@ describe('text chain transport', () => {
     expect(calls).toHaveLength(1);
   });
 
-  test('a flex attempt that outlives its deadline moves to the next one', async () => {
+  test('a flex client deadline with unknown charge stops without a paid replay', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask', 'nextTick'] });
     try {
       const hang = (init) =>
@@ -255,13 +253,12 @@ describe('text chain transport', () => {
         );
       const { fetch, calls } = scripted(hang, json(200, completion()));
       const pending = chain.createTextChainFetch(included, fetch)(URL_, post(request));
+      const rejected = expect(pending).rejects.toMatchObject({textAttemptNonReplayable: true});
       await jest.advanceTimersByTimeAsync(59_000);
       expect(calls).toHaveLength(1);
       await jest.advanceTimersByTimeAsync(1_000);
-      const response = await pending;
-      expect(calls).toHaveLength(2);
-      expect(calls[1].body.service_tier).toBeUndefined();
-      expect(response.status).toBe(200);
+      await rejected;
+      expect(calls).toHaveLength(1);
     } finally {
       jest.useRealTimers();
     }
@@ -274,14 +271,14 @@ describe('OpenRouter in-flight credit reservation', () => {
   const refusal = (details = metadata) => ({ error: { code: 402, message: 'Private provider diagnostic.', metadata: details } });
 
   test.each([metadata, { limit_source: metadata.limit_source }, { limit_source: metadata.limit_source, reason: 'future_reason' }])(
-    'the exact transient source becomes 429, preserving body, Retry-After and request limits: %j', async details => {
+    'even the in-flight source preserves actual terminal 402, body, Retry-After and request limits: %j', async details => {
     const body = `  ${JSON.stringify(refusal(details))}\n`;
     const { fetch, calls } = scripted(new Response(body, { status: 402,
       headers: { 'content-type': 'application/json', 'retry-after': '1', 'x-request-id': 'credit-reservation-test' } }));
     const init = post({ ...request, max_tokens: 87, temperature: 0.2 });
     const ledger = new chain.TextUsageLedger();
     const response = await chain.runWithUsageLedger(ledger, () => chain.createTextChainFetch({ ...source, outputLimits: { [LUNA]: 87 } }, fetch)(URL_, init));
-    expect(response.status).toBe(429);
+    expect(response.status).toBe(402);
     expect(response.headers.get('retry-after')).toBe('1');
     expect(response.headers.get('x-request-id')).toBe('credit-reservation-test');
     expect(await response.text()).toBe(body);
@@ -371,9 +368,9 @@ describe('OpenRouter in-flight credit reservation', () => {
   });
 
   test.each([
-    ['transient', metadata, 2],
-    ['transient credit wording', metadata, 2],
-    ['transient wrapped billing', metadata, 2],
+    ['in-flight 402', metadata, 1],
+    ['in-flight credit wording', metadata, 1],
+    ['in-flight wrapped billing', metadata, 1],
     ['permanent key', { limit_source: 'openrouter_key_limit' }, 1],
     ['permanent credits', { limit_source: 'openrouter_credits', reason: 'weight_exceeds_budget' }, 1],
     ['permanent unknown', {}, 1],
@@ -446,7 +443,7 @@ describe('OpenRouter in-flight credit reservation', () => {
       const report = JSON.parse(output.split('\n').find(line => line.startsWith('RESULT=')).slice(7));
       expect(report.calls).toBe(expectedCalls);
       expect(report.models).toEqual(Array(expectedCalls).fill('test-credit-primary'));
-      if (!_label.includes('wrapped')) expect(report.errors[0]).toEqual({ status: details.limit_source === metadata.limit_source ? 429 : 402, retryAfter: '1' });
+      if (!_label.includes('wrapped')) expect(report.errors[0]).toEqual({ status: 402, retryAfter: '1' });
       expect(report.ledger).toHaveLength(expectedCalls);
       expect(report.ledger[0]).toEqual({ failed: true, possiblyBilled: false });
       if (expectedCalls === 2) {
@@ -701,7 +698,7 @@ describe('streaming through the chain', () => {
     });
   });
 
-  test('a flex stream with no first token in 60 s moves to standard; after the first token no deadline applies (97dq.94)', async () => {
+  test('a silent Flex stream stops without replay; an answered stream has no later first-token deadline', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask', 'nextTick'] });
     try {
       const silent = (init) =>
@@ -715,11 +712,15 @@ describe('streaming through the chain', () => {
         );
       const { fetch, calls } = scripted(silent, sse([chunk('Hel'), chunk('lo')]));
       const pending = chain.createTextChainFetch(included, fetch)(URL_, post({ ...request, stream: true }));
+      const rejected = expect(pending).rejects.toMatchObject({textAttemptNonReplayable: true});
       await jest.advanceTimersByTimeAsync(60_000);
-      const response = await pending;
-      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', undefined]);
+      await rejected;
+      expect(calls).toHaveLength(1);
+      const answered = scripted(sse([chunk('Hel'), chunk('lo')]));
+      const response = await chain.createTextChainFetch(included, answered.fetch)(URL_, post({...request, stream: true}));
       await jest.advanceTimersByTimeAsync(120_000);
       expect(await readAll(response)).toContain('"lo"');
+      expect(answered.calls).toHaveLength(1);
     } finally {
       jest.useRealTimers();
     }
@@ -915,11 +916,11 @@ describe('usage capture', () => {
         json(200, completion({ service_tier: 'default' }))
       );
       const transport = chain.createTextChainFetch(included, fetch);
-      await service.executeAiOperation('organization-a', 'text_generation', () =>
+      await expect(service.executeAiOperation('organization-a', 'text_generation', () =>
         transport(URL_, post(request))
-      );
+      )).rejects.toThrow('socket hang up');
       const columns = update.mock.calls.map((call) => call[0].data).find((data) => !data.status);
-      expect(columns).toMatchObject({ attempt: 2, serviceTier: 'default', possiblyBilled: true });
+      expect(columns).toMatchObject({ attempt: 1, serviceTier: null, possiblyBilled: true });
     } finally {
       warn.mockRestore();
     }
@@ -933,8 +934,9 @@ describe('direct client budget (review F14)', () => {
     );
     // A default role on a non-flex model used to set a budget that ended a
     // flex-capable role's chain in the middle of its first flex attempt.
-    expect(chain.maxTextChainBudgetMs(included)).toBeGreaterThan(
-      chain.textChainBudgetMs('z-ai/glm-5.3', included)
+    const explicitStandard = {...included, textChain: {...included.textChain, modelTiers: {'z-ai/glm-5.3': false}}};
+    expect(chain.maxTextChainBudgetMs(explicitStandard)).toBeGreaterThan(
+      chain.textChainBudgetMs('z-ai/glm-5.3', explicitStandard)
     );
     expect(
       chain.maxTextChainBudgetMs({ ...included, textChain: { flex: false, fallbackModel: '' } })
@@ -963,9 +965,7 @@ describe('skipped attempts are logged (stand finding)', () => {
     const secretPrompt = { model: LUNA, messages: [{ role: 'user', content: 'TOP-SECRET-PROMPT' }] };
     const { fetch } = scripted(
       json(503, { error: { code: 503, message: `upstream down ${'x'.repeat(400)}` } }),
-      async () => {
-        throw new TypeError('fetch failed');
-      },
+      json(504, { error: { code: 504, message: 'provider request timed out' } }),
       json(200, completion({ service_tier: 'default' }))
     );
     const response = await chain.createTextChainFetch(included, fetch)(
@@ -980,7 +980,7 @@ describe('skipped attempts are logged (stand finding)', () => {
     );
     expect(lines[0].split('): ')[1].length).toBeLessThanOrEqual(chain.SKIP_MESSAGE_MAX_CHARS);
     expect(lines[1]).toMatch(
-      /^AI text chain: attempt 2\/3 skipped \(model openai\/gpt-6-luna, tier standard, TypeError, \d+ ms\): fetch failed$/
+      /^AI text chain: attempt 2\/3 skipped \(model openai\/gpt-6-luna, tier standard, HTTP 504, \d+ ms\): provider request timed out$/
     );
     for (const line of lines) {
       expect(line).not.toContain('TOP-SECRET-PROMPT');
@@ -1207,9 +1207,7 @@ describe('failed attempts are in the ledger (review F15)', () => {
     const warn = quiet();
     try {
       const { fetch } = scripted(
-        async () => {
-          throw new TypeError('socket hang up');
-        },
+        json(408, { error: { code: 408, message: 'Provider refused before output' } }),
         json(503, { error: { code: 503, message: 'down' } }),
         json(200, completion({ service_tier: 'default' }))
       );
@@ -1218,7 +1216,7 @@ describe('failed attempts are in the ledger (review F15)', () => {
         chain.createTextChainFetch(included, fetch)(URL_, post(request))
       );
       expect(ledger.calls.map((call) => [call.attempt, !!call.failed, !!call.possiblyBilled])).toEqual([
-        [1, true, true],
+        [1, true, false],
         [2, true, false],
         [3, false, false],
       ]);
@@ -1246,7 +1244,7 @@ describe('failed attempts are in the ledger (review F15)', () => {
       expect(response.status).toBe(503);
       expect(ledger.columns()).toEqual({
         model: 'openai/gpt-6.1-sol',
-        serviceTier: 'flex',
+        serviceTier: null,
         attempt: 3,
         promptTokens: null,
         completionTokens: null,
@@ -1278,7 +1276,7 @@ describe('failed attempts are in the ledger (review F15)', () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await settled;
       expect(ledger.calls).toEqual([
-        { attempt: 1, model: LUNA, failed: true, possiblyBilled: true },
+        { attempt: 1, model: LUNA, requestedServiceTier: 'default', failed: true, possiblyBilled: true },
       ]);
       expect(ledger.columns().possiblyBilled).toBe(true);
     } finally {
@@ -1352,8 +1350,8 @@ describe('web-plugin text calls are metered and not treated as images (review F1
   });
 });
 
-describe('a flex tier refusal falls to standard (review F18)', () => {
-  test('400 naming service_tier falls to standard and serves there', async () => {
+describe('a tier parameter refusal is terminal', () => {
+  test('400 naming service_tier cannot authorize a paid Default retry', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
       const { fetch, calls } = scripted(
@@ -1364,9 +1362,9 @@ describe('a flex tier refusal falls to standard (review F18)', () => {
       const response = await chain.runWithUsageLedger(ledger, () =>
         chain.createTextChainFetch(included, fetch)(URL_, post(request))
       );
-      expect(response.status).toBe(200);
-      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', undefined]);
-      expect(ledger.columns()).toMatchObject({ attempt: 2, serviceTier: 'default' });
+      expect(response.status).toBe(400);
+      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex']);
+      expect(ledger.columns()).toMatchObject({ attempt: 1, serviceTier: null });
     } finally {
       warn.mockRestore();
     }
@@ -1380,7 +1378,7 @@ describe('a flex tier refusal falls to standard (review F18)', () => {
     expect(chain.isFlexRefusal(400, 'Invalid service_tier', flex)).toBe(true);
     expect(chain.isFlexRefusal(400, 'Invalid service_tier', standard)).toBe(false);
     expect(chain.isRetryableFailure(400, 'response_format is invalid', flex)).toBe(false);
-    expect(chain.isRetryableFailure(400, 'flex tier is not available for this model', flex)).toBe(true);
+    expect(chain.isRetryableFailure(400, 'flex tier is not available for this model', flex)).toBe(false);
   });
 });
 
@@ -1431,7 +1429,7 @@ describe('copilot chat through the chain (@ai-sdk/openai chat model)', () => {
       });
       expect(calls.map(({ url }) => url)).toEqual([URL_, URL_]);
       // One flex attempt (97dq.94), then the standard tier.
-      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', undefined]);
+      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', 'default']);
       expect(calls[1].body).toMatchObject({
         stream: true,
         stream_options: { include_usage: true },
@@ -1520,6 +1518,10 @@ const hang = (init) =>
     init.signal.addEventListener('abort', () => reject(init.signal.reason))
   );
 
+// Explicit provider timeout before output, unlike an unanswered client deadline.
+const providerTimeout = () => new Promise(resolve => setTimeout(() =>
+  resolve(json(408, {error: {code: 408, message: 'Provider timeout before output'}})), 59000));
+
 const fakeTimers = () =>
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask', 'nextTick'] });
 
@@ -1536,11 +1538,11 @@ describe('the retry after a cut answer has its own budget (fifteenth F1)', () =>
     choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{"a":1}' } }],
   });
 
-  test('flex out of time, standard cut after 55 s, a 150 s retry: the SDK does not abort it', async () => {
+  test('explicit Flex timeout, standard cut after 55 s, a 150 s retry: the SDK does not abort it', async () => {
     fakeTimers();
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
-      const { fetch, calls } = scripted(hang, slowBody(cut, 55_000), slowBody(whole, 150_000));
+      const { fetch, calls } = scripted(providerTimeout, slowBody(cut, 55_000), slowBody(whole, 150_000));
       const budget = chain.textChainBudgetMs(LUNA, included);
       const ledger = new chain.TextUsageLedger();
       const pending = chain.runWithUsageLedger(ledger, () =>
@@ -1555,7 +1557,7 @@ describe('the retry after a cut answer has its own budget (fifteenth F1)', () =>
       expect(calls).toHaveLength(3);
       expect(calls[2].body.service_tier).toBe('flex');
       expect(calls[2].body.max_tokens).toBe(2048 * 2 + chain.REASONING_HEADROOM_TOKENS);
-      expect(ledger.columns().possiblyBilled).toBe(true);
+      expect(ledger.columns().possiblyBilled).toBe(false);
     } finally {
       warn.mockRestore();
       jest.useRealTimers();
@@ -1566,7 +1568,7 @@ describe('the retry after a cut answer has its own budget (fifteenth F1)', () =>
     fakeTimers();
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
-      const { fetch, calls } = scripted(hang, slowBody(cut, 55_000));
+      const { fetch, calls } = scripted(providerTimeout, slowBody(cut, 55_000));
       const budget = 200_000;
       const pending = sdkFetch(
         chain.createTextChainFetch(included, fetch, { budgetMs: budget }),
@@ -1651,17 +1653,19 @@ describe('a non-streaming body is not cut at the start-of-answer deadline (fifte
     }
   });
 
-  test('a body past its window moves on, and the skip line says it was the body', async () => {
+  test('an incomplete body past its window is possibly billed and cannot authorize a replay', async () => {
     fakeTimers();
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
       const { fetch, calls } = scripted(slowBody(completion(), 600_000), json(200, completion()));
-      const pending = chain.createTextChainFetch(included, fetch)(URL_, post(capped));
+      const ledger = new chain.TextUsageLedger();
+      const pending = chain.runWithUsageLedger(ledger, () => chain.createTextChainFetch(included, fetch)(URL_, post(capped)));
+      const rejected = expect(pending).rejects.toMatchObject({textAttemptNonReplayable: true});
       await jest.advanceTimersByTimeAsync(162_400);
-      const response = await pending;
-      expect(calls).toHaveLength(2);
-      expect(response.status).toBe(200);
-      expect(String(warn.mock.calls[0][0])).toMatch(/AttemptTimeout.*the body did not finish within 162400 ms/);
+      await rejected;
+      expect(calls).toHaveLength(1);
+      expect(warn).not.toHaveBeenCalled();
+      expect(ledger.columns()).toMatchObject({serviceTier: null, possiblyBilled: true});
     } finally {
       warn.mockRestore();
       jest.useRealTimers();
@@ -1682,7 +1686,7 @@ describe('an attempt the caller aborts in flight may be billed (fifteenth F4)', 
       await jest.advanceTimersByTimeAsync(10_000);
       await settled;
       expect(ledger.calls).toEqual([
-        { attempt: 1, model: LUNA, serviceTier: 'flex', failed: true, possiblyBilled: true },
+        { attempt: 1, model: LUNA, requestedServiceTier: 'flex', failed: true, possiblyBilled: true },
       ]);
       expect(ledger.columns().possiblyBilled).toBe(true);
     } finally {
@@ -1700,8 +1704,11 @@ describe('an attempt the caller aborts in flight may be billed (fifteenth F4)', 
     );
     await expect(response.text()).rejects.toThrow();
     expect(ledger.calls).toEqual([
-      { attempt: 1, model: LUNA, serviceTier: 'flex', failed: true, possiblyBilled: true },
+      {attempt: 1, model: LUNA, providerReportedModel: LUNA, requestedServiceTier: 'flex',
+        promptTokens: undefined, completionTokens: undefined, reasoningTokens: undefined,
+        cachedTokens: undefined, costUsd: undefined, failed: true, possiblyBilled: true},
     ]);
+    expect(ledger.columns().serviceTier).toBeNull();
   });
 
   test('pass-through (workspace_key): an aborted request is recorded as possibly billed', async () => {
@@ -1720,5 +1727,31 @@ describe('an attempt the caller aborts in flight may be billed (fifteenth F4)', 
       )
     ).rejects.toThrow('aborted');
     expect(ledger.columns().possiblyBilled).toBe(true);
+  });
+});
+
+describe('provider-reported model provenance', () => {
+  const attempt = { number: 1, model: LUNA, flex: true, timeoutMs: 1000 };
+  test.each([undefined, '', '   '])('missing provider model does not turn the billing fallback into reported provenance (%j)', model => {
+    const usage = chain.readUsage({ ...(model === undefined ? {} : { model }), usage: { prompt_tokens: 3, cost: 0.01 } }, attempt);
+    expect(usage.model).toBe(model || LUNA);
+    expect(usage.providerReportedModel).toBeUndefined();
+    const ledger = new chain.TextUsageLedger(); ledger.record(usage);
+    expect(ledger.columns()).toMatchObject({ model: model || LUNA, promptTokens: 3, costUsd: 0.01 });
+    expect(ledger.columns()).not.toHaveProperty('providerReportedModel');
+  });
+  test('only provider payload model establishes the optional provenance field', () => {
+    const usage = chain.readUsage(completion({ model: 'provider/actual-model' }), attempt);
+    expect(usage).toMatchObject({ model: 'provider/actual-model', providerReportedModel: 'provider/actual-model' });
+  });
+  test.each([false, true])('metered real response body preserves reported vs absent model (stream=%j)', async streaming => {
+    for (const model of [undefined, 'provider/actual-model']) {
+      const payload = completion({ model }), ledger = new chain.TextUsageLedger();
+      const { fetch } = scripted(streaming ? sse([payload]) : json(200, payload));
+      const response = await chain.runWithUsageLedger(ledger, () => chain.createTextChainFetch(included, fetch)(URL_, post({ ...request, stream: streaming })));
+      await response.text();
+      expect(ledger.calls.at(-1).providerReportedModel).toBe(model);
+      expect(ledger.calls.at(-1).model).toBe(model ?? LUNA);
+    }
   });
 });

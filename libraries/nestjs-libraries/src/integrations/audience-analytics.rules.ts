@@ -24,7 +24,14 @@ export const AUDIENCE_ANALYTICS_PLATFORMS = [
 ] as const;
 
 /** Platforms that also answer 90 days. */
-const NINETY_DAYS = ['facebook', 'linkedin-page', 'pinterest', 'youtube', 'x', 'gmb'];
+const NINETY_DAYS = [
+  'facebook',
+  'linkedin-page',
+  'pinterest',
+  'youtube',
+  'x',
+  'gmb',
+];
 
 /**
  * Whether a channel of this platform shows audience analytics. X can be
@@ -45,16 +52,72 @@ export const audiencePeriodsOf = (platform: string): number[] => {
   return periods;
 };
 
-/**
- * The number a metric card shows: the sum of its points, or for a rate
- * (`average`) their mean, as a percentage with two decimals.
- */
-export const audienceMetricValue = (metric: {
-  data: readonly { total: number | string }[];
+// Exact labels emitted by Telegram's audience snapshot and TikTok's current
+// account/video counters. Daily follower gains (LinkedIn Organic/Paid Followers,
+// YouTube Subscribers Gained/Lost) are not stocks.
+const SNAPSHOT_METRICS = new Set([
+  'Subscribers',
+  'Followers',
+  'Following',
+  'Total Likes',
+  'Videos',
+  'Recent Views',
+  'Recent Likes',
+  'Recent Comments',
+  'Recent Shares',
+]);
+
+export const audienceMetricAggregation = (metric: {
+  label: string;
   average?: boolean;
-}): number | string => {
-  const total = metric.data.reduce((sum, point) => sum + Number(point.total || 0), 0);
-  return metric.average && metric.data.length
-    ? `${(total / metric.data.length).toFixed(2)}%`
-    : total;
+}): 'latest' | 'mean' | 'sum' =>
+  SNAPSHOT_METRICS.has(metric.label)
+    ? 'latest'
+    : metric.average
+    ? 'mean'
+    : 'sum';
+
+/** Last observed stock, summed flows, or the mean of observed average points. */
+export const audienceMetricValue = (metric: {
+  label: string;
+  data: readonly { total: number | string; date?: string }[];
+  average?: boolean;
+}): number | string | null => {
+  const points = metric.data.flatMap((point) => {
+    if (
+      typeof point.total !== 'number' &&
+      (typeof point.total !== 'string' || point.total.trim() === '')
+    )
+      return [];
+    const total = Number(point.total);
+    return Number.isFinite(total) ? [{ ...point, total }] : [];
+  });
+  if (!points.length) return null;
+
+  const aggregation = audienceMetricAggregation(metric);
+  if (aggregation === 'latest') {
+    const dated = points.filter((point) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(point.date || '')) return false;
+      const parsed = new Date(`${point.date}T00:00:00.000Z`);
+      return (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.toISOString().slice(0, 10) === point.date
+      );
+    });
+    return dated.length
+      ? dated.reduce((last, point) => (point.date >= last.date ? point : last))
+          .total
+      : null;
+  }
+
+  const total = points.reduce((sum, point) => sum + point.total, 0);
+  if (!Number.isFinite(total)) return null;
+  if (aggregation === 'sum') return total;
+  const mean = total / points.length;
+  // `average` describes aggregation, not a unit. YouTube's duration is seconds;
+  // only its explicitly named percentage metric has a confirmed percent unit.
+  // https://developers.google.com/youtube/analytics/metrics#averageViewPercentage
+  return metric.label === 'Average View Percentage'
+    ? `${mean.toFixed(2)}%`
+    : mean;
 };

@@ -19,7 +19,7 @@ export const HIGGSFIELD_ROUTES_V1: readonly VideoRouteV1[] = deepFreezeV1(
     mode: 'clip' as const, durations: { min: model === 'wan-3.0' ? 2 : 3, max: model === 'wan-3.0' ? 30 : 15 },
     aspectRatios: ['9:16', '16:9', '1:1'], resolutions: model === 'wan-3.0' ? ['480p', '720p', '1080p'] : [],
     audio: true, captions: false, inputs: ['text', 'image'] as Array<'text' | 'image'>, evidence: 'documented' as const,
-    price: { text: 'Exact account estimate required; public starting price is not a quote.', checkedAt: '2026-10-22', source: 'https://docs.higgsfield.ai/docs/concepts/billing-and-retention' },
+    price: { text: 'Exact account estimate required; an estimate is not a guaranteed charge ceiling.', checkedAt: '2026-11-03', source: 'https://docs.higgsfield.ai/docs/concepts/billing-and-retention' },
   }))
 );
 
@@ -30,6 +30,7 @@ export class HiggsfieldProviderV1 implements VideoProviderV1 {
 
   async prepare(input: VideoProviderInputV1, credential: VideoCredentialV1): Promise<VideoPreparedRequestV1> {
     credentialV1(credential, this.id);
+    const submission = this.submission(input.submission);
     const s = input.settings;
     const route = this.routes.find(x => x.model === s.model);
     if (!route || s.provider !== this.id || s.mode !== 'clip') failV1('video_unsupported_route');
@@ -57,7 +58,7 @@ export class HiggsfieldProviderV1 implements VideoProviderV1 {
     const quote = await requestV1(BASE + '/estimate' + endpoint.slice(BASE.length), this.headers(credential), 'POST', body);
     const usd = typeof quote.usd === 'string' || typeof quote.usd === 'number' ? Number(quote.usd) : NaN;
     if (!Number.isFinite(usd) || usd < 0 || quote.usd === '') failV1('video_invalid_estimate');
-    return deepFreezeV1({ provider: this.id, endpoint, body, estimate: {
+    return deepFreezeV1({ provider: this.id, endpoint, body, ...(submission === undefined ? {} : { submission }), estimate: {
       usd, currency: 'USD', source: 'higgsfield_account_estimate', expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
     } });
   }
@@ -66,10 +67,19 @@ export class HiggsfieldProviderV1 implements VideoProviderV1 {
     credentialV1(credential, this.id);
     this.validate(request);
     if (!/^[\x21-\x7e]{1,255}$/.test(key)) failV1('video_invalid_idempotency_key');
-    const data = await requestV1(request.endpoint, { ...this.headers(credential), 'Idempotency-Key': key }, 'POST', request.body, this.id);
+    const submission = this.submission(request.submission);
+    const url = new URL(request.endpoint);
+    if (submission?.webhookUrl !== undefined) url.searchParams.set('hf_webhook', submission.webhookUrl);
+    const data = await requestV1(url.href, {
+      ...this.headers(credential), 'Idempotency-Key': key,
+      ...(submission?.expiresAfterSeconds === undefined ? {} : { 'Hf-Expires-After': String(submission.expiresAfterSeconds) }),
+    }, 'POST', request.body, this.id);
     try {
       const id = handleV1(data.request_id);
-      return { id, statusUrl: exactUrlV1(data.status_url, `${BASE}/requests/${id}/status`), cancelUrl: exactUrlV1(data.cancel_url, `${BASE}/requests/${id}/cancel`) };
+      if (data.expires_after !== undefined && (!Number.isInteger(data.expires_after) || data.expires_after < 3600 || data.expires_after > 604800)) failV1('video_invalid_submit_receipt');
+      return { id, statusUrl: exactUrlV1(data.status_url, `${BASE}/requests/${id}/status`), cancelUrl: exactUrlV1(data.cancel_url, `${BASE}/requests/${id}/cancel`),
+        ...(data.expires_after === undefined ? {} : { expiresAfterSeconds: data.expires_after }),
+      };
     } catch { throw new VideoProviderErrorV1('video_invalid_submit_receipt', true, true); }
   }
 
@@ -79,13 +89,22 @@ export class HiggsfieldProviderV1 implements VideoProviderV1 {
     const url = exactUrlV1(receipt.statusUrl, `${BASE}/requests/${id}/status`);
     const data = await requestV1(url, this.headers(credential));
     if (data.request_id !== id) failV1('video_receipt_mismatch');
+    let expiresAt: string | undefined;
+    if (data.expires_at !== undefined && data.expires_at !== null) {
+      if (typeof data.expires_at !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(data.expires_at) || !Number.isFinite(Date.parse(data.expires_at))) failV1('video_invalid_provider_expiry');
+      expiresAt = data.expires_at;
+    }
+    const retention = expiresAt === undefined ? {} : { expiresAt };
     switch (data.status) {
       case 'queued': return { state: 'queued' };
       case 'in_progress': return { state: 'running' };
-      case 'canceled': return { state: 'canceled' };
-      case 'nsfw': return { state: 'failed', errorCode: 'video_provider_moderated' };
-      case 'failed': return { state: 'failed', errorCode: 'video_provider_generation_failed' };
-      case 'completed': return { state: 'succeeded', url: httpsV1(data.video?.url) };
+      case 'canceled': return { state: 'canceled', ...retention };
+      case 'nsfw': return { state: 'failed', errorCode: 'video_provider_moderated', ...retention };
+      case 'failed': return { state: 'failed', errorCode: 'video_provider_generation_failed', ...retention };
+      // After retention the request can still be completed, with its files gone.
+      case 'completed': return { state: 'succeeded', ...retention,
+        ...(expiresAt !== undefined && Date.parse(expiresAt) <= Date.now() ? {} : { url: httpsV1(data.video?.url) }),
+      };
       default: return failV1('video_invalid_provider_status');
     }
   }
@@ -102,6 +121,15 @@ export class HiggsfieldProviderV1 implements VideoProviderV1 {
   private headers(credential: VideoCredentialV1): Record<string, string> {
     if (!/^[^\s:]+:[^\s:]+$/.test(credential.apiKey)) failV1('video_invalid_higgsfield_credential');
     return { Authorization: `Key ${credential.apiKey}`, 'Content-Type': 'application/json' };
+  }
+
+  private submission(value: VideoProviderInputV1['submission']): VideoProviderInputV1['submission'] {
+    if (value === undefined) return undefined;
+    onlyKeysV1(value, ['webhookUrl', 'expiresAfterSeconds']);
+    if (value.webhookUrl !== undefined && (typeof value.webhookUrl !== 'string' || httpsV1(value.webhookUrl) !== value.webhookUrl)) failV1('video_invalid_webhook');
+    if (value.expiresAfterSeconds !== undefined && (!Number.isInteger(value.expiresAfterSeconds) || value.expiresAfterSeconds < 3600 || value.expiresAfterSeconds > 604800)) failV1('video_invalid_retention');
+    // Account retention may be shorter; a provider 422 is never retried with changed parameters.
+    return { ...value };
   }
 
   private validate(request: VideoPreparedRequestV1): void {

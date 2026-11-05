@@ -285,9 +285,13 @@ describe('F2: the chat re-reads the screens beside it without clearing them', ()
     expect(contract.avatarCallsOf([message(['avatar_overview', 'avatar_proposal', 'avatar_manual'])])).toBe(0);
     expect(contract.avatarCallsOf([message(['avatar_overview', 'avatar_manual_field'])])).toBe(1);
     expect(contract.channelCallsOf([message(['channel_open', 'channel_posts', 'channel_writing'])])).toBe(1);
+    expect(contract.channelCallsOf([message(['channel_editorial_profile', 'channel_writing'])])).toBe(1);
+    expect(contract.panelReadsOf([message(['campaign_open', 'campaign_list', 'campaign_prepare'])], 'campaign_')).toBe(2);
+    expect(contract.panelReadsOf([message(['video_production_open', 'video_launch'])], 'video_')).toBe(1);
+    expect(contract.panelReadsOf([message(['helixa_read'])], 'helixa_')).toBe(1);
     const registry = loadCapabilityModule('index.ts');
     const reads = registry.CAPABILITY_CATALOGUE.filter(
-      (capability) => capability.risk === 'read' && (/^(avatar|channel|ideas|facts|media)\./.test(capability.id) || capability.id === 'piece.read')
+      (capability) => capability.risk === 'read' && (/^(avatar|channel|ideas|facts|media|campaign|video|helixa)\./.test(capability.id) || capability.id === 'piece.read')
     ).map((capability) => capability.id.replace(/\./g, '_'));
     expect([...contract.READ_ONLY_TOOLS].sort()).toEqual([...reads, 'readConversationHistory', 'read-conversation-history'].sort());
   });

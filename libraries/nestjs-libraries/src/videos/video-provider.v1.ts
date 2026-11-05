@@ -49,6 +49,8 @@ export interface VideoProviderInputV1 {
   script: string;
   references: Array<{ id: string; url: string; width?: number; height?: number }>;
   scriptPolicy: 'exact' | 'adaptable';
+  /** Optional generation delivery/retention parameters, persisted before submit. */
+  submission?: { webhookUrl?: string; expiresAfterSeconds?: number };
 }
 
 export interface VideoEstimateV1 {
@@ -65,6 +67,9 @@ export interface VideoPreparedRequestV1 {
   endpoint: string;
   body: Record<string, unknown>;
   estimate: VideoEstimateV1;
+  submission?: VideoProviderInputV1['submission'];
+  /** Local replay fence, not a claim about a provider's idempotency-key lifetime. */
+  submitRecovery?: { requestDigest: string; idempotencyKey: string; replayUntil: string };
 }
 
 export interface VideoProviderReceiptV1 {
@@ -72,6 +77,7 @@ export interface VideoProviderReceiptV1 {
   statusUrl?: string;
   resultUrl?: string;
   cancelUrl?: string;
+  expiresAfterSeconds?: number;
 }
 
 export interface VideoProviderStatusV1 {
@@ -82,6 +88,10 @@ export interface VideoProviderStatusV1 {
   resolution?: string;
   audio?: boolean;
   errorCode?: string;
+  /** Returned result includes requested burned captions; never inferred from requested settings. */
+  captionsBurned?: boolean;
+  /** Provider-reported deletion time; missing means unknown. */
+  expiresAt?: string;
 }
 
 export interface VideoProviderV1 {

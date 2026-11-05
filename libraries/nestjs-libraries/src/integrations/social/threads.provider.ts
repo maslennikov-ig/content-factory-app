@@ -1,3 +1,4 @@
+import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -464,13 +465,13 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       )
     ).json();
 
-    return (
+    return normalizeAnalytics(
       data?.map((d: any) => ({
         label: capitalize(d.name),
-        percentageChange: 5,
+        percentageChange: null as number | null,
         data: d.total_value
           ? [{ total: d.total_value.value, date: dayjs().format('YYYY-MM-DD') }]
-          : d.values.map((v: any) => ({
+          : (d.values || []).map((v: any) => ({
               total: v.value,
               date: dayjs(v.end_time).format('YYYY-MM-DD'),
             })),
@@ -596,13 +597,13 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
         if (label) {
           result.push({
             label,
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(value), date: today }],
           });
         }
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching Threads post analytics:', err);
       return [];

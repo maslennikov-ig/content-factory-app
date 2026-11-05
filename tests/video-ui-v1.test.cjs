@@ -13,12 +13,14 @@ const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const helper = loadTypeScriptModule('apps/frontend/src/components/videos/video-ui.v1.ts');
 const accessHelper = loadTypeScriptModule('apps/frontend/src/components/videos/video-ui.v2.ts');
+const hubHelper = loadTypeScriptModule('apps/frontend/src/components/videos/video-integration-hub.v1.ts');
+let hubNavigations = [];
 const en = require('../libraries/react-shared-libraries/src/translation/locales/en/translation.json');
 const pieceId = '11111111-1111-4111-8111-111111111111';
 const draftId = '22222222-2222-4222-8222-222222222222';
 const actorId = 'editor-1';
 const fact = 'До 22.10.2026 не дороже 12,5 млн.';
-let calls, stored, currentJob, unknownPrice, failLaunchOnce, failDownload, role, mutateReaders;
+let calls, stored, currentJob, unknownPrice, failLaunchOnce, failDownload, role, mutateReaders, personalFixture;
 const clip = { provider: 'higgsfield', model: 'wan-3.0', label: 'Wan 3.0', mode: 'clip', durations: { min: 2, max: 30 }, aspectRatios: ['9:16', '16:9'], resolutions: ['720p', '1080p'], audio: true, captions: false, inputs: ['text', 'image'], evidence: 'documented', price: { text: 'Account quote', checkedAt: '2026-10-22', source: 'https://example.com' } };
 const presenter = { ...clip, provider: 'heygen', model: 'heygen-avatar', label: 'HeyGen', mode: 'presenter', durations: { min: 2, max: 300 }, resolutions: [], inputs: ['text'], captions: true };
 const settings = helper.videoSettingsForRoute(clip, 'ru-RU');
@@ -29,7 +31,10 @@ const request = async (url, init = {}) => {
   const body = init.body ? JSON.parse(init.body) : null;
   calls.push({ url, method, body });
   if (url === '/media/video-catalog') return response({ routes: [clip, presenter], settings: { usageMode: 'workspace_key', effective: {higgsfield: {available: true, hasKey: true}, heygen: {available: true, hasKey: true}} }, assets: { avatars: [{ id: 'stock-avatar', name: 'Stock presenter', engines: ['avatar_iii'] }], voices: [{ id: 'stock-voice', name: 'Russian voice' }] } });
-  if (url === '/media/video-access') return response({workspaceEnabled: false, providers: [{provider: 'higgsfield', enabled: false, trial: false}, {provider: 'heygen', enabled: false, trial: true}], connections: []});
+  if (url === '/media/video-access') return response(personalFixture?.access ?? {workspaceEnabled: false, providers: [{provider: 'higgsfield', enabled: false, trial: false}, {provider: 'heygen', enabled: false, trial: true}], connections: []});
+  if (url === '/media/video-v2/connections/personal/readiness') return response(personalFixture.readiness);
+  if (url === '/media/video-v2/connections/personal/assets') return response(personalFixture.assets);
+  if (url === '/media/video-v2/connections/personal/discover' && method === 'POST') return response(personalFixture.readiness);
   if (url === '/content-intelligence/pieces') return response({ pieces: [{ id: pieceId, title: 'Original article' }] });
   if (url.startsWith('/media/video-prompts?')) return response(stored ? [stored] : []);
   if (url === `/media/video-prompts/${draftId}` && method === 'GET') return response(stored);
@@ -56,6 +61,7 @@ const { ApprovalCard } = loadWithMocks('apps/frontend/src/components/agents/agen
 const { agentWordsFor } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
 
 const { VideoWorkspace } = loadWithMocks('apps/frontend/src/components/videos/video.workspace.tsx', {
+  './video-integration-hub.v1': {...hubHelper, openVideoIntegrationHubV1: path => hubNavigations.push(hubHelper.videoIntegrationHubHrefV1(path))},
   '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
   '@contentfactory/react/translation/get.transation.service.client': { useT: () => (key, fallback) => en[key] || fallback },
   '@contentfactory/react/translation/use-interface-language': { useInterfaceLanguage: () => 'en' },
@@ -68,15 +74,110 @@ const button = (view, key) => within(view.container).getByRole('button', { name:
 const loaded = async view => waitFor(() => expect(view.container.querySelector('#video-prompt')).not.toBeNull());
 const selectApi = async view => { await act(async () => fireEvent.change(view.container.querySelector('#video-access-method'), {target: {value: 'api'}})); expect(view.container.querySelector('#video-access-method').value).toBe('api'); };
 const check = async view => { await selectApi(view); await act(async () => fireEvent.click(button(view, 'preflight'))); await waitFor(() => expect(button(view, 'launch').disabled).toBe(false)); };
-beforeEach(() => { calls = []; stored = makeDraft(); currentJob = null; unknownPrice = false; failLaunchOnce = false; failDownload = false; role = 'EDITOR'; sessionStorage.clear(); localStorage.clear(); window.history.replaceState(null, '', '/media?video=1'); });
+beforeEach(() => { hubNavigations = []; calls = []; stored = makeDraft(); currentJob = null; personalFixture = null; unknownPrice = false; failLaunchOnce = false; failDownload = false; role = 'EDITOR'; sessionStorage.clear(); localStorage.clear(); window.history.replaceState(null, '', '/media?video=1'); });
 afterEach(() => { cleanup(); jest.restoreAllMocks(); });
+afterAll(() => dom.window.close());
+
+test('personal connection can be offered while generation stays blocked', async () => {
+  personalFixture = {access:{workspaceEnabled:true,providers:[{provider:'heygen',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:['SCHEMA_UNREVIEWED']}],connections:[]}};
+  const view=draw(); await loaded(view);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  expect(view.container.querySelector('[data-video-subscription-provider]')).toBeNull();
+  expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false);
+  expect(button(view,'preflight').disabled).toBe(true);
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+});
+
+test('chat hub entry carries the saved thread and draft after binding and blocks unsaved changes', async () => {
+  personalFixture = {access:{workspaceEnabled:true,providers:[{provider:'higgsfield',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:[]}],connections:[]}};
+  let finishBinding;const bind=jest.fn(()=>new Promise(resolve=>{finishBinding=resolve;}));
+  const view=draw({embedded:true,chatThreadId:'thread-123',onBindChatVideo:bind});await loaded(view);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false));
+  await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Manage integrations'})));
+  expect(bind).toHaveBeenCalledWith({threadId:'thread-123',draftId,pieceId});expect(hubNavigations).toEqual([]);expect(calls.some(call=>call.url.endsWith('/start'))).toBe(false);
+  await act(async()=>finishBinding());
+  expect(hubNavigations).toEqual([hubHelper.videoIntegrationHubHrefV1(`/agents/thread-123?videoDraftId=${draftId}&pieceId=${pieceId}`)]);
+  expect(stored.brief.script).toBe(fact);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-prompt'),{target:{value:'unsaved'}}));
+  expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(true);
+  expect(calls.filter(call=>call.url.endsWith('/start'))).toHaveLength(0);
+});
+
+test('failed chat binding preserves the saved draft and never starts provider OAuth',async()=>{
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'higgsfield',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:[]}],connections:[]}};
+  const view=draw({embedded:true,chatThreadId:'thread-123',onBindChatVideo:async()=>{throw Error('workspace unavailable');}});await loaded(view);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false));
+  await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Manage integrations'})));
+  await waitFor(()=>expect(within(view.container).getByText('Could not save the draft in this chat. Check the connection and try again.')).toBeTruthy());
+  expect(stored.brief.script).toBe(fact);expect(calls.some(call=>call.url.endsWith('/start'))).toBe(false);
+});
+
+test('edits made while binding is pending prevent provider OAuth',async()=>{
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'higgsfield',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:[]}],connections:[]}};
+  let finishBinding;const view=draw({embedded:true,chatThreadId:'thread-123',onBindChatVideo:()=>new Promise(resolve=>{finishBinding=resolve;})});await loaded(view);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false));
+  await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Manage integrations'})));
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-prompt'),{target:{value:'new unsaved text'}}));
+  await act(async()=>finishBinding());
+  expect(view.container.querySelector('#video-prompt').value).toBe('new unsaved text');expect(calls.some(call=>call.url.endsWith('/start'))).toBe(false);
+});
+
+test('embedded connection requires a bounded saved chat and draft identity', async()=>{
+  expect(helper.videoChatReturnPath('thread-a','draft-a','piece-a','job-a')).toBe('/agents/thread-a?videoDraftId=draft-a&pieceId=piece-a&videoJobId=job-a');
+  for(const thread of ['', '../evil', '//evil', 'x?next=evil']) expect(helper.videoChatReturnPath(thread,'draft-a')).toBeNull();
+  expect(helper.videoChatReturnPath('thread-a',undefined)).toBeNull();expect(helper.videoChatReturnPath('thread-a','draft-a','x&bad')).toBeNull();
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'higgsfield',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:[]}],connections:[]}};
+  const view=draw({embedded:true});await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(true));
+  expect(within(view.container).getByText('Open a saved chat and save the draft before connecting your account.')).toBeTruthy();
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+});
+
+test('personal presenter selection excludes unverified, foreign and stale account assets', async () => {
+  stored.settings={...helper.videoSettingsForRoute(presenter,'ru-RU'),avatarId:'foreign',voiceId:'old',engine:'avatar_iii'};
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'heygen',enabled:true,connectReady:true,generationReady:true,trial:false}],connections:[{id:'personal',provider:'heygen',state:'connected',generation:4,walletVerified:true,workspaceGranted:true,perJob:'10',perMonth:'20',unit:'heygen_credit'}]},readiness:{connectionId:'personal',provider:'heygen',accountGeneration:4,walletVerified:true,schema:{digest:'reviewed',reviewed:true},operations:[{kind:'presenter',ready:true,blockers:[]}]},assets:{ownedOnly:true,accountGeneration:4,status:'ready',blockers:[],guidance:[],avatars:[{id:'mine',name:'My avatar',ownership:'owned',state:'available',engines:['avatar_iii']},{id:'foreign',name:'Public avatar',ownership:'public',state:'available'}],voices:[{id:'myvoice',name:'My voice',ownership:'owned',state:'available'},{id:'old',name:'Revoked voice',ownership:'owned',state:'revoked'}]}};
+  const view=draw();await loaded(view);
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
+  await waitFor(()=>expect(within(view.container).getByText('My avatar')).toBeTruthy());
+  expect(within(view.container).queryByText('Public avatar')).toBeNull();expect(within(view.container).queryByText('Revoked voice')).toBeNull();
+  expect(view.container.querySelector('#video-avatar option[value="foreign"]').disabled).toBe(true);
+  expect(button(view,'preflight').disabled).toBe(true);
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+});
+
+test('checking an unverified personal account keeps the draft and never submits generation', async () => {
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'higgsfield',enabled:false,connectReady:true,generationReady:false,trial:false}],connections:[{id:'personal',provider:'higgsfield',state:'discovery_required',generation:2,walletVerified:false,workspaceGranted:true,perJob:null,perMonth:null,unit:'higgsfield_credit'}]},readiness:{connectionId:'personal',provider:'higgsfield',accountGeneration:2,walletVerified:false,schema:{digest:null,reviewed:false},operations:[{kind:'generated_clip',ready:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED']}]}};
+  const view=draw();await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
+  await waitFor(()=>expect(within(view.container).getByText(/The account wallet is not verified yet/)).toBeTruthy());
+  expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false);
+  expect(within(view.container).queryByRole('button',{name:'Check account'})).toBeNull();
+  expect(calls.filter(c=>c.url.endsWith('/discover'))).toHaveLength(0);
+  expect(stored.brief.script).toBe(fact);expect(button(view,'preflight').disabled).toBe(true);expect(calls.some(c=>c.url==='/media/video-v2/jobs'&&c.method==='POST')).toBe(false);
+});
 
 test('saved facts and exact script survive reopening; mounting makes no write or paid request', async () => {
   stored.settings = { ...helper.videoSettingsForRoute(presenter, 'ru-RU'), avatarId: 'stock-avatar', voiceId: 'stock-voice', engine: 'avatar_iii' };
   const view = draw(); await loaded(view);
   expect(view.container.querySelector('#video-script').value).toBe(fact);
   expect(view.container.querySelector('input[name="video-output-locale"]').value).toBe('ru-RU');
-  expect(view.container.querySelector('#video-access-method').value).toBe('api');
+  expect(view.container.querySelector('#video-access-method').value).toBe('');
+  expect(button(view, 'preflight').disabled).toBe(true);
+  expect(calls.every(call => call.method === 'GET')).toBe(true);
+});
+
+test.each(['api', 'subscription'])('explicit %s access survives reopening a saved draft', async kind => {
+  const view = draw(); await loaded(view);
+  await act(async () => fireEvent.change(view.container.querySelector('#video-access-method'), {target: {value: kind}}));
+  view.unmount();
+  const reopened = draw(); await loaded(reopened);
+  await waitFor(() => expect(reopened.container.querySelector('#video-access-method').value).toBe(kind));
   expect(calls.every(call => call.method === 'GET')).toBe(true);
 });
 

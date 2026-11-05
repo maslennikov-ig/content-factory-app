@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -177,6 +178,7 @@ const normalizeObjectiveRecord = (
 
 export type ActiveThreadTurnHandle = {
   requestId: string;
+  checkpointUsage?: () => Promise<boolean | undefined>;
   stop: () => Promise<void>;
   finishStream: () => void;
   settled?: Promise<void>;
@@ -369,6 +371,7 @@ export class AgentThreadsService {
     requestId: string;
     onStop: () => void | Promise<void>;
     settled?: Promise<void>;
+    checkpointUsage?: () => Promise<boolean | undefined>;
   }): ActiveThreadTurnHandle {
     const resourceId = conductorResourceId(
       args.identity.organizationId,
@@ -378,6 +381,10 @@ export class AgentThreadsService {
     const handle: ActiveThreadTurnHandle = {
       requestId: args.requestId,
       settled: args.settled,
+      ...(args.checkpointUsage ? { checkpointUsage: async () => {
+        if (this.activeTurns.get(key) !== handle) return undefined;
+        return args.checkpointUsage!();
+      } } : {}),
       finishStream: () => {
         if (this.activeTurns.get(key) === handle) this.activeTurns.delete(key);
       },
@@ -502,8 +509,17 @@ export class AgentThreadsService {
       pointer?.runId.trim() && typeof pointer.logicalRequestId === 'string' && pointer.logicalRequestId.trim()
         ? pointer.logicalRequestId : null
     );
-    await this.mastraService.cancelNativeQueuedInputs?.(threadId);
-    if (pointer) await this.mastraService.cancelModelAvailability?.(pointer.runId, threadId);
+    let stopPreparationError: unknown;
+    try {
+      await this.mastraService.cancelNativeQueuedInputs?.(threadId);
+      if (pointer) await this.mastraService.cancelModelAvailability?.(pointer.runId, threadId, {markOnly: true,
+        ...(typeof pointer.logicalRequestId === 'string' ? {expected: {resourceId, requestId: pointer.logicalRequestId}} : {}),
+      });
+    } catch (error) {
+      // A failed durable write must not prevent the captured live owner's
+      // ordinary abort/drain. It still prevents a successful Stop receipt.
+      stopPreparationError = error;
+    }
     if (active) {
       await active.stop();
     }
@@ -534,7 +550,18 @@ export class AgentThreadsService {
     // Promises and terminal Memory write. Await only this captured owner;
     // a successor must never replace the task acknowledged by this Stop.
     await active?.settled;
+    if (stopPreparationError) throw stopPreparationError;
     if (isDurableAgent(conductor)) {
+      if (pointer && typeof pointer.logicalRequestId === 'string') {
+        try {
+          await this.mastraService.finalizeNativeStop({threadId, resourceId,
+            runId: pointer.runId, requestId: pointer.logicalRequestId}, {waitForOwnerMs: 35_000});
+        } catch (error) {
+          if ((error as {code?: unknown})?.code === 'NATIVE_STOP_OWNER_PENDING')
+            throw new ServiceUnavailableException('Native Stop is waiting for its current owner.');
+          throw error;
+        }
+      }
       const captured = pointer?.logicalRequestId === requestId ? pointer : null;
       const latest = await this.readNativeRun(identity, threadId);
       // onMessageId can still be committing when Stop captures the task. Read
@@ -641,6 +668,34 @@ export class AgentThreadsService {
         const thread = await this.requireOwnThread(identity, threadId);
         const marker = thread.metadata?.[AGENT_EXECUTION_METADATA_KEY] as { requestId?: unknown } | undefined;
         if (marker?.requestId !== requestId) return;
+        if (isDurableAgent(await this.conductor())) {
+          const storage = (await this.mastraService.mastra()).getStorage();
+          const store = await storage?.getStore('memory');
+          if (!store?.updateThreadMetadata) throw new ServiceUnavailableException('Native task settlement storage is unavailable.');
+          const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+          const capturedRun = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown> | undefined;
+          let applied = false;
+          const saved = await store.updateThreadMetadata({ id: threadId, resourceId, update: current => {
+            applied = false;
+            const currentMarker = current.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+            const currentRun = current.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown> | undefined;
+            if (current.id !== threadId || current.resourceId !== resourceId || currentMarker?.requestId !== requestId ||
+                currentRun?.runId !== capturedRun?.runId || currentRun?.logicalRequestId !== capturedRun?.logicalRequestId) return undefined;
+            applied = true;
+            // Read Stop at the atomic write, rather than overwrite its intent
+            // with metadata captured before the owner's final I/O completed.
+            return {
+              [AGENT_EXECUTION_METADATA_KEY]: { requestId, state: 'settled', outcome, ...(errorCode ? {errorCode} : {}),
+                ...(currentMarker.stopRequested === true ? {stopRequested: true} : {}) },
+              ...(currentRun?.logicalRequestId === requestId && currentRun.state !== 'stopped' ? {
+                [AGENT_NATIVE_RUN_METADATA_KEY]: {...currentRun, state: 'settled', outcome, ...(errorCode ? {errorCode} : {}),
+                  continuationPending: false, continuationIdentity: null },
+              } : {}),
+            };
+          } });
+          if (!applied || !saved) throw new ServiceUnavailableException('Native task changed before terminal settlement.');
+          return;
+        }
         await (await this.memory()).updateThread({
           id: threadId,
           metadata: {
@@ -724,7 +779,7 @@ export class AgentThreadsService {
    * organization itself (a thread of the old screen).
    */
   async ownThread(
-    identity: CapabilityIdentity,
+    identity: Pick<CapabilityIdentity, 'organizationId' | 'userId'>,
     threadId: string
   ): Promise<ThreadRow | null> {
     const thread = await (await this.memory()).getThreadById({ threadId });
@@ -764,7 +819,7 @@ export class AgentThreadsService {
     const thread = await this.ownThread(identity, threadId);
     const context = selected === undefined ? readStoredAgentWorkspace(thread?.metadata).workContext : selected;
     if (!context) return null;
-    return this.mastraService.resolveWorkContext(identity, context, { refresh: selected === undefined });
+    return this.mastraService.resolveWorkContext(identity, context, { refresh: selected === undefined, threadId });
   }
 
   async writingSelectionForTurn(identity: CapabilityIdentity, threadId: string, selected?: AgentWritingSelection) {
@@ -774,7 +829,7 @@ export class AgentThreadsService {
     return this.mastraService.resolveWritingSelection(identity, selection);
   }
 
-  private async availableWorkspace(identity: CapabilityIdentity, workspace: AgentWorkspaceV1): Promise<AgentWorkspaceV1> {
+  private async availableWorkspace(identity: CapabilityIdentity, workspace: AgentWorkspaceV1, threadId: string): Promise<AgentWorkspaceV1> {
     const artifacts: AgentWorkspaceV1['artifacts'] = [];
     for (const ref of workspace.artifacts) {
       try {
@@ -786,7 +841,7 @@ export class AgentThreadsService {
     let workContext: AgentWorkContextV1 | null = null;
     if (workspace.workContext) {
       try {
-        workContext = (await this.mastraService.resolveWorkContext(identity, workspace.workContext, { refresh: true })).context;
+        workContext = (await this.mastraService.resolveWorkContext(identity, workspace.workContext, { refresh: true, threadId })).context;
       } catch (error) {
         if (!(error instanceof AgentWorkContextError) || ![403, 404, 409].includes(error.getStatus())) throw error;
       }
@@ -841,8 +896,8 @@ export class AgentThreadsService {
     const patch = parseAgentWorkspacePatch(body);
     return this.writeWorkspace(threadId, async () => {
       const thread = await this.requireOwnThread(identity, threadId);
-      const workspace = await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata));
-      if (patch.workContext !== undefined) workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext)).context;
+      const workspace = await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata), threadId);
+      if (patch.workContext !== undefined) workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext, {threadId})).context;
       if (patch.writingSelection !== undefined) workspace.writingSelection = !patch.writingSelection.channelId && !patch.writingSelection.avatarId
         ? {} : (await this.mastraService.resolveWritingSelection(identity, patch.writingSelection)).selection;
       if (patch.artifacts !== undefined) {
@@ -868,6 +923,36 @@ export class AgentThreadsService {
         metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace },
       });
       return { workspace };
+    });
+  }
+
+  /** Add one saved video reference using current server state, without replacing history. */
+  async bindVideo(identity: CapabilityIdentity, threadId: string, body: unknown): Promise<{ workspace: AgentWorkspaceV1 }> {
+    await this.requireOwnThread(identity, threadId);
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || !('artifact' in body)) throw invalidWorkContext();
+    const ref = parseAgentWorkspacePatch({ activeArtifact: (body as { artifact: unknown }).artifact }).activeArtifact;
+    if (!ref || ref.kind !== 'media' || ref.id !== 'library' || !ref.videoDraftId) throw invalidWorkContext();
+    return this.writeWorkspace(threadId, async () => {
+      await this.requireOwnThread(identity, threadId);
+      const valid = await this.mastraService.validateWorkArtifact(identity, ref);
+      const latest = await this.requireOwnThread(identity, threadId);
+      const workspace = readStoredAgentWorkspace(latest.metadata);
+      const stored = latest.metadata?.[AGENT_WORKSPACE_METADATA_KEY] as Partial<AgentWorkspaceV1> | undefined;
+      const full = () => new ConflictException({ code: 'AGENT_VIDEO_BINDING_FULL', message: 'This conversation already has 24 saved items. Remove one before adding a video.' });
+      if (Array.isArray(stored?.artifacts) && stored.artifacts.length > AGENT_WORK_ARTIFACTS_MAX) throw full();
+      // Binding is not cleanup: even malformed old references are never silently discarded.
+      if (Array.isArray(stored?.artifacts) && stored.artifacts.length !== workspace.artifacts.length) throw invalidWorkContext();
+      if (!workspace.artifacts.some((one) => sameAgentArtifact(one, valid))) {
+        if (workspace.artifacts.length >= AGENT_WORK_ARTIFACTS_MAX) throw full();
+        workspace.artifacts.push(valid);
+      }
+      workspace.activeArtifact = valid;
+      await (await this.memory()).updateThread({ id: latest.id, metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace } });
+      const saved = readStoredAgentWorkspace((await this.requireOwnThread(identity, threadId)).metadata);
+      if (!saved.activeArtifact || !sameAgentArtifact(saved.activeArtifact, valid) || !saved.artifacts.some((one) => sameAgentArtifact(one, valid))) {
+        throw new ServiceUnavailableException({ code: 'AGENT_VIDEO_BINDING_NOT_SAVED', message: 'The saved video selection could not be confirmed. Try again.' });
+      }
+      return { workspace: saved };
     });
   }
 
@@ -1056,7 +1141,7 @@ export class AgentThreadsService {
     return {
       thread: threadView(thread),
       pagination,
-      workspace: await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata)),
+      workspace: await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata), threadId),
       messages: uiMessages,
       pending: await pendingView(runs, (toolName, args) =>
         this.describeApproval(identity, toolName, args)

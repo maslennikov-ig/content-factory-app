@@ -12,6 +12,8 @@
   "delete": "삭제",
   "add_a_webhook": "웹훅 추가",
   "save": "저장",
+  "refresh": "새로 고침",
+  "saving": "저장 중…",
   "send_test": "테스트 전송",
   "select_role": "역할 선택",
   "video_made_with_ai": "AI로 제작된 영상",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "저장된 버전 불러오기",
   "video_v1_reviewSnapshot": "시작 전에 텍스트와 설정 확인",
   "video_v1_paymentNote": "제공업체 요금이 예상 금액이나 예약 금액을 초과할 수 있습니다. 취소와 환불은 보장되지 않으며 HeyGen은 취소를 지원하지 않습니다.",
-  "video_v1_approvalChanged": "저장된 초안이 변경되었습니다. 시작 전에 새 버전과 가격을 확인하세요."
+  "video_v1_approvalChanged": "저장된 초안이 변경되었습니다. 시작 전에 새 버전과 가격을 확인하세요.",
+  "validation_tiktok_privacy_required": "게시하기 전에 계정의 현재 옵션에서 TikTok 공개 범위를 선택하세요.",
+  "validation_tiktok_account_unavailable": "TikTok 계정 설정을 사용할 수 없습니다. 다시 시도하거나 채널을 다시 연결하세요.",
+  "validation_tiktok_interactions_changed": "TikTok 상호작용 설정이 변경되었습니다. 게시하기 전에 댓글, Duet, Stitch를 확인하세요.",
+  "validation_tiktok_disclosure_invalid": "게시 전에 TikTok 상업적 콘텐츠 공개가 선택한 브랜드 및 개인정보 설정과 일치해야 합니다.",
+  "validation_tiktok_duration_invalid": "TikTok 동영상 길이를 확인할 수 없거나 계정의 현재 한도를 초과합니다. 게시 전에 동영상을 확인하세요."
 }

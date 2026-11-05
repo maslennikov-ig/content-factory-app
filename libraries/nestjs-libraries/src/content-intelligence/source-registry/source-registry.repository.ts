@@ -1,4 +1,5 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { SOCIAL_FACTORY_SOURCE_LIFECYCLE, type SocialFactorySourceLifecycle } from '../social-factory/source-lifecycle.port';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   PrismaRepository,
@@ -105,7 +106,8 @@ export class ContentSourceRegistryRepository {
       'contentSource' | 'sourceSyncRun' | 'sourceSnapshot'
     >,
     private readonly transaction: PrismaTransaction,
-    @Optional() private readonly clock: () => Date = () => new Date()
+    @Optional() private readonly clock: () => Date = () => new Date(),
+    @Optional() @Inject(SOCIAL_FACTORY_SOURCE_LIFECYCLE) private readonly socialFactoryLifecycle?: SocialFactorySourceLifecycle
   ) {}
 
   async createOrGet(
@@ -227,6 +229,7 @@ export class ContentSourceRegistryRepository {
         404
       );
     }
+    if (!confirmed) await this.socialFactoryLifecycle?.invalidateBySource(organizationId, id);
     return this.getById(organizationId, id);
   }
 
@@ -279,6 +282,7 @@ export class ContentSourceRegistryRepository {
         404
       );
     }
+    await this.socialFactoryLifecycle?.invalidateBySource(organizationId, id);
     return { archived: true };
   }
 

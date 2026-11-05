@@ -25,5 +25,6 @@ test('complete ordered answers are validated against the suspended questions', (
 test('native batch survives cold process recovery and continues once', () => {
   const stdout = execFileSync(process.execPath, [path.join(__dirname, 'helpers/agent-native-question-batch.probe.cjs')], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 100000 });
   expect(JSON.parse(stdout.trim().split('\n').at(-1))).toEqual({ nativePgRedis: true, processRecreated: true, modelCallsBefore: 1, modelCallsAfter: 1,
-    orderedAnswersPreserved: true, invalidAndStaleRejected: true, oneSuspension: true, noApprovalHop: true, stoppedBatchCannotResume: true });
+    orderedAnswersPreserved: true, invalidAndStaleRejected: true, oneSuspension: true, noApprovalHop: true, stoppedBatchCannotResume: true,
+    normalizedPolicyPreserved: true, factualDelegationRejected: true });
 }, 110000);

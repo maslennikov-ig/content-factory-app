@@ -11,12 +11,41 @@ import {
   MAX_TEXT_MODEL_RETRIES,
   currentAiExecutionSignal,
   isOpenRouterInFlightBudgetError,
+  isFlexEndpointCapacityRefusal,
+  isTextAvailabilityStatus,
 } from './ai.text-chain';
 
 export const NATIVE_TEXT_MAX_PROCESSOR_RETRIES =
   MAX_TEXT_MODEL_RETRIES * (MAX_TEXT_FALLBACK_MODELS + 1);
 export const NATIVE_TEXT_RETRY_POLICY_KEY = 'cf.nativeTextMaxRetries';
 export const NATIVE_TEXT_MODELS_KEY = 'cf.nativeTextModels';
+const NATIVE_TEXT_TIER_POLICY_KEY = 'cf.nativeTextTierPolicy';
+export type NativeTextTierPolicy = {
+  provider: 'openai' | 'openrouter';
+  flexModels: string[];
+  defaultRetryModels: string[];
+  /** All selected models, including an explicitly disabled tier. */
+  models?: string[];
+};
+
+/** Server-selected tiers travel with the existing native RequestContext. */
+export const setNativeTextTierPolicy = (context: object | null | undefined, policy: NativeTextTierPolicy) => {
+  const store = context as {get?: (key: string) => unknown; set?: (key: string, value: unknown) => unknown} | undefined;
+  const previous = store?.get?.(NATIVE_TEXT_TIER_POLICY_KEY) as NativeTextTierPolicy | undefined;
+  const replaced = new Set(policy.models ?? policy.flexModels);
+  const retained = (field: 'flexModels' | 'defaultRetryModels') => previous?.provider === policy.provider && Array.isArray(previous[field])
+    ? previous[field].filter(model => !replaced.has(model)) : [];
+  // A conductor and its independent reviewer can share a RequestContext.
+  // Updating one selected role must not overwrite the other model's tier.
+  store?.set?.(NATIVE_TEXT_TIER_POLICY_KEY, {provider: policy.provider,
+    flexModels: [...new Set([...retained('flexModels'), ...policy.flexModels])],
+    defaultRetryModels: [...new Set([...retained('defaultRetryModels'), ...policy.defaultRetryModels])],
+  });
+};
+const nativeTierPolicy = (context: ProcessAPIErrorArgs['requestContext'] | undefined): NativeTextTierPolicy | undefined => {
+  const value = (context as RequestContext<Record<string, unknown>> | undefined)?.get(NATIVE_TEXT_TIER_POLICY_KEY) as NativeTextTierPolicy | undefined;
+  return value?.provider === 'openrouter' && Array.isArray(value.flexModels) && Array.isArray(value.defaultRetryModels) ? value : undefined;
+};
 export const NATIVE_TEXT_RUN_ID_KEY = 'cf.nativeRunId';
 export const NATIVE_TERMINAL_MODEL_ERROR_KEY = 'cf.nativeTerminalModelError';
 
@@ -64,7 +93,6 @@ export const getNativeTextMaxRetries = (
 };
 
 const terminalStatus = new Set([400, 401, 402, 403, 404, 409, 422]);
-const transientStatus = new Set([408, 429, 500, 502, 503, 504, 529]);
 const terminalMessage = /\b(invalid[_ -]?api[_ -]?key|authentication[_ -]?error|permission[_ -]?denied|access[_ -]?denied|unauthorized|forbidden|bad[_ -]?request|consent[_ -]?(?:required|denied))\b/i;
 const terminalBillingMessage = /\b(insufficient[_ -]?quota|quota[_ -]?exceeded|credit[_ -]?balance|billing[_ -]?(?:limit|hard[_ -]?limit))\b/i;
 const transientMessage = /\b(429|500|502|503|504|529|rate[_ -]?limit|too many requests|overloaded|temporarily[_ -]?unavailable|service[_ -]?unavailable|bad gateway|gateway timeout|timeout|timed out|econnreset|etimedout|econnrefused|epipe|und_err_socket|fetch failed|socket hang up|stream error|stream ended|mid-?stream|premature close|connection reset|network error)\b/i;
@@ -80,20 +108,27 @@ export const isEmptyNativeTextError = (error: unknown): boolean => {
   return false;
 };
 
-export const isTransientNativeTextError = (error: unknown): boolean => {
+const nativeErrorChain = (error: unknown): Record<string, unknown>[] => {
   const chain: Record<string, unknown>[] = [];
   const visited = new Set<object>();
   for (let value = error; value && typeof value === 'object' && !visited.has(value); value = (value as Record<string, unknown>).cause) {
     visited.add(value);
     chain.push(value as Record<string, unknown>);
   }
+  return chain;
+};
+
+export const isTransientNativeTextError = (error: unknown, configuredFlex = false): boolean => {
+  const chain = nativeErrorChain(error);
   if (currentAiExecutionSignal()?.aborted) return false;
   const inFlightBudget = chain.some(isOpenRouterInFlightBudgetError);
-  if (chain.some(value => value.name === 'AbortError' || value.executionBudgetStop === true ||
-    terminalStatus.has(Number(value.statusCode ?? value.status)) ||
+  if (chain.some(value => value.textAttemptNonReplayable === true || value.name === 'AbortError' || value.executionBudgetStop === true ||
+    (terminalStatus.has(Number(value.statusCode ?? value.status)) &&
+      !(configuredFlex && isFlexEndpointCapacityRefusal(Number(value.statusCode ?? value.status), String(value.message ?? '')))) ||
     terminalMessage.test(String(value.message ?? '')) ||
     (!inFlightBudget && terminalBillingMessage.test(String(value.message ?? ''))))) return false;
-  return chain.some(value => transientStatus.has(Number(value.statusCode ?? value.status)) ||
+  return chain.some(value => isTextAvailabilityStatus(Number(value.statusCode ?? value.status)) ||
+    configuredFlex && isFlexEndpointCapacityRefusal(Number(value.statusCode ?? value.status), String(value.message ?? '')) ||
     value.isRetryable === true || value.name === 'AttemptTimeout' ||
     (value.isRetryable !== false && (
       // Mastra emits this only for an `other` finish with no step content.
@@ -150,7 +185,7 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
     delayMs: options?.delayMs ?? (({ retryCount }) =>
       Math.min(NATIVE_TEXT_RETRY_BASE_MS * 2 ** retryCount, NATIVE_TEXT_RETRY_MAX_MS)),
     maxRetryAfterMs: NATIVE_TEXT_RETRY_AFTER_MAX_MS,
-    matchers: [isTransientNativeTextError],
+    matchers: [(error) => isTransientNativeTextError(error, true)],
   });
   const signals = new WeakMap<object, AbortSignal>();
   const inputProcessor = {
@@ -170,6 +205,7 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       if (args.state.nativeRetryModel !== key) {
         args.state.nativeRetryModel = key;
         args.state.nativeRetryOffset = args.retryCount;
+        delete args.state.nativeDefaultTierModel;
       }
       args.state.nativeModelId = model?.modelId ?? '';
       args.state.nativeRunId = resolveNativeTextRunId(args);
@@ -180,6 +216,9 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
         abortSignal: signal,
         requestContext: args.requestContext,
       });
+      if (args.state.nativeDefaultTierModel === key) return {
+        providerOptions: {...args.providerOptions, openai: {...args.providerOptions?.openai, serviceTier: 'default'}},
+      };
       return {};
     },
   };
@@ -189,7 +228,19 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
     async processAPIError(args: ProcessAPIErrorArgs) {
       const signal = nativeTextAbortSignal(args.abortSignal, signals.get(args.state));
       if (signal?.aborted) return;
-      if (!isTransientNativeTextError(args.error)) {
+      const tier = nativeTierPolicy(args.requestContext);
+      const configuredFlex = !!tier?.flexModels.includes(String(args.state.nativeModelId ?? '')) &&
+        tier.defaultRetryModels.includes(String(args.state.nativeModelId ?? ''));
+      // A provider refusal proves no output was served. A transport reset or
+      // client deadline after dispatch does not prove the call was unbilled.
+      const transient = isTransientNativeTextError(args.error, configuredFlex);
+      const tierFailure = configuredFlex && transient &&
+        nativeErrorChain(args.error).some(error => {
+          const status = Number(error.statusCode ?? error.status);
+          return isTextAvailabilityStatus(status) ||
+            isFlexEndpointCapacityRefusal(status, String(error.message ?? ''));
+        });
+      if (!transient || configuredFlex && !tierFailure) {
         // Native model fallback otherwise walks every key/model even on auth,
         // consent, invalid input, or exhausted quota. Stop before its next call.
         const terminal = nativeTerminalProviderError(args.error);
@@ -200,6 +251,10 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       const retries = getNativeTextMaxRetries(args.requestContext, options?.defaultMaxRetries);
       const offset = typeof args.state.nativeRetryOffset === 'number' ? args.state.nativeRetryOffset : 0;
       const relativeRetryCount = Math.max(0, args.retryCount - offset);
+      if (configuredFlex) {
+        if (relativeRetryCount >= Math.min(1, retries)) return;
+        args.state.nativeDefaultTierModel = args.state.nativeRetryModel;
+      }
       if (relativeRetryCount >= retries) {
         const models = (args.requestContext as RequestContext<any> | undefined)?.get(NATIVE_TEXT_MODELS_KEY) as string[] | undefined;
         const lastModel = models?.at(-1);

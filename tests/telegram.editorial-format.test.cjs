@@ -80,3 +80,17 @@ test('media retains its caption and readable structure without a second post', a
 test('editor paragraphs inside list items do not insert false blank items', () => {
   expect(telegramHtml('<ol><li><p>Раз</p></li><li><p>Два</p></li></ol>')).toBe('1. Раз\n2. Два\n');
 });
+
+test.each(['plain','rich','media'])('published %s content is sent unchanged without reaching stdout',async kind=>{
+ const authored='PRIVATE_EDITORIAL_SENTINEL_4b7a';
+ const message=kind==='rich'?`<h1>${authored}</h1><p>Body</p>`:authored;
+ const logs=jest.spyOn(console,'log').mockImplementation(()=>{});
+ const warnings=jest.spyOn(console,'warn').mockImplementation(()=>{});
+ const errors=jest.spyOn(console,'error').mockImplementation(()=>{});
+ try{
+  const result=await new TelegramProvider().post('channel','-100123',[{id:'saved-post',message,media:kind==='media'?[{path:'https://cdn.example/p.png'}]:[]}]);
+  expect(JSON.stringify([...sendMessage.mock.calls,...sendPhoto.mock.calls,...request.mock.calls])).toContain(authored);
+  expect(JSON.stringify([...logs.mock.calls,...warnings.mock.calls,...errors.mock.calls])).not.toContain(authored);
+  expect(result[0]).toMatchObject({id:'saved-post',status:'completed'});expect(result[0].postId).toBeTruthy();
+ }finally{logs.mockRestore();warnings.mockRestore();errors.mockRestore();}
+});

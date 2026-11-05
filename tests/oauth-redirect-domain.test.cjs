@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const repositoryRoot = path.resolve(__dirname, '..');
 const originalFetch = global.fetch;
@@ -34,6 +35,16 @@ function loadProvider(file) {
   }).outputText;
   const loaded = { exports: {} };
   const localRequire = (request) => {
+    if (request === './tiktok-video-inspection') {
+      return { inspectTikTokOwnedVideo: () => {
+        throw new Error('Video inspection is outside the OAuth redirect fixture');
+      } };
+    }
+    if (request === './analytics.data') {
+      return loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/integrations/social/analytics.data.ts'
+      );
+    }
     if (request.endsWith('/services/make.is')) {
       return { makeId: (length) => 'x'.repeat(length) };
     }

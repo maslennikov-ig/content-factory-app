@@ -46,13 +46,13 @@ describe('service-managed Sol6.1 discounted route', () => {
     });
   });
 
-  test('own-key Sol choices retain their Standard attempt and explicit reasoning', () => {
+  test('own-key Sol Standard requests Default explicitly and retains its reasoning', () => {
     const own = { ...source, usageMode: 'workspace_key', singleModelAttempt: true };
     expect(chain.planTextAttempts(SOL, own).map(x => [x.model, x.flex])).toEqual([[SOL, false]]);
-    const body = chain.buildAttemptBody({ model: SOL, reasoning: { effort: 'high' } }, { model: SOL, flex: false });
+    const body = chain.buildAttemptBody({ model: SOL, reasoning: { effort: 'high' } }, { model: SOL, flex: false }, undefined, own.provider);
     expect(body.reasoning).toEqual({ effort: 'high' });
     expect(body.provider).toBeUndefined();
-    expect(body.service_tier).toBeUndefined();
+    expect(body.service_tier).toBe('default');
   });
 
   test.each(['image-role alias', 'search plugin'])('%s cannot bypass discounted Sol pricing', async (kind) => {

@@ -24,8 +24,8 @@ const human = (id, text) => ({ id, role: 'user', parts: [{ type: 'text', text }]
 const trace = value => { if (process.env.CF_STALE_PROBE_DEBUG) console.error(value); };
 const usage = { inputTokens: { total: 1, noCache: 1 }, outputTokens: { total: 1, text: 1 } };
 
-async function fixture({ questionCount = 1, script, membershipRole = 'ADMIN', membershipActive = true } = {}) {
-  const storage = new InMemoryStore();
+async function fixture({ questionCount = 1, script, membershipRole = 'ADMIN', membershipActive = true, storage: sharedStorage, serviceOverrides = {} } = {}) {
+  const storage = sharedStorage ?? new InMemoryStore();
   await storage.init();
   const modelCalls = [];
   const model = new MockLanguageModelV3({ modelId: 'native-stale-free', doStream: async args => {
@@ -57,10 +57,11 @@ async function fixture({ questionCount = 1, script, membershipRole = 'ADMIN', me
   } });
   const admissions = [];
   const aiUsage = { prepareModelExecution: async (_org, _operation, factory) => factory(), beginAiOperation: async () => {
-    const entry = { finishes: [] }; admissions.push(entry); return { run: work => work(), finish: async completed => entry.finishes.push(completed) };
+    const entry = { finishes: [], checkpoints: 0 }; admissions.push(entry); return { run: work => work(),
+      checkpoint: async () => { entry.checkpoints++; return true; }, finish: async completed => entry.finishes.push(completed) };
   } };
   const service = new MastraService({ get: token => token === PrismaService ? { userOrganization: { findUnique: async () => ({ role: membershipRole, disabled: false,
-    user: { activated: membershipActive, blockedAt: null }, organization: { createdAt: new Date(identity.organizationCreatedAt) } }) } } : {} }, aiUsage);
+    user: { activated: membershipActive, blockedAt: null }, organization: { createdAt: new Date(identity.organizationCreatedAt) } }) } } : serviceOverrides[token.name] ?? {} }, aiUsage);
   const mastra = await service.mastra(), agent = await service.conductor(), memory = await agent.getMemory();
   const { AgentController } = loadTypeScriptModule('apps/backend/src/api/routes/agent.controller.ts', {
     ...mocks, '@contentfactory/nestjs-libraries/chat/conductor/conductor.execution': execution,

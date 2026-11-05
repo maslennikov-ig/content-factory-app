@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { translateValidationMessage } from '../new-launch/validation-message.text';
 
 type Translate = TFunction | ((key: string, fallback: string, values?: Record<string, unknown>) => string);
 
@@ -53,7 +54,7 @@ const PATTERNS: Array<{
         ? t(
             'notification_comments_failed_reason',
             'An error occurred while posting comments on {{provider}}: {{reason}}',
-            v({ provider: m[1], reason: m[2] })
+            v({ provider: m[1], reason: m[2].startsWith('TikTok ') ? translateValidationMessage(m[2], t) : m[2] })
           )
         : t(
             'notification_comments_failed',
@@ -68,7 +69,7 @@ const PATTERNS: Array<{
         ? t(
             'notification_post_failed_reason',
             'An error occurred while posting on {{provider}}: {{reason}}',
-            v({ provider: m[1], reason: m[2] })
+            v({ provider: m[1], reason: m[2].startsWith('TikTok ') ? translateValidationMessage(m[2], t) : m[2] })
           )
         : t(
             'notification_post_failed',

@@ -18,18 +18,19 @@ import { useVideoWords, type VideoWordsV1 } from './video.copy';
 import type { VideoProviderSettingsUiV1 } from './video-provider-settings';
 import {
   VIDEO_ACTIVE_STATES, videoErrorCode,
-  videoPendingKey, videoSettingsForRoute, videoWorkspacePath,
+  videoPendingKey, videoSettingsForRoute, videoWorkspacePath, videoChatReturnPath,
   type VideoBriefUiV1, type VideoCatalogUiV1, type VideoDraftUiV1,
   type VideoSettingsV1,
 } from './video-ui.v1';
 import { useVideoAccessWords, type VideoAccessWordsV2 } from './video-access.copy';
+import { useVideoPersonalWords, videoPersonalBlocker } from './video-personal.copy';
 import { VideoSubscriptions, useVideoAccessChoicesV2 } from './video-subscriptions';
 import { VideoApprovalDetailsV2, useVideoUnitV2 } from './video-access-approval';
 import { VideoManualV2 } from './video-manual';
 import {
   VIDEO_UNRESOLVED_STATES_V2, downloadOwnedVideoV2, videoActorKeyV2,
   videoApprovalCurrentV2, videoCanLaunchV2, videoDecimalValidV2, videoPendingKeyV2,
-  type VideoAccessV2, type VideoApprovalUiV2, type VideoJobUiV2, type VideoPendingIntentV2,
+  VIDEO_PROVIDER_SITES_V2, type VideoAccessV2, type VideoApprovalUiV2, type VideoJobUiV2, type VideoPendingIntentV2, type VideoPersonalReadinessUi, type VideoPersonalAssetsUi,
 } from './video-ui.v2';
 
 const blankBrief = (locale: string): VideoBriefUiV1 => ({ intent: '', audience: '', keyMessage: '', visualIntent: '', prompt: '', script: '', scriptPolicy: 'exact', outputLocale: locale, facts: [], avoidImplications: [], referenceMediaIds: [] });
@@ -47,7 +48,8 @@ const jobsRefreshInterval = (data?: VideoJobUiV2[]) => data?.some(job => VIDEO_A
 const jobRefreshInterval = (data?: VideoJobUiV2) => data && (VIDEO_ACTIVE_STATES.has(data.state) || VIDEO_UNRESOLVED_STATES_V2.has(data.state)) ? 4000 : 0;
 
 /** The same saved draft and durable job are opened from pieces, media and chat. */
-export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, embedded = false }: { pieceId?: string; draftId?: string; jobId?: string; embedded?: boolean }) {
+export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, embedded = false, chatThreadId, onBindChatVideo }: { pieceId?: string; draftId?: string; jobId?: string; embedded?: boolean; chatThreadId?: string; onBindChatVideo?: (value: {threadId: string; draftId: string; pieceId?: string; jobId?: string}) => Promise<void> }) {
+  const personal = useVideoPersonalWords();
   const words = useVideoWords();
   const accessWords = useVideoAccessWords();
   const language = useInterfaceLanguage();
@@ -98,10 +100,17 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
   const effective = (catalog.data?.settings as VideoProviderSettingsUiV1 | undefined)?.effective?.[settings.provider];
   const unavailable = access?.kind === 'api' && effective && !effective.available;
   const connection = access?.kind === 'subscription' ? accessChoices.data?.connections.find(item => item.id === access.connectionId) : undefined;
-  const subscriptionAssets = useSWR<VideoCatalogUiV1['assets']>(access?.kind === 'subscription' && connection?.state === 'connected' && connection.workspaceGranted && connection.provider === settings.provider && settings.mode === 'presenter' ? ['video-subscription-assets-v2', user?.orgId, user?.id, connection.id, connection.generation] : null, () => read(`/media/video-v2/connections/${encodeURIComponent(connection!.id)}/assets`), {revalidateOnFocus: true});
-  const subscriptionUnavailable = access?.kind === 'subscription' && (!accessChoices.data?.providers.find(item => item.provider === settings.provider)?.enabled || !connection || connection.state !== 'connected' || !connection.workspaceGranted || !videoDecimalValidV2(connection.perJob, true) || !videoDecimalValidV2(connection.perMonth, true) || connection.provider !== settings.provider);
+  const personalReadiness = useSWR<VideoPersonalReadinessUi>(access?.kind === 'subscription' && connection ? ['video-personal-readiness', user?.orgId, user?.id, connection.id, connection.generation] : null, () => read(`/media/video-v2/connections/${encodeURIComponent(connection!.id)}/readiness`), {revalidateOnFocus: true});
+  const subscriptionAssets = useSWR<VideoPersonalAssetsUi>(access?.kind === 'subscription' && connection?.state === 'connected' && connection.workspaceGranted && connection.provider === settings.provider && settings.mode === 'presenter' ? ['video-subscription-assets-v2', user?.orgId, user?.id, connection.id, connection.generation] : null, () => read(`/media/video-v2/connections/${encodeURIComponent(connection!.id)}/assets`), {revalidateOnFocus: true});
+  const ownedAssets = subscriptionAssets.data?.status === 'ready' && subscriptionAssets.data.ownedOnly === true && subscriptionAssets.data.accountGeneration === connection?.generation && Array.isArray(subscriptionAssets.data.blockers) && subscriptionAssets.data.blockers.length === 0 && Array.isArray(subscriptionAssets.data.avatars) && Array.isArray(subscriptionAssets.data.voices) ? { avatars: subscriptionAssets.data.avatars.filter(item => item.ownership === 'owned' && item.state === 'available'), voices: subscriptionAssets.data.voices.filter(item => item.ownership === 'owned' && item.state === 'available'), engines: subscriptionAssets.data.engines } : undefined;
+  const operation = personalReadiness.data?.operations?.find(item => item.kind === (settings.mode === 'presenter' ? 'presenter' : 'generated_clip'));
+  const ownSelectionReady = settings.mode !== 'presenter' || !!ownedAssets?.avatars.some(item => item.id === settings.avatarId) && !!ownedAssets?.voices.some(item => item.id === settings.voiceId);
+  const subscriptionUnavailable = access?.kind === 'subscription' && (!accessChoices.data?.providers.find(item => item.provider === settings.provider)?.generationReady || !connection || connection.state !== 'connected' || connection.walletVerified !== true || !connection.workspaceGranted || !videoDecimalValidV2(connection.perJob, true) || !videoDecimalValidV2(connection.perMonth, true) || connection.provider !== settings.provider || personalReadiness.data?.accountGeneration !== connection.generation || personalReadiness.data?.connectionId !== connection.id || personalReadiness.data?.provider !== connection.provider || personalReadiness.data?.walletVerified !== true || personalReadiness.data?.schema?.reviewed !== true || !personalReadiness.data?.schema?.digest || operation?.ready !== true || !Array.isArray(operation.blockers) || operation.blockers.length > 0 || !ownSelectionReady);
   const payerChanged = access?.kind === 'api' && access.payer !== apiPayer;
   const job = selectedJob.data;
+  const chatReturn = embedded ? videoChatReturnPath(chatThreadId, draft?.id, pieceId || undefined, job?.id) : null;
+  const bindingState = useRef({dirty, chatReturn, draftVersion: draft?.version});
+  bindingState.current = {dirty, chatReturn, draftVersion: draft?.version};
   const unresolved = pendingIntent !== null || !!job && (VIDEO_UNRESOLVED_STATES_V2.has(job.state) || VIDEO_ACTIVE_STATES.has(job.state));
   const ready = videoCanLaunchV2(draft, preflight, access, dirty) && !conflictingDraft && !unavailable && !subscriptionUnavailable && !payerChanged && !unresolved && canWrite;
   const updateLocation = (params: { pieceId?: string; draftId?: string; jobId?: string }) => {
@@ -113,14 +122,14 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
     setDraftReaderId(value.id); setConflictingDraft(null);
     const pending = pendingRead(videoPendingKeyV2(user?.orgId ?? '', user?.id ?? '', value.id), 2) ?? pendingRead(videoPendingKey(user?.orgId ?? '', value.id), 1);
     setPendingIntent(pending);
-    setAccess(current => pending ? pending.access ?? {kind: 'api', payer: apiPayer} : (preserveAccess ? current : null) ?? accessRead(`${videoActorKeyV2(user?.orgId ?? '', user?.id ?? '')}:${value.id}`) ?? {kind: 'api', payer: apiPayer});
+    setAccess(current => pending ? pending.access ?? {kind: 'api', payer: apiPayer} : (preserveAccess ? current : null) ?? accessRead(`${videoActorKeyV2(user?.orgId ?? '', user?.id ?? '')}:${value.id}`));
   }, [user?.orgId, user?.id, apiPayer]);
   const restoredActor = useRef('');
   useEffect(() => {
     if (!user || !catalog.data || restoredActor.current === actorKey) return;
     restoredActor.current = actorKey;
     setPreflight(null); setPendingIntent(null);
-    setAccess(draftReaderId ? accessRead(`${actorKey}:${draftReaderId}`) ?? {kind: 'api', payer: apiPayer} : selectedJobId ? null : accessRead(actorKey));
+    setAccess(draftReaderId ? accessRead(`${actorKey}:${draftReaderId}`) : selectedJobId ? null : accessRead(actorKey));
   }, [actorKey, user, draftReaderId, selectedJobId, apiPayer, catalog.data]);
   const restoredJob = useRef('');
   useEffect(() => {
@@ -239,7 +248,7 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
     setPieceId(id); setDraft(null); setDraftReaderId(''); setConflictingDraft(null); setBrief(blankBrief(settings.locale)); setDirty(false); setPreflight(null); setPendingIntent(null); setSelectedJobId(''); setError(''); setNotice('');
   };
   const disabled = !canWrite || busy !== null || !!unresolved;
-  const assets = access?.kind === 'subscription' ? subscriptionAssets.data : access?.kind === 'api' ? catalog.data?.assets : undefined;
+  const assets = access?.kind === 'subscription' ? ownedAssets : access?.kind === 'api' ? catalog.data?.assets : undefined;
   const failure = error === 'VIDEO_ACCESS_DENIED' ? words.restricted : /PREFLIGHT|DRAFT_CHANGED|SOURCE_CHANGED|PAYER_CHANGED|CONNECTION_CHANGED/.test(error) ? accessWords.approvalStale : /CREDIT|BUDGET/.test(error) ? accessWords.insufficient : /REAUTH/.test(error) ? accessWords.reauth : /SCHEMA|TOOL|UNSUPPORTED|TRIAL|API_KEY_REQUIRED|ELIGIBILITY/.test(error) ? accessWords.unsupported : /OAUTH|CONNECTION|WALLET/.test(error) ? accessWords.loginFailed : error === 'VIDEO_KEY_NOT_CONFIGURED' ? words.noKey : error === 'VIDEO_PRICE_UNAVAILABLE' ? words.unknown : words.failed;
   return <section className="split-container flex w-full min-w-0 flex-col gap-[24px] text-cf-ink" data-video-workspace="v2" data-video-access-kind={access?.kind ?? "unselected"} aria-busy={busy !== null}>
     <div className="flex flex-wrap items-start justify-between gap-[12px]">
@@ -254,7 +263,18 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
       {access?.kind === 'subscription' && <>
         <LabelledField id="video-subscription-account" label={accessWords.account}><Select standalone id="video-subscription-account" value={access.connectionId} disabled={busy !== null || !!unresolved} onChange={event => selectAccess({kind: 'subscription', connectionId: event.target.value})}><option value="">{accessWords.choose}</option>{accessChoices.data?.connections.map(item => <option key={item.id} value={item.id}>{item.provider === 'higgsfield' ? 'Higgsfield' : 'HeyGen'} · {item.id} · {item.state === 'connected' ? accessWords.connected : accessWords.disconnected}</option>)}</Select></LabelledField>
         {connection && connection.provider !== settings.provider && <p role="status" className="cf-body-sm text-cf-warning">{accessWords.mismatch}</p>}
-        <VideoSubscriptions returnPath={videoWorkspacePath({pieceId, draftId: draft?.id, jobId: job?.id})} canConnect={!dirty} onChanged={() => setPreflight(null)} />
+        <VideoSubscriptions managementOnly returnPath={embedded ? chatReturn ?? '' : videoWorkspacePath({pieceId, draftId: draft?.id, jobId: job?.id})} canConnect={!dirty && (!embedded || !!chatReturn && !!onBindChatVideo)} connectBlockedMessage={embedded && (!chatReturn || !onBindChatVideo) ? personal.saveChatFirst : undefined} beforeConnect={embedded ? async () => {
+          if (!chatThreadId || !draft || !chatReturn || !onBindChatVideo) throw new Error('VIDEO_CHAT_BIND_FAILED');
+          await onBindChatVideo({threadId: chatThreadId, draftId: draft.id, ...(pieceId ? {pieceId} : {}), ...(job?.id ? {jobId: job.id} : {})});
+          if (bindingState.current.dirty || bindingState.current.chatReturn !== chatReturn || bindingState.current.draftVersion !== draft.version) throw new Error('VIDEO_CHAT_BIND_FAILED');
+        } : undefined} onChanged={() => { setPreflight(null); void personalReadiness.mutate(); void subscriptionAssets.mutate(); }} />
+        {connection && <section aria-label={personal.readiness} className="flex flex-col gap-[8px]">
+          <h3 className="cf-label-md">{personal.readiness}</h3>
+          {personalReadiness.error ? <p role="status" className="cf-body-sm">{personal.checkAccount} <Button variant="quiet" onClick={() => personalReadiness.mutate()}>{words.refresh}</Button></p> : !personalReadiness.data ? <SkeletonRows rows={2} label={words.loading} /> : <>
+            <ul className="cf-body-sm">{personalReadiness.data.operations.map(item => <li key={item.kind}>{personal[item.kind as 'presenter' | 'generated_clip' | 'narration' | 'captions' | 'final_composition'] ?? personal.blocked}: {item.ready && item.blockers.length === 0 ? personal.ready : personal.blocked}{item.blockers.length > 0 && ` — ${[...new Set(item.blockers.map(code => videoPersonalBlocker(code, personal)))].join(' ')}`}</li>)}</ul>
+            {(!personalReadiness.data.walletVerified || personalReadiness.data.operations.some(item => !item.ready || item.blockers.length > 0)) && <p role="status" className="cf-body-sm text-cf-ink-muted">{personal.checkAccount}</p>}
+          </>}
+        </section>}
       </>}
     </section>
     {catalog.error ? <ErrorState title={words.failed} action={<Button variant="secondary" onClick={() => catalog.mutate()}>{words.refresh}</Button>} /> : !catalog.data || !!draftReaderId && !draft && !savedDraft.error ? <SkeletonRows rows={4} label={words.loading} /> : <>
@@ -276,16 +296,19 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
             {!!route?.resolutions.length && <LabelledField id="video-resolution" label={words.resolution}><Select standalone id="video-resolution" value={settings.resolution ?? ''} disabled={disabled} onChange={event => editSettings({ resolution: event.target.value })}>{route.resolutions.map(value => <option key={value} value={value}>{value}</option>)}</Select></LabelledField>}
           </div>
           {settings.mode === 'presenter' && <div className="grid gap-[16px] split:grid-cols-2">
+            {access?.kind === 'subscription' && <p className="cf-body-sm split:col-span-2">{personal.ownedAssets}</p>}
+            {access?.kind === 'subscription' && subscriptionAssets.data && (!ownedAssets || !ownedAssets.avatars.length || !ownedAssets.voices.length) && <p role="status" className="cf-body-sm split:col-span-2">{subscriptionAssets.data.status === 'needs_owned_assets' || subscriptionAssets.data.status === 'ready' && ownedAssets ? personal.assetsUnavailable : subscriptionAssets.data.status === 'discovery_required' ? personal.connectedNeedsDiscovery : personal.checkAccount} {subscriptionAssets.data.status === 'needs_owned_assets' && subscriptionAssets.data.guidance && <a className="underline" href={VIDEO_PROVIDER_SITES_V2[settings.provider]} target="_blank" rel="noreferrer">{personal.openProvider}</a>} · <Button variant="quiet" onClick={() => subscriptionAssets.mutate()}>{words.refresh}</Button></p>}
+            {access?.kind === 'subscription' && ownedAssets && !ownSelectionReady && (settings.avatarId || settings.voiceId) && <p role="status" className="cf-body-sm split:col-span-2">{personal.staleAssets}</p>}
             {access?.kind === 'subscription' && subscriptionAssets.error && <p role="alert" className="cf-body-sm text-cf-danger split:col-span-2">{accessWords.unsupported} <Button variant="quiet" onClick={() => subscriptionAssets.mutate()}>{words.refresh}</Button></p>}
-            {access?.kind === 'subscription' && connection && !subscriptionAssets.data && !subscriptionAssets.error && <SkeletonRows rows={2} label={words.loading} />}
+            {access?.kind === 'subscription' && connection?.state === 'connected' && connection.workspaceGranted && connection.provider === settings.provider && !subscriptionAssets.data && !subscriptionAssets.error && <SkeletonRows rows={2} label={words.loading} />}
             {access?.kind === 'api' && catalog.data.assetsError && <p role="alert" className="cf-body-sm text-cf-danger split:col-span-2">{words.failed}</p>}
             {access?.kind === 'manual' ? <>
               <Input standalone name="video-manual-avatar" label={words.avatar} value={settings.avatarId ?? ''} disabled={disabled} onChange={event => editSettings({avatarId: event.target.value || undefined})} />
               <Input standalone name="video-manual-voice" label={words.voice} value={settings.voiceId ?? ''} disabled={disabled} onChange={event => editSettings({voiceId: event.target.value || undefined})} />
               <Input standalone name="video-manual-engine" label={words.engine} value={settings.engine ?? ''} disabled={disabled} onChange={event => editSettings({engine: event.target.value || undefined})} />
             </> : <>
-              <LabelledField id="video-avatar" label={words.avatar}><Select standalone id="video-avatar" value={settings.avatarId ?? ''} disabled={disabled} onChange={event => editSettings({ avatarId: event.target.value || undefined, engine: undefined })}><option value="">—</option>{settings.avatarId && !assets?.avatars?.some(item => item.id === settings.avatarId) && <option value={settings.avatarId}>{settings.avatarId}</option>}{assets?.avatars?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></LabelledField>
-              <LabelledField id="video-voice" label={words.voice}><Select standalone id="video-voice" value={settings.voiceId ?? ''} disabled={disabled} onChange={event => editSettings({ voiceId: event.target.value || undefined })}><option value="">—</option>{settings.voiceId && !assets?.voices?.some(item => item.id === settings.voiceId) && <option value={settings.voiceId}>{settings.voiceId}</option>}{assets?.voices?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></LabelledField>
+              <LabelledField id="video-avatar" label={words.avatar}><Select standalone id="video-avatar" value={settings.avatarId ?? ''} disabled={disabled} onChange={event => editSettings({ avatarId: event.target.value || undefined, engine: undefined })}><option value="">—</option>{settings.avatarId && !assets?.avatars?.some(item => item.id === settings.avatarId) && <option disabled value={settings.avatarId}>{settings.avatarId}</option>}{assets?.avatars?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></LabelledField>
+              <LabelledField id="video-voice" label={words.voice}><Select standalone id="video-voice" value={settings.voiceId ?? ''} disabled={disabled} onChange={event => editSettings({ voiceId: event.target.value || undefined })}><option value="">—</option>{settings.voiceId && !assets?.voices?.some(item => item.id === settings.voiceId) && <option disabled value={settings.voiceId}>{settings.voiceId}</option>}{assets?.voices?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></LabelledField>
               <LabelledField id="video-engine" label={words.engine}><Select standalone id="video-engine" value={settings.engine ?? ''} disabled={disabled} onChange={event => editSettings({ engine: event.target.value || undefined })}><option value="">—</option>{settings.engine && !(assets?.avatars?.find(item => item.id === settings.avatarId)?.engines ?? assets?.engines ?? []).includes(settings.engine) && <option value={settings.engine}>{settings.engine}</option>}{(assets?.avatars?.find(item => item.id === settings.avatarId)?.engines ?? assets?.engines ?? []).map(engine => <option key={engine} value={engine}>{engine}</option>)}</Select></LabelledField>
             </>}
           </div>}
@@ -318,7 +341,7 @@ export function VideoWorkspace({ pieceId: initialPieceId = '', draftId, jobId, e
             {route && <p className="cf-body-sm">{route.label} · {settings.locale} · {settings.aspectRatio} · {settings.duration}s</p>}
             {!access && <p className="cf-body-sm">{accessWords.choose}</p>}
             {!catalog.data.routes.length && <p className="cf-body-sm">{words.noRoutes}</p>}
-            {unavailable && <p role="status" className="cf-body-sm">{effective?.hasKey ? words.noBudget : words.noKey} <a href="/settings?tab=ai" className="underline">{words.settings}</a></p>}
+            {unavailable && <p role="status" className="cf-body-sm">{effective?.hasKey ? words.noBudget : words.noKey} <a href="/settings?tab=global_settings" className="underline">{words.settings}</a></p>}
             {payerChanged && <p role="status" className="cf-body-sm">{accessWords.approvalStale} <Button variant="quiet" onClick={() => selectAccess({kind: 'api', payer: apiPayer})}>{accessWords.api}</Button></p>}
             {subscriptionUnavailable && <p role="status" className="cf-body-sm">{!connection || connection.provider !== settings.provider ? accessWords.mismatch : connection.state !== 'connected' ? accessWords.reauth : !connection.perJob || !connection.perMonth ? accessWords.limitsNote : accessWords.unavailable}</p>}
             {preflight && <><VideoApprovalDetailsV2 approval={preflight} />{!videoApprovalCurrentV2(preflight) && <p role="status" className="cf-body-sm text-cf-warning">{accessWords.approvalStale}</p>}</>}

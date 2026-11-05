@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
   HttpException,
   Logger,
   Param,
@@ -39,7 +40,7 @@ import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/ba
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import { AgentThreadsService } from '@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service';
-import type { AgentTurnLifecycle } from '@contentfactory/nestjs-libraries/chat/conductor/agent-turn-lifecycle';
+import type { AgentTurnLifecycle, AgentTurnOutcome } from '@contentfactory/nestjs-libraries/chat/conductor/agent-turn-lifecycle';
 import {
   AGENT_ERROR_CODES,
   AGENT_STREAM_VERSION,
@@ -200,6 +201,19 @@ const failedPart = (part: any) =>
   // Only the terminal UI finish reaches this boundary. Native intermediate
   // length retries remain eligible; an exhausted truncated answer is incomplete.
   (part?.type === 'finish' && ['error', 'length'].includes(part?.finishReason));
+
+type TurnFailureReason =
+  | 'stream-initialization-error'
+  | 'error-part'
+  | 'terminal-model-tripwire'
+  | 'finish-error'
+  | 'finish-length'
+  | 'silent-leg'
+  | 'execution-stop'
+  | 'stream-or-work-error'
+  | 'tracked-operation-failure'
+  | 'settlement-not-started'
+  | 'settlement-error';
 
 @ApiTags('Agent')
 @Controller('/agent')
@@ -491,9 +505,16 @@ export class AgentController {
       }
 
       let failed = false;
+      const failureReasons = new Set<TurnFailureReason>();
+      let nativeRunId = input.mode === 'message' ? undefined : answered?.runId;
+      let requestedOutcome: AgentTurnOutcome | undefined;
+      let settledOutcome: AgentTurnOutcome | undefined;
       const failedExecution = () => {
         const stopCode = execution?.snapshot().stopCode;
         return !!stopCode && !(stopCode === 'AGENT_TASK_STOPPED' && abort.signal.aborted);
+      };
+      const recordFailedExecution = () => {
+        if (failedExecution()) { failed = true; failureReasons.add('execution-stop'); }
       };
       /** Tool calls of this stream by id, for the approval card's words. */
       const calls = new Map<string, { toolName: string; input: unknown }>();
@@ -520,6 +541,7 @@ export class AgentController {
         requestId,
         onStop: () => forceAbort(true),
         settled: turnSettlement,
+        checkpointUsage: admission.checkpoint,
       });
       try {
         turn = await this.threads.startTurn(identity, threadId, requestId, releaseThread);
@@ -542,7 +564,10 @@ export class AgentController {
                 ...(input.mode === 'message' ? { message: messages[0] as any } : {}),
                 ...(resume ? { resume } : {}),
                 ...(input.mode === 'approval' ? { approvals: { runId: input.mode === 'approval' ? answered!.runId : '', answers: input.approvals } } : {}),
-                onRunId: (nativeRunId) => this.threads.rememberNativeRun(identity, threadId, nativeRunId, requestId, input.mode === 'message' ? writingSelection.selection : undefined),
+                onRunId: async (runId) => {
+                  nativeRunId = runId;
+                  await this.threads.rememberNativeRun(identity, threadId, runId, requestId, input.mode === 'message' ? writingSelection.selection : undefined);
+                },
                 onMessageId: (nativeRunId, messageId) => this.threads.rememberNativeResponse(identity, threadId, nativeRunId, messageId),
                 nextRunId: async () => (await this.threads.readNativeRun(identity, threadId))?.runId,
                 onError: (error) => conductorOnError(error, errorScope),
@@ -565,6 +590,7 @@ export class AgentController {
             })) as unknown as ReadableStream<any>;
           } catch (error) {
             failed = true;
+            failureReasons.add('stream-initialization-error');
             logConductorError(error, errorScope);
             const code = conductorErrorCode(error, errorScope);
             throw new HttpException({ code }, code === 'AGENT_RUN_NOT_PENDING' ? 409 : 502);
@@ -619,7 +645,12 @@ export class AgentController {
           while (!abort.signal.aborted || drainStoppedNative) {
             const { done, value } = await reader.read();
             if (done) break;
-            if ((!abort.signal.aborted || failedExecution()) && failedPart(value)) failed = true;
+            if ((!abort.signal.aborted || failedExecution()) && failedPart(value)) {
+              failed = true;
+              failureReasons.add(value.type === 'error' ? 'error-part'
+                : value.type === 'data-tripwire' ? 'terminal-model-tripwire'
+                : value.finishReason === 'length' ? 'finish-length' : 'finish-error');
+            }
             if ((!abort.signal.aborted || failedExecution()) && value?.type === 'error' && KNOWN_ERRORS.includes(value.errorText)) turn?.fail(value.errorText);
             // Explicit native Stop suppresses display work, while this same
             // reader awaits native FINISH/EOF after the actual Memory flush.
@@ -648,6 +679,7 @@ export class AgentController {
             await flushHeld();
             if (silence.before(value)) {
               failed = true;
+              failureReasons.add('silent-leg');
               for (const part of closingLine(identity.language, execution!.closing(identity.language) || undefined)) write(part);
             }
             if (value?.type === 'tool-input-available' && value.toolCallId) {
@@ -660,12 +692,16 @@ export class AgentController {
               held.set(value.toolCallId, value);
               continue;
             }
+            const waitingForInput = !!session && this.nativeInputWait(value, session, threadId);
+            if (waitingForInput && await admission.checkpoint() === false) {
+              this.logger.warn('Agent usage checkpoint was not saved before waiting for input.');
+            }
             write(
               value?.type === 'tool-approval-request'
                 ? await this.withApprovalReason(value, identity, threadId, calls)
                 : this.withToolTitle(value, identity)
             );
-            if (session && this.nativeInputWait(value, session, threadId)) {
+            if (waitingForInput) {
               write({ type: 'data-native-input-wait', data: { runId: (value as any).data?.runId }, transient: true });
               if (!detached && !res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); }
               // The native Session and this task's ledger keep owning the run
@@ -675,9 +711,12 @@ export class AgentController {
           }
           if (!abort.signal.aborted) await flushHeld(true);
         })));
-        if (failedExecution()) failed = true;
+        recordFailedExecution();
       } catch (error) {
-        if (!abort.signal.aborted || failedExecution()) failed = true;
+        if (!abort.signal.aborted || failedExecution()) {
+          failed = true;
+          failureReasons.add('stream-or-work-error');
+        }
         if (!res.headersSent && !detached) throw error;
         logConductorError(error, errorScope);
         const stopped = execution?.snapshot().stopCode;
@@ -697,19 +736,26 @@ export class AgentController {
           res.write(`data: ${JSON.stringify(errorPart)}\n\n`);
         }
       } finally {
-        if (failedExecution()) failed = true;
+        recordFailedExecution();
         finished = true;
         // UI cancellation can finish before a non-cancellable service write.
         // Hold both claims and the unknown-result guard until those actual
         // capability Promises settle, including failures.
         try {
-          const settled = await turn?.finish(failed ? 'failed' : abort.signal.aborted ? 'interrupted' : 'completed');
-          if (settled === 'failed') failed = true;
+          requestedOutcome = failed ? 'failed' : abort.signal.aborted ? 'interrupted' : 'completed';
+          const settled = await turn?.finish(requestedOutcome);
+          settledOutcome = settled;
+          if (settled === 'failed') {
+            failed = true;
+            if (requestedOutcome !== 'failed') failureReasons.add('tracked-operation-failure');
+          }
+          if (!settled) failureReasons.add('settlement-not-started');
           settleActiveTurn(settled ? undefined : new Error('Agent turn settlement was not started.'));
         } catch (error) {
           // No terminal receipt: history stays running/unknown and refuses
           // a retry. A failed store write must never fabricate success.
           failed = true;
+          failureReasons.add('settlement-error');
           settleActiveTurn(error ?? new Error('Agent turn outcome could not be recorded.'));
           this.logger.warn('Agent turn outcome could not be recorded.');
         } finally {
@@ -717,7 +763,13 @@ export class AgentController {
           // pending, so a Stop entering during that write can await it too.
           activeTurn?.finishStream();
         }
-        if (execution) this.logger.log?.(JSON.stringify({ event: 'agent_task_execution', ...execution.snapshot() }));
+        try {
+          if (execution) this.logger.log?.(JSON.stringify({
+            event: 'agent_task_execution', ...execution.snapshot(), origin: 'http-owner',
+            inputMode: input.mode, nativeRunId, requestedOutcome, settledOutcome: settledOutcome ?? null,
+            failed, interrupted: abort.signal.aborted, failureReasons: [...failureReasons],
+          }));
+        } catch { /* A diagnostic sink cannot skip admission or HTTP completion. */ }
         pictures.release();
         // A turn with an `error` part, or one the person left, is not a
         // success (premortem U2, U3); its tokens are recorded either way.
@@ -750,6 +802,19 @@ export class AgentController {
       session?.resolveToolApproval(part.data?.toolName, threadId) === 'ask' && session.approval.isArmed(address);
   }
 
+  private async checkpointNativeMirror(identity: CapabilityIdentity, threadId: string, part: any) {
+    const owner = await this.threads.activeTurnFor(identity, threadId);
+    if (!owner?.checkpointUsage) return;
+    const pointer = await this.threads.readNativeRun(identity, threadId);
+    const approvalId = typeof part?.approvalId === 'string' ? part.approvalId : '';
+    const separator = approvalId.lastIndexOf('::');
+    const eventRunId = part?.data?.runId ?? (separator > 0 ? approvalId.slice(0, separator) : undefined);
+    if (!pointer || owner.requestId !== pointer.logicalRequestId || eventRunId !== pointer.runId) return;
+    if (await owner.checkpointUsage() === false) {
+      this.logger.warn('Agent usage checkpoint was not saved before waiting for input.');
+    }
+  }
+
   private async pipeNativeAnswer(stream: ReadableStream<any>, identity: CapabilityIdentity,
     threadId: string, session: any, res: Response) {
     res.status(200);
@@ -772,10 +837,12 @@ export class AgentController {
         const value = part.value;
         if (value?.type === 'tool-input-available') calls.set(value.toolCallId, { toolName: value.toolName, input: value.input });
         if (value?.data?.resumed === true && ['data-tool-call-approval', 'data-tool-call-suspended'].includes(value.type)) continue;
+        const waitingForInput = this.nativeInputWait(value, session, threadId);
+        if (waitingForInput || value?.type === 'tool-approval-request') await this.checkpointNativeMirror(identity, threadId, value);
         const shown = value?.type === 'tool-approval-request'
           ? await this.withApprovalReason(value, identity, threadId, calls) : this.withToolTitle(value, identity);
         res.write(`data: ${JSON.stringify(sanitisedPart(shown))}\n\n`);
-        if (this.nativeInputWait(value, session, threadId)) {
+        if (waitingForInput) {
           res.write(`data: ${JSON.stringify({ type: 'data-native-input-wait', data: { runId: value.data?.runId }, transient: true })}\n\n`);
           break;
         }
@@ -1000,6 +1067,18 @@ export class AgentController {
     @Body() body: unknown
   ) {
     return this.threads.patchWorkspace(agentIdentity(organization, user), threadIdParam(id), body);
+  }
+
+  @Post('/threads/:id/video-binding')
+  @HttpCode(200)
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async bindVideo(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    return this.threads.bindVideo(agentIdentity(organization, user), threadIdParam(id), body);
   }
 
   @Patch('/threads/:id/model')

@@ -41,13 +41,45 @@ if [ "\${1:-}" != 'test' ]; then
   exit 127
 fi
 if [ "\${CF_STUB_MISSING:-}" = yes ]; then exit 0; fi
-printf 'Test Suites: 221 passed, 221 total\\n'
-printf 'Tests:       1 skipped, 3036 passed, 3037 total\\n'
+node "$CF_STUB_HELPER"
+if [ "\${CF_STUB_SUITE_STATUS:-}" = 134 ]; then exit 134; fi
+printf 'Node\\n' >> "$CF_RELEASE_JEST_ARTIFACT_DIR/order.log"
 printf '# pass 93\\n'
 printf '# fail %s\\n' "\${CF_STUB_NODE_FAIL:-0}"
+printf 'Python\\n' >> "$CF_RELEASE_JEST_ARTIFACT_DIR/order.log"
 printf '%s\\n' "\${CF_STUB_PYTHON:-OK}"
+if [ "\${CF_STUB_DRIFT:-}" = dirty ]; then printf changed > app.txt; fi
+if [ "\${CF_STUB_DRIFT:-}" = head ]; then git commit --allow-empty -qm drift; fi
 exit "\${CF_STUB_SUITE_STATUS:-0}"
 `;
+
+function writeNativeFixture() {
+  const fs = require('node:fs'), path = require('node:path');
+  const root = process.cwd(), dir = process.env.CF_RELEASE_JEST_ARTIFACT_DIR, commit = process.env.CF_RELEASE_SUITE_HEAD;
+  if (process.env.CF_RELEASE_JEST_MODE !== 'full' || !/^[a-f0-9]{40}$/.test(commit)) throw new Error('Recorder did not bind full mode to HEAD');
+  const { aggregate } = require(path.join(root, 'scripts/ci/jest-shards.cjs'));
+  const write = (file, value) => { fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, JSON.stringify(value)); };
+  const expected = [1,2,3,4].map(i=>path.join(root, `${i}.test.cjs`));
+  write(path.join(dir,'discovery.json'), expected); write(path.join(dir,'expected.json'), expected);
+  fs.writeFileSync(path.join(dir,'order.log'), 'Jest\n');
+  const shards=[];
+  for (let index=1;index<=4;index++) {
+    const d=path.join(dir,`shards/full-${index}`), file=path.join(root,'app.txt');
+    write(path.join(d,'metadata.json'),{mode:'full',index,total:4,commit,root});
+    write(path.join(d,'results.json'),{success:true,wasInterrupted:false,numFailedTests:0,numFailedTestSuites:0,numTotalTestSuites:1,numPassedTestSuites:1,numPendingTestSuites:0,numTotalTests:1,numPassedTests:1,numPendingTests:0,numTodoTests:0,testResults:[{name:expected[index-1],status:'passed'}]});
+    write(path.join(d,'coverage-final.json'),{[file]:{path:file,statementMap:{0:{start:{line:1,column:0},end:{line:1,column:1}}},fnMap:{},branchMap:{},s:{0:1},f:{},b:{}}});
+    fs.writeFileSync(path.join(d,'suite.log'),'Test Suites: 1 passed, 1 total\n');
+    fs.writeFileSync(path.join(d,'junit.xml'),'<testsuites tests="1" failures="0"/>');
+    shards.push({index,startedAt:index*2,finishedAt:index*2+1,exitCode:0,signal:null});
+  }
+  write(path.join(dir,'execution.json'),{commit,root,discoveryExitCode:0,shards});
+  if(process.env.CF_STUB_FIRST_SHARD==='yes')console.log('Test Suites: 1 passed, 1 total\nTests:       1 passed, 1 total');
+  aggregate(path.join(dir,'shards'),path.join(dir,'expected.json'),path.join(dir,'merged'),{fullOnly:true,commit});
+  if(process.env.CF_STUB_DAMAGE==='coverage')fs.unlinkSync(path.join(dir,'shards/full-1/coverage-final.json'));
+  if(process.env.CF_STUB_DAMAGE==='population'){
+    const p=path.join(dir,'expected.json');write(p,expected.slice(1));
+  }
+}
 
 const gitEnv = {
   GIT_AUTHOR_NAME: 'test',
@@ -79,7 +111,10 @@ function makeRepository() {
 
   fs.writeFileSync(path.join(repo, 'var/docker/entrypoint.sh'), '#!/bin/sh\n');
   fs.writeFileSync(path.join(repo, 'app.txt'), 'first\n');
-  fs.writeFileSync(path.join(repo, '.gitignore'), '/var/release/\n');
+  fs.mkdirSync(path.join(repo, 'scripts/ci'), { recursive: true });
+  fs.copyFileSync(path.join(root, 'scripts/ci/jest-shards.cjs'), path.join(repo, 'scripts/ci/jest-shards.cjs'));
+  fs.symlinkSync(path.join(root, 'node_modules'), path.join(repo, 'node_modules'), 'dir');
+  fs.writeFileSync(path.join(repo, '.gitignore'), '/var/release/\n/node_modules\n');
 
   const git = (...args) =>
     spawnSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env, ...gitEnv } });
@@ -99,6 +134,7 @@ function run(repo, script, extraEnv = {}) {
       ...gitEnv,
       // Scoped to this child only.
       PATH: `${path.join(workspace, 'bin')}${path.delimiter}${process.env.PATH}`,
+      CF_STUB_HELPER: path.join(workspace, 'bin/native-fixture.cjs'),
       ...extraEnv,
     },
   });
@@ -116,6 +152,7 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
     const stubBin = path.join(workspace, 'bin');
     fs.mkdirSync(stubBin, { recursive: true });
     fs.writeFileSync(path.join(stubBin, 'pnpm'), PNPM_STUB, { mode: 0o755 });
+    fs.writeFileSync(path.join(stubBin, 'native-fixture.cjs'), `(${writeNativeFixture.toString()})();`);
   });
 
   afterAll(() => {
@@ -147,7 +184,10 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
 
     // All three summaries, not just jest's. Reading the first as the answer is
     // the mistake this exists to close.
-    expect(receipt.jest.suites).toContain('221 passed');
+    expect(receipt.jest.suites).toBe('Test Suites: 0 skipped, 4 passed, 4 total');
+    const artifact = path.join(repo, receipt.artifacts, 'jest');
+    expect(fs.readFileSync(path.join(artifact, 'order.log'), 'utf8')).toBe('Jest\nNode\nPython\n');
+    expect(JSON.parse(fs.readFileSync(path.join(artifact, 'merged/verification.json'))).files).toBe(4);
     expect(receipt.nodeTest.fail).toBe('# fail 0');
     expect(receipt.python).toBe('OK');
 
@@ -169,6 +209,40 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
     expect(recorded.stderr).toContain('no receipt was written');
 
     expect(run(repo, 'check-suite-receipt.sh').status).toBe(1);
+  });
+
+  test('OOM134 retains raw artifacts, archives the prior receipt and never starts later halves', () => {
+    const {repo}=makeRepository();
+    expect(run(repo,'record-suite-receipt.sh').status).toBe(0);
+    const prior=readReceipt(repo);
+    const failed=run(repo,'record-suite-receipt.sh',{CF_STUB_SUITE_STATUS:'134'});
+    expect(failed.status).toBe(134);
+    expect(fs.existsSync(path.join(repo,'var/release/suite-receipt.json'))).toBe(false);
+    const runs=path.join(repo,'var/release/suite-runs');
+    const failedDir=fs.readdirSync(runs).map(x=>path.join(runs,x)).find(x=>fs.existsSync(path.join(x,'previous-suite-receipt.json')));
+    expect(JSON.parse(fs.readFileSync(path.join(failedDir,'previous-suite-receipt.json')))).toEqual(prior);
+    expect(fs.readFileSync(path.join(failedDir,'jest/order.log'),'utf8')).toBe('Jest\n');
+    for(const file of ['suite.log','jest/shards/full-1/suite.log','jest/shards/full-1/results.json','jest/shards/full-1/junit.xml','jest/shards/full-1/coverage-final.json'])expect(fs.statSync(path.join(failedDir,file)).size).toBeGreaterThan(0);
+  });
+
+  test('a first-shard summary cannot substitute for the verified whole population',()=>{
+    const {repo}=makeRepository();
+    const result=run(repo,'record-suite-receipt.sh',{CF_STUB_FIRST_SHARD:'yes'});
+    expect(result.status).not.toBe(0);expect(result.stderr).toMatch(/summary|population/);
+    expect(fs.existsSync(path.join(repo,'var/release/suite-receipt.json'))).toBe(false);
+  });
+
+  test.each(['coverage','population'])('later missing %s artifacts cannot receive a receipt',damage=>{
+    const {repo}=makeRepository();
+    expect(run(repo,'record-suite-receipt.sh',{CF_STUB_DAMAGE:damage}).status).not.toBe(0);
+    expect(fs.existsSync(path.join(repo,'var/release/suite-receipt.json'))).toBe(false);
+  });
+
+  test.each(['head','dirty'])('end-of-run %s drift refuses a receipt',drift=>{
+    const {repo}=makeRepository();
+    const result=run(repo,'record-suite-receipt.sh',{CF_STUB_DRIFT:drift});
+    expect(result.status).not.toBe(0);expect(result.stderr).toMatch(/changed|differs/);
+    expect(fs.existsSync(path.join(repo,'var/release/suite-receipt.json'))).toBe(false);
   });
 
   test('an incomplete interrupted run cannot create a successful receipt', () => {

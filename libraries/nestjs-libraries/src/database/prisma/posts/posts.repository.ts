@@ -103,6 +103,10 @@ export class PostsRepository {
     private _transaction?: PrismaTransaction
   ) {}
 
+  async isSocialFactoryPublication(organizationId: string, postId: string): Promise<boolean> {
+    return !!await (this._post.model as any).socialFactoryRecord.findFirst({ where: { organizationId, kind: 'publication_binding', id: postId } });
+  }
+
   /** Stable Content codes for provenance shown by authenticated calendar reads. */
   private async pieceOrigins(organizationId: string) {
     const rows = await (this._post.model as any).contentPiece.findMany({

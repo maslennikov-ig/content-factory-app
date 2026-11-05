@@ -1,0 +1,2 @@
+export const SOCIAL_FACTORY_SOURCE_LIFECYCLE='SOCIAL_FACTORY_SOURCE_LIFECYCLE';
+export interface SocialFactorySourceLifecycle{invalidateBySource(organizationId:string,sourceId:string):Promise<number>}

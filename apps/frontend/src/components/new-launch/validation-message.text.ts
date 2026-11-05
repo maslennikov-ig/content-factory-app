@@ -32,6 +32,26 @@ const plain = (values: Record<string, unknown> = {}) => ({
 
 /** Whole sentences, matched exactly. */
 const EXACT: Record<string, { key: string; fallback: string }> = {
+  'TikTok commercial disclosure must match the selected brands and privacy before publishing.': {
+    key: 'validation_tiktok_disclosure_invalid',
+    fallback: 'TikTok commercial disclosure must match the selected brands and privacy before publishing.',
+  },
+  'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.': {
+    key: 'validation_tiktok_duration_invalid',
+    fallback: 'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.',
+  },
+  'TikTok privacy must be selected from the current account options before publishing.': {
+    key: 'validation_tiktok_privacy_required',
+    fallback: 'TikTok privacy must be selected from the current account options before publishing.',
+  },
+  'TikTok account settings are unavailable. Try again or reconnect the channel.': {
+    key: 'validation_tiktok_account_unavailable',
+    fallback: 'TikTok account settings are unavailable. Try again or reconnect the channel.',
+  },
+  'TikTok interaction settings changed. Review comments, Duet and Stitch before publishing.': {
+    key: 'validation_tiktok_interactions_changed',
+    fallback: 'TikTok interaction settings changed. Review comments, Duet and Stitch before publishing.',
+  },
   // --- checkValidity: media rules per provider -----------------------------
   'You can only upload one video per post.': {
     key: 'validation_one_video_per_post',
@@ -203,6 +223,10 @@ const EXACT: Record<string, { key: string; fallback: string }> = {
     fallback: 'an unknown value was passed to the validate function',
   },
 };
+
+/** Recognition is independent of whether the selected translation changes the text. */
+export const isKnownTikTokValidationMessage = (value: unknown): value is string =>
+  typeof value === 'string' && value.startsWith('TikTok ') && Object.prototype.hasOwnProperty.call(EXACT, value);
 
 /**
  * Sentences with a number or a name in them. The property name class-validator

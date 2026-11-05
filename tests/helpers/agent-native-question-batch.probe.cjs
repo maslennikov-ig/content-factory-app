@@ -12,9 +12,16 @@ const questions = [
   { question: 'Какова позиция?', options: [{ label: 'Первый ответ' }, { label: 'Другой ответ' }] },
   { question: 'Укажите детали.', canDecideForPerson: false },
   { question: 'Что пропустить?' },
-  { question: 'Какой подход выбрать?' },
+  { question: 'Какой подход выбрать?', questionPurpose: 'creative' },
+];
+const normalizedQuestions = [
+  { ...questions[0], questionPurpose: 'fact', canDecideForPerson: false },
+  { ...questions[1], questionPurpose: 'fact', canDecideForPerson: false },
+  { ...questions[2], questionPurpose: 'fact', canDecideForPerson: false },
+  { ...questions[3], questionPurpose: 'creative', canDecideForPerson: true },
 ];
 const answers = { answers: [{ answer: 'Первый ответ' }, { answer: 'Мои слова' }, { skipped: true }, { decideForPerson: true }] };
+const factualDelegation = { answers: [{ decideForPerson: true }, ...answers.answers.slice(1)] };
 const usage = { inputTokens: { total: 1, noCache: 1 }, outputTokens: { total: 1, text: 1 } };
 async function child(phase, schemaName) {
   let calls = 0, toolSchema;
@@ -39,20 +46,27 @@ async function child(phase, schemaName) {
     if (failure) throw failure;
     return response;
   };
+  const assertInputWait = response => {
+    assert.deepEqual(response.parts().filter(part => part.type === 'error'), []);
+    assert.ok(response.parts().some(part => part.type === 'data-native-input-wait'), 'The HTTP turn must really wait for human input.');
+    assert.ok(runtime.admissions.at(-1).checkpoints > 0, 'Waiting checkpoints the admission before exposing the card.');
+  };
   const payload = pending => ({ threadId, runId: pending.runId, toolCallId: pending.toolCallId, cardId: pending.suspendPayload.cardId });
   if (phase === 'start') {
-    await send({ threadId, messages: [{ id: 'question-batch-human', role: 'user', parts: [{ type: 'text', text: 'Задай вопросы.' }] }] });
+    assertInputWait(await send({ threadId, messages: [{ id: 'question-batch-human', role: 'user', parts: [{ type: 'text', text: 'Задай вопросы.' }] }] }));
     const pending = (await handler.getThread(ORG, USER, threadId)).pending[0];
     const hasQuestionArraySchema = value => !!value && typeof value === 'object' &&
       (!!value.properties?.questions || Object.values(value).some(hasQuestionArraySchema));
     assert.equal(calls, 1); assert.ok(hasQuestionArraySchema(toolSchema), 'Model receives a questions array in its input schema.');
-    assert.equal(pending.suspendPayload.kind, 'question-batch'); assert.deepEqual(pending.suspendPayload.questions, questions);
+    assert.equal(pending.suspendPayload.kind, 'question-batch'); assert.deepEqual(pending.suspendPayload.questions, normalizedQuestions);
     assert.match(pending.suspendPayload.cardId, /^[a-f0-9]{32}$/);
     await assert.rejects(send({ ...payload(pending), resumeData: { answers: answers.answers.slice(0, 3) } }), e => e.getStatus?.() === 400);
     await assert.rejects(send({ ...payload(pending), cardId: '0'.repeat(32), resumeData: answers }), e => e.getStatus?.() === 409);
+    await assert.rejects(send({ ...payload(pending), resumeData: factualDelegation }), e => e.getStatus?.() === 400);
     assert.equal(calls, 1); assert.equal((await handler.getThread(ORG, USER, threadId)).pending.length, 1);
+    assert.deepEqual((await handler.getThread(ORG, USER, threadId)).pending[0].suspendPayload, pending.suspendPayload);
     const stopThreadId = `${threadId}-stop`;
-    await send({ threadId: stopThreadId, messages: [{ id: 'stop-human', role: 'user', parts: [{ type: 'text', text: 'Задай вопросы для остановки.' }] }] });
+    assertInputWait(await send({ threadId: stopThreadId, messages: [{ id: 'stop-human', role: 'user', parts: [{ type: 'text', text: 'Задай вопросы для остановки.' }] }] }));
     const stoppedPending = (await handler.getThread(ORG, USER, stopThreadId)).pending[0];
     assert.equal(stoppedPending.suspendPayload.kind, 'question-batch');
     await handler.stopThread(ORG, USER, stopThreadId);
@@ -65,15 +79,19 @@ async function child(phase, schemaName) {
   }
   try {
     const pending = (await handler.getThread(ORG, USER, threadId)).pending[0];
-    assert.equal(pending.suspendPayload.kind, 'question-batch'); assert.deepEqual(pending.suspendPayload.questions, questions);
+    assert.equal(pending.suspendPayload.kind, 'question-batch'); assert.deepEqual(pending.suspendPayload.questions, normalizedQuestions);
     assert.equal(calls, 0);
+    await assert.rejects(send({ ...payload(pending), resumeData: factualDelegation }), e => e.getStatus?.() === 400);
+    assert.equal(calls, 0);
+    assert.deepEqual((await handler.getThread(ORG, USER, threadId)).pending[0].suspendPayload, pending.suspendPayload);
     const result = await send({ ...payload(pending), resumeData: answers });
     const after = await handler.getThread(ORG, USER, threadId);
     assert.equal(calls, 1); assert.equal(after.pending.length, 0); assert.equal(after.execution.outcome, 'completed');
     assert.equal(result.parts().filter(part => part.type === 'data-tool-call-approval').length, 0);
     await assert.rejects(send({ ...payload(pending), resumeData: answers }), e => e.getStatus?.() === 409);
     process.send({ phase: 'complete', result: { nativePgRedis: true, processRecreated: true, modelCallsBefore: 1, modelCallsAfter: 1,
-      orderedAnswersPreserved: true, invalidAndStaleRejected: true, oneSuspension: true, noApprovalHop: true, stoppedBatchCannotResume: true } });
+      orderedAnswersPreserved: true, invalidAndStaleRejected: true, oneSuspension: true, noApprovalHop: true, stoppedBatchCannotResume: true,
+      normalizedPolicyPreserved: true, factualDelegationRejected: true } });
   } finally { await runtime.close({ drop: true }); }
   process.exit(0);
 }

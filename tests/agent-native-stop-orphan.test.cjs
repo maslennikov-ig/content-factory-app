@@ -8,6 +8,6 @@ test('cold Stop settles its orphaned native task durably without another model c
   });
   expect(JSON.parse(output.trim().split('\n').at(-1))).toEqual({
     orphan: 'interrupted', redisExpired: 'interrupted', terminalAncestorsPreserved: 6, nonterminalAncestorsProtected: 5, uncanceledTargetProtected: true, completedPreserved: true,
-    missingTailRejected: true, failedCommitRejected: true, liveOwnerProtected: true, successorPreserved: true, modelCalls: 0,
+    missingTailRejected: true, failedCommitRejected: true, liveOwnerDeadlineVerified: true, liveOwnerProtected: true, successorPreserved: true, modelCalls: 0,
   });
 }, 50_000);

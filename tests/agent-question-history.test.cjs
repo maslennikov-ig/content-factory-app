@@ -74,3 +74,19 @@ test('the same payload in another native call cannot replace the original answer
  const groups=contract.withoutRepeatedQuestionLines([[first],[other]]);
  expect(groups[0][0].history.answer).toBe('Original selection');
 });
+
+test.each([undefined,'fact'])('native factual question hides delegation but keeps a normal answer input (%s)',async questionPurpose=>{
+ const question=contract.readQuestion('ask_user',{question:'Name the actual product, price and currency.',questionPurpose,canDecideForPerson:true},null);
+ await act(async()=>render(React.createElement(cards.QuestionCard,{question,answered:false,busy:false,onAnswer:()=>{},words:copy.agentCopy.ru})));
+ expect(within(document.body).queryByRole('button',{name:copy.agentCopy.ru.question.decide})).toBeNull();
+ expect(within(document.body).getByRole('textbox')).toBeTruthy();
+});
+test('explicit native creative delegation is available while an explicit false disables its button',async()=>{
+ const onAnswer=jest.fn();const question=contract.readQuestion('ask_user',{question:'Choose a useful structure.',questionPurpose:'creative',canDecideForPerson:true},null);
+ const view=render(React.createElement(cards.QuestionCard,{question,answered:false,busy:false,onAnswer,words:copy.agentCopy.ru}));
+ await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:copy.agentCopy.ru.question.decide})));
+ expect(onAnswer).toHaveBeenCalledWith(expect.objectContaining({decideForPerson:true}));view.unmount();
+ const nondelegable=contract.readQuestion('ask_user',{question:'Choose a structure.',questionPurpose:'creative',canDecideForPerson:false},null);
+ render(React.createElement(cards.QuestionCard,{question:nondelegable,answered:false,busy:false,onAnswer,words:copy.agentCopy.ru}));
+ expect(within(document.body).queryByRole('button',{name:copy.agentCopy.ru.question.decide})).toBeNull();
+});

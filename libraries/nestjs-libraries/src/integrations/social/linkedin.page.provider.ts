@@ -1,3 +1,4 @@
+import { normalizeAnalytics, analyticsNumber } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -408,13 +409,13 @@ export class LinkedinPageProvider
       }
     );
 
-    return Object.keys(analytics).map((key) => ({
+    return normalizeAnalytics(Object.keys(analytics).map((key) => ({
       label: key,
       data: analytics[
         key as 'Page Views' | 'Organic Followers' | 'Paid Followers'
       ],
-      percentageChange: 5,
-    }));
+      percentageChange: null,
+    })));
   }
 
   async postAnalytics(
@@ -468,37 +469,37 @@ export class LinkedinPageProvider
           const dateStr = dayjs(current.timeRange.start).format('YYYY-MM-DD');
 
           all['Impressions'].push({
-            total: current.totalShareStatistics.impressionCount || 0,
+            total: current.totalShareStatistics.impressionCount,
             date: dateStr,
           });
 
           all['Unique Impressions'].push({
-            total: current.totalShareStatistics.uniqueImpressionsCount || 0,
+            total: current.totalShareStatistics.uniqueImpressionsCount,
             date: dateStr,
           });
 
           all['Clicks'].push({
-            total: current.totalShareStatistics.clickCount || 0,
+            total: current.totalShareStatistics.clickCount,
             date: dateStr,
           });
 
           all['Likes'].push({
-            total: current.totalShareStatistics.likeCount || 0,
+            total: current.totalShareStatistics.likeCount,
             date: dateStr,
           });
 
           all['Comments'].push({
-            total: current.totalShareStatistics.commentCount || 0,
+            total: current.totalShareStatistics.commentCount,
             date: dateStr,
           });
 
           all['Shares'].push({
-            total: current.totalShareStatistics.shareCount || 0,
+            total: current.totalShareStatistics.shareCount,
             date: dateStr,
           });
 
           all['Engagement'].push({
-            total: current.totalShareStatistics.engagement || 0,
+            total: current.totalShareStatistics.engagement,
             date: dateStr,
           });
         }
@@ -517,16 +518,16 @@ export class LinkedinPageProvider
 
     // If no time series data but we have social actions, create a single data point
     if (
-      Object.values(analytics).every((arr) => arr.length === 0) &&
+      Object.values(analytics).every((arr) => arr.every((point) => analyticsNumber(point.total) === null)) &&
       socialActions
     ) {
       const today = dayjs().format('YYYY-MM-DD');
       analytics['Likes'].push({
-        total: socialActions.likesSummary?.totalLikes || 0,
+        total: socialActions.likesSummary?.totalLikes,
         date: today,
       });
       analytics['Comments'].push({
-        total: socialActions.commentsSummary?.totalFirstLevelComments || 0,
+        total: socialActions.commentsSummary?.totalFirstLevelComments,
         date: today,
       });
     }
@@ -537,10 +538,10 @@ export class LinkedinPageProvider
       .map(([label, data]) => ({
         label,
         data,
-        percentageChange: 0,
+        percentageChange: null,
       }));
 
-    return result as any;
+    return normalizeAnalytics(result);
   }
 
   @Plug({

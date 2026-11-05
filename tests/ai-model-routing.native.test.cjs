@@ -126,9 +126,27 @@ test('changing a different profile cannot disable the included Sol Flex policy',
  const explicit={...source,modelRouting:{advancedModel:chain.DEFAULT_TEXT_FALLBACK_MODEL,advancedFlex:false}};
  expect(chain.planTextAttempts(chain.DEFAULT_TEXT_FALLBACK_MODEL,{...explicit,textChain:chain.withModelRoutingTextChain(explicit),singleModelAttempt:true})).toMatchObject([{flex:false}]);
 });
-test('an unsupported Flex profile fails before a provider call instead of silently charging Standard',async()=>{
- config.modelRouting={enabled:true,advancedModel:'vendor/no-flex',advancedFlex:true};
- await expect(clients.getMastraAgentModelEntries('tenant','draft',{modelId:'vendor/no-flex'})).rejects.toThrow('no supported Flex route');
- expect(calls).toHaveLength(0);
- expect(()=>chain.buildAttemptBody({model:'vendor/no-flex'},{model:'vendor/no-flex',flex:true},undefined,'openrouter')).toThrow('no supported Flex route');
+test('a configured vendor tier binds the native RequestContext without guessing actual provider service',async()=>{
+ config.modelRouting={enabled:true,advancedModel:'vendor/chosen',advancedFlex:true};
+ config.textChain={flex:false,maxRetries:1,fallbackModel:'',fallbackModels:[],fallbackDisabled:true};
+ const state=new Map(),context={get:key=>state.get(key),set:(key,value)=>state.set(key,value)};
+ const selected=await clients.getRoutedMastraModelEntries('tier-profile','draft','Synthetic task',{modelId:'vendor/chosen',requestContext:context});
+ expect(selected.primaryModel).toBe('vendor/chosen');expect(calls).toHaveLength(0);
+ expect(state.get('cf.nativeTextTierPolicy')).toEqual({provider:'openrouter',flexModels:['vendor/chosen'],defaultRetryModels:['vendor/chosen']});
+ const body=chain.buildAttemptBody({model:'vendor/chosen'},{model:'vendor/chosen',flex:true},undefined,'openrouter');
+ expect(body.service_tier).toBe('flex');expect(body.provider?.only).toBeUndefined();
+ config.roleModels.review='vendor/critic';config.textChain.flex=true;
+ await clients.getRoutedMastraModelEntries('tier-profile','review','Independent review',{requestContext:context});
+ expect(state.get('cf.nativeTextTierPolicy')).toEqual({provider:'openrouter',flexModels:['vendor/chosen','vendor/critic'],defaultRetryModels:['vendor/chosen','vendor/critic']});
+ config.modelRouting.advancedFlex=false;
+ config.textChain.flex=false;
+ await clients.getRoutedMastraModelEntries('tier-profile','draft','Synthetic task',{modelId:'vendor/chosen',requestContext:context});
+ expect(state.get('cf.nativeTextTierPolicy')).toEqual({provider:'openrouter',flexModels:['vendor/critic'],defaultRetryModels:['vendor/critic']});
+});
+test.each(['openai/gpt-6.1-sol','openai/gpt-6.1-terra'])('native configured OpenAI funding pin %s cannot gain a Default retry',async model=>{
+ config.modelRouting={enabled:false,advancedModel:model,advancedFlex:true};
+ config.textChain={flex:false,maxRetries:2,fallbackModel:'',fallbackModels:[],fallbackDisabled:true};
+ const state=new Map(),context={get:key=>state.get(key),set:(key,value)=>state.set(key,value)};
+ await clients.getRoutedMastraModelEntries('funding-profile','draft','Synthetic task',{modelId:model,requestContext:context});
+ expect(state.get('cf.nativeTextTierPolicy')).toEqual({provider:'openrouter',flexModels:[model],defaultRetryModels:[]});
 });

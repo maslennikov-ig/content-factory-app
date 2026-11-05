@@ -17,12 +17,15 @@ const IDS = {
   manualJob: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   connection: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   foreignDraft: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  heygenConnection: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  otherActorDraft: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  productionOnly: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
 };
 const SOURCE = 'Созвоны без повестки съедают день.';
 const SETTINGS = { provider: 'higgsfield', model: 'wan-2.5', mode: 'clip', locale: 'ru', duration: 5, aspectRatio: '9:16', audio: false, captions: false };
 const ACCESS = { kind: 'subscription', connectionId: IDS.connection };
 const copy = (value) => structuredClone(value);
-const draft = () => ({ id: IDS.draft, pieceId: IDS.piece, organizationId: 'org-1', version: 1,
+const draft = () => ({ id: IDS.draft, pieceId: IDS.piece, organizationId: 'org-1', userId: 'user-1', version: 1,
   brief: { prompt: SOURCE, script: SOURCE, referenceMediaIds: [] }, settings: copy(SETTINGS) });
 const job = (id, kind, state = 'completed') => ({
   id, organizationId: 'org-1', actorId: 'user-1', pieceId: IDS.piece, draftId: IDS.draft, state,
@@ -56,7 +59,7 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
     return row;
   };
   const view = (row) => {
-    const { organizationId, actorId, receipt, intentId, preflightId, ...publicRow } = row;
+    const { organizationId, actorId, userId, receipt, intentId, preflightId, ...publicRow } = row;
     return copy(publicRow);
   };
   const apiApproval = (org, id) => {
@@ -81,6 +84,7 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
     writes.push(['video.launched', id, input.preflightId]);
     return view(saved);
   };
+  const personal = (org, actor, connectionId) => data.personalConnections?.find(one => one.id === connectionId && one.organizationId === org && one.ownerId === actor) ?? fail('VIDEO_ACCESS_DENIED');
   return {
     VideoJobService: {
       catalog: async (org) => { call('video.catalog', org, null); return { routes: [{ ...SETTINGS, available: true }] }; },
@@ -96,6 +100,7 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
         call('video.edit', org, actor, id, input);
         const saved = current(org, id, input.version);
         for (const key of ['prompt', 'script']) if (input[key] !== undefined) saved.brief[key] = input[key];
+        if (input.settings !== undefined) saved.settings = copy(input.settings);
         saved.version += 1; data.apiPreflight = null; data.accessPreflight = null;
         writes.push(['video.edited', id, saved.version]); return view(saved);
       },
@@ -126,7 +131,15 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
       },
     },
     VideoAccessService: {
-      choices: async (org, actor) => { call('video.access-v2', org, actor); return { workspaceEnabled: true, connections: [{ id: IDS.connection, provider: 'higgsfield', unit: 'higgsfield_credit' }], providers: [] }; },
+      choices: async (org, actor) => { call('video.access-v2', org, actor); return copy(data.accessChoices ?? { workspaceEnabled: true, connections: [{ id: IDS.connection, provider: 'higgsfield', unit: 'higgsfield_credit' }], providers: [] }); },
+      apiRepository: { draft: async (org, id) => { call('video.access-draft-v2', org, null, id); return copy(data.drafts.find(one => one.id === id && one.organizationId === org) ?? null); } },
+      assets: async (org, actor, connectionId) => { call('video.personal-assets', org, actor, connectionId); return copy(personal(org, actor, connectionId).assets); },
+      personalReadiness: async (org, actor, connectionId) => { call('video.personal-readiness', org, actor, connectionId); return copy(personal(org, actor, connectionId).readiness); },
+      discoverPersonal: async (org, actor, connectionId) => {
+        call('video.personal-discover', org, actor, connectionId); const connection = personal(org, actor, connectionId);
+        connection.discoveryReads = (connection.discoveryReads ?? 0) + 1;
+        writes.push(['video.personal-discovered', connectionId]); return copy(connection.readiness);
+      },
       preflight: async (org, actor, input) => {
         call('video.preflight-v2', org, actor, input);
         if (JSON.stringify(input.access) !== JSON.stringify(ACCESS)) fail('VIDEO_ACCESS_DENIED');

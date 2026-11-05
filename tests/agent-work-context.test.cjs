@@ -378,3 +378,19 @@ describe('private workspace metadata and pre-admission boundary', () => {
     expect(env.stored.get('thread-1').metadata.assistantWorkspace.writingSelection).toEqual({ channelId: 'channel-1' });
   });
 });
+
+test('clip context resolves and restores the exact owned org/actor/thread/source/pilot instead of trusting client text', async () => {
+  const env=setup(), raw=target('piece',{id:'piece-1',clipPilotId:'pilot-1'});
+  const open=jest.fn(async(org,actor,thread,pilot)=>{
+    if(org!=='org-1'||actor!=='user-1'||thread!=='thread-1'||pilot!=='pilot-1')throw Object.assign(Error('outside owned chat'),{code:'CLIP_PREPRODUCTION_ACCESS_DENIED',status:403});
+    return {pilotId:pilot,pieceId:'piece-1',threadId:thread,state:'reviewed',sourceCurrent:true,scenario:{screenText:'Exact retained copy'}};
+  });env.rows.NativeClipPreproductionServiceV1={open};
+  const result=await env.resolver.resolve(identity,raw,{threadId:'thread-1'});
+  expect(result.data.nativeClip).toMatchObject({pilotId:'pilot-1',threadId:'thread-1'});
+  expect(await env.resolver.resolve(identity,result.context,{refresh:true,threadId:'thread-1'})).toEqual(result);
+  for(const [who,scope] of [[identity,{}],[identity,{threadId:'foreign-thread'}],[{...identity,userId:'other-user'},{threadId:'thread-1'}]])
+    await expect(env.resolver.resolve(who,raw,scope)).rejects.toBeDefined();
+  open.mockResolvedValue({pilotId:'pilot-1',pieceId:'foreign-piece',threadId:'thread-1'});
+  await expect(env.resolver.resolve(identity,raw,{threadId:'thread-1'})).rejects.toMatchObject({status:404});
+  for(const invalid of [target('piece',{clipPilotId:'pilot-1'}),target('media',{id:'piece-1',clipPilotId:'pilot-1'})])expect(()=>context.parseAgentWorkContext(invalid)).toThrow();
+});

@@ -38,9 +38,13 @@ async function scenario(failCommit = false, alreadyFinishing = false, throwOnSto
     }
   }) });
   const threadId = runtime.schemaName + '-stop-settlement';
-  const update = runtime.memory.updateThread.bind(runtime.memory);
-  runtime.memory.updateThread = async row => {
-    if (row.id === threadId && row.metadata?.assistantExecution?.state === 'settled') {
+  const memoryStore = await runtime.storage.getStore('memory');
+  const update = memoryStore.updateThreadMetadata.bind(memoryStore);
+  memoryStore.updateThreadMetadata = async row => {
+    const current = row.id === threadId ? await memoryStore.getThreadById({threadId}) : null;
+    // Delay before the real atomic read/merge. Its callback must recompute
+    // against Stop's current metadata after this controlled I/O delay.
+    if (current && row.update(current)?.assistantExecution?.state === 'settled') {
       terminalEntered = true; trace.push('terminal-memory-commit-held');
       await terminalGate;
       trace.push('terminal-memory-commit-released');
@@ -101,9 +105,13 @@ async function scenario(failCommit = false, alreadyFinishing = false, throwOnSto
       assert.equal(stopReceipt, undefined);
       assert.notEqual(final.execution.state, 'settled');
     } else {
+      assert.ok(stopReceipt, 'A successful terminal commit must acknowledge this exact Stop.');
       assert.equal(stopReceipt.requestId, before.execution.requestId);
       assert.equal(final.execution.state, 'settled');
       assert.equal(final.execution.outcome, alreadyFinishing ? 'completed' : 'interrupted');
+      const saved = await runtime.memory.getThreadById({threadId});
+      assert.equal(saved.metadata.assistantExecution.stopRequested, true, 'The owner terminal commit preserves durable Stop intent.');
+      assert.equal(saved.metadata.assistantNativeRun.state, 'stopped');
     }
     assert.equal(respondedBeforeCommit, false, 'Stop response must wait for this exact native HTTP owner terminal Memory commit');
   } finally {

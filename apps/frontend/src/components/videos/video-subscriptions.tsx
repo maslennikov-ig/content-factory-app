@@ -12,8 +12,12 @@ import { ConfirmButton } from '../ui/confirm-button';
 import { ErrorState, SkeletonRows, Status } from '../ui/surface';
 import { useVideoWords } from './video.copy';
 import { useVideoAccessWords } from './video-access.copy';
+import { useVideoPersonalWords, videoPersonalBlocker } from './video-personal.copy';
+import { useVideoUnitV2 } from './video-access-approval';
 import { videoErrorCode } from './video-ui.v1';
 import { videoDecimalValidV2, type VideoAccessChoicesUiV2, type VideoConnectionUiV2 } from './video-ui.v2';
+import { useIntegrationHubWords } from '../third-parties/integration-hub.copy';
+import { openVideoIntegrationHubV1, videoIntegrationHubHrefV1 } from './video-integration-hub.v1';
 
 export function useVideoAccessChoicesV2() {
   const user = useUser(); const request = useFetch();
@@ -26,9 +30,10 @@ export function useVideoAccessChoicesV2() {
 }
 
 /** Personal credentials stay behind this person-driven connection action. */
-export function VideoSubscriptions({returnPath = '/media?video=1', onChanged, canConnect = true}: {returnPath?: string; onChanged?: () => void; canConnect?: boolean}) {
-  const words = useVideoWords(); const accessWords = useVideoAccessWords(); const request = useFetch(); const user = useUser();
+export function VideoSubscriptions({returnPath = '/third-party', onChanged, canConnect = true, connectBlockedMessage, beforeConnect, managementOnly = false, providerFilter}: {returnPath?: string; onChanged?: () => void; canConnect?: boolean; connectBlockedMessage?: string; beforeConnect?: () => Promise<void>; managementOnly?: boolean; providerFilter?: 'heygen' | 'higgsfield'}) {
+  const words = useVideoWords(); const accessWords = useVideoAccessWords(); const personal = useVideoPersonalWords(); const request = useFetch(); const user = useUser();
   const choices = useVideoAccessChoicesV2(); const canWrite = isOrganizationEditor(user?.role); const canAdmin = isOrganizationAdmin(user?.role);
+  const hubWords = useIntegrationHubWords();
   const [pending, setPending] = useState(''); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const lock = useRef(false);
   useEffect(() => { const code = new URLSearchParams(window.location.search).get('connectionError'); if (code) setError('VIDEO_OAUTH_REFUSED'); }, []);
   const mutate = async (path: string, body: unknown = {}, method = 'POST') => {
@@ -42,43 +47,58 @@ export function VideoSubscriptions({returnPath = '/media?video=1', onChanged, ca
     catch (err) { setError(err instanceof Error ? err.message : 'VIDEO_REQUEST_FAILED'); }
     finally { lock.current = false; setPending(''); }
   };
-  const connect = (provider: string) => action(`connect-${provider}`, async () => {
+  const connect = (provider: string) => !canConnect ? undefined : action(`connect-${provider}`, async () => {
+    if (beforeConnect) { try { await beforeConnect(); } catch { throw new Error('VIDEO_CHAT_BIND_FAILED'); } }
     const value = await mutate(`/media/video-connections/${provider}/start`, {returnPath});
     const url = new URL(value.authorizationUrl);
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))) throw new Error('VIDEO_CONNECTION_UNAVAILABLE');
     window.location.assign(url.href);
   });
+  if (managementOnly) return <section className="flex flex-col gap-[8px]" data-video-integration-link="v1">
+    <Button variant="secondary" disabled={!canWrite || !canConnect || !!pending || !videoIntegrationHubHrefV1(returnPath)} loading={pending === 'hub'} loadingLabel={words.loading} onClick={() => action('hub', async () => {
+      if (beforeConnect) { try { await beforeConnect(); } catch { throw new Error('VIDEO_CHAT_BIND_FAILED'); } }
+      const href = videoIntegrationHubHrefV1(returnPath); if (!href) throw new Error('VIDEO_CHAT_BIND_FAILED');
+      openVideoIntegrationHubV1(returnPath);
+    })}>{hubWords.manage}</Button>
+    {!canConnect && <p role="status" className="cf-body-sm text-cf-ink-muted">{connectBlockedMessage ?? `${words.dirty} · ${words.save}`}</p>}
+    {error && <p role="alert" className="cf-body-sm text-cf-danger">{error === 'VIDEO_CHAT_BIND_FAILED' ? personal.bindFailed : accessWords.loginFailed}</p>}
+  </section>;
   return <section className="flex min-w-0 flex-col gap-[16px]" data-video-subscriptions="v2" aria-busy={!!pending}>
     <h2 className="cf-heading-md">{accessWords.subscriptions}</h2>
     {choices.error ? <ErrorState title={words.failed} action={<Button variant="secondary" onClick={() => choices.mutate()}>{words.refresh}</Button>} /> : !choices.data ? <SkeletonRows rows={2} label={words.loading} /> : <>
       {canAdmin && <CheckboxField label={accessWords.workspaceEnabled} checked={choices.data.workspaceEnabled} disabled={!!pending} onChange={event => { const enabled = event.target.checked; void action('workspace', async () => { await mutate('/media/video-connections/workspace/policy', {enabled}, 'PUT'); }); }} />}
       {!choices.data.workspaceEnabled && <p role="status" className="cf-body-sm text-cf-ink-muted">{accessWords.unavailable}</p>}
-      {choices.data.providers.map(provider => <section key={provider.provider} className="flex min-w-0 flex-col gap-[12px] border-t border-cf-border pt-[16px]" data-video-subscription-provider={provider.provider}>
-        <div className="flex flex-wrap items-center justify-between gap-[8px]"><h3 className="cf-label-md">{provider.provider === 'higgsfield' ? 'Higgsfield' : 'HeyGen'}</h3><Button variant="secondary" disabled={!canWrite || !!pending || !provider.enabled || !canConnect} loading={pending === `connect-${provider.provider}`} loadingLabel={accessWords.connecting} onClick={() => connect(provider.provider)}>{choices.data!.connections.some(connection => connection.provider === provider.provider) ? accessWords.reconnect : accessWords.connect}</Button></div>
+      {choices.data.providers.filter(provider => !providerFilter || provider.provider === providerFilter).map(provider => <section key={provider.provider} className="flex min-w-0 flex-col gap-[12px] border-t border-cf-border pt-[16px]" data-video-subscription-provider={provider.provider}>
+        <div className="flex flex-wrap items-center justify-between gap-[8px]"><h3 className="cf-label-md">{provider.provider === 'higgsfield' ? 'Higgsfield' : 'HeyGen'}</h3><Button variant="secondary" disabled={!canWrite || !!pending || provider.connectReady !== true || !choices.data!.workspaceEnabled || !canConnect} loading={pending === `connect-${provider.provider}`} loadingLabel={accessWords.connecting} onClick={() => connect(provider.provider)}>{choices.data!.connections.some(connection => connection.provider === provider.provider) ? accessWords.reconnect : accessWords.connect}</Button></div>
         {provider.trial && <p className="cf-body-sm text-cf-ink-muted">{accessWords.trial}</p>}
-        {!provider.enabled && choices.data!.workspaceEnabled && <p className="cf-body-sm text-cf-ink-muted">{accessWords.unavailable}</p>}
-        {!canConnect && <p className="cf-body-sm text-cf-ink-muted">{words.dirty} · {words.save}</p>}
+        {choices.data!.workspaceEnabled && <p className="cf-body-sm text-cf-ink-muted">{provider.generationReady === true ? personal.generationReady : provider.connectReady === true ? personal.generationBlocked : accessWords.unavailable}</p>}
+        {!!provider.blockers?.length && <p className="cf-body-sm text-cf-ink-muted">{[...new Set(provider.blockers.map(code => videoPersonalBlocker(code, personal)))].join(' ')}</p>}
+        {!canConnect && <p className="cf-body-sm text-cf-ink-muted">{connectBlockedMessage ?? `${words.dirty} · ${words.save}`}</p>}
         {!choices.data!.connections.some(connection => connection.provider === provider.provider) && <p className="cf-body-sm text-cf-ink-muted">{accessWords.disconnected}</p>}
-        {choices.data!.connections.filter(connection => connection.provider === provider.provider).map(connection => <VideoConnectionRow key={`${connection.id}:${connection.generation}:${connection.perJob}:${connection.perMonth}`} connection={connection} canWrite={canWrite} pending={pending} onLimits={(perJob, perMonth) => action(`limits-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}/limits`, {perJob, perMonth}, 'PUT'); setNotice(words.settingsSaved); })} onGrant={() => action(`grant-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}/grant`); })} onDisconnect={() => action(`disconnect-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}`, {}, 'DELETE'); })} />)}
+        {choices.data!.connections.filter(connection => connection.provider === provider.provider).map(connection => <VideoConnectionRow key={`${connection.id}:${connection.generation}:${connection.perJob}:${connection.perMonth}`} connection={connection} canWrite={canWrite} pending={pending} onDiscover={() => action(`discover-${connection.id}`, async () => { await mutate(`/media/video-v2/connections/${encodeURIComponent(connection.id)}/discover`); setNotice(personal.checked); })} onLimits={(perJob, perMonth) => action(`limits-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}/limits`, {perJob, perMonth}, 'PUT'); setNotice(words.settingsSaved); })} onGrant={() => action(`grant-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}/grant`); })} onDisconnect={() => action(`disconnect-${connection.id}`, async () => { await mutate(`/media/video-connections/${encodeURIComponent(connection.id)}`, {}, 'DELETE'); })} />)}
       </section>)}
       <p className="cf-body-sm text-cf-ink-muted">{accessWords.disconnectNote}</p>
       {notice && <p role="status" className="cf-body-sm text-cf-accent">{notice}</p>}
     </>}
-    {error && <p role="alert" className="cf-body-sm text-cf-danger">{/OAUTH|CONNECTION|WALLET/.test(error) ? accessWords.loginFailed : error === 'VIDEO_ACCESS_DENIED' ? words.restricted : error === 'VIDEO_CREDIT_LIMIT_INVALID' ? accessWords.limitsNote : words.failed}</p>}
+    {error && <p role="alert" className="cf-body-sm text-cf-danger">{error === 'VIDEO_CHAT_BIND_FAILED' ? personal.bindFailed : /OAUTH|CONNECTION|WALLET/.test(error) ? accessWords.loginFailed : error === 'VIDEO_ACCESS_DENIED' ? words.restricted : error === 'VIDEO_CREDIT_LIMIT_INVALID' ? accessWords.limitsNote : words.failed}</p>}
   </section>;
 }
 
-function VideoConnectionRow({connection, canWrite, pending, onLimits, onGrant, onDisconnect}: {connection: VideoConnectionUiV2; canWrite: boolean; pending: string; onLimits: (perJob: string, perMonth: string) => void; onGrant: () => void; onDisconnect: () => void}) {
-  const words = useVideoWords(); const accessWords = useVideoAccessWords();
+function VideoConnectionRow({connection, canWrite, pending, onDiscover, onLimits, onGrant, onDisconnect}: {connection: VideoConnectionUiV2; canWrite: boolean; pending: string; onDiscover: () => void; onLimits: (perJob: string, perMonth: string) => void; onGrant: () => void; onDisconnect: () => void}) {
+  const words = useVideoWords(); const accessWords = useVideoAccessWords(); const personal = useVideoPersonalWords(); const unit = useVideoUnitV2();
   const [perJob, setPerJob] = useState(connection.perJob ?? ''); const [perMonth, setPerMonth] = useState(connection.perMonth ?? '');
   const valid = videoDecimalValidV2(perJob, true) && videoDecimalValidV2(perMonth, true);
   const connected = connection.state === 'connected';
+  const needsWorkspaceAccess = ['connected', 'discovery_required'].includes(connection.state) && connection.workspaceGranted !== true;
   return <div className="flex min-w-0 flex-col gap-[12px]" data-video-connection-id={connection.id}>
-    <div className="flex min-w-0 flex-wrap items-center gap-[8px]"><Status tone={connected ? 'accent' : 'warning'}>{connected ? accessWords.connected : connection.state === 'reauth_required' ? accessWords.reconnect : accessWords.disconnected}</Status><span className="break-all cf-caption text-cf-ink-muted">{connection.id}</span></div>
+    <div className="flex min-w-0 flex-wrap items-center gap-[8px]"><Status tone={connected && connection.workspaceGranted === true && connection.walletVerified === true ? 'accent' : 'warning'}>{needsWorkspaceAccess ? personal.workspaceAccessRequired : connected ? accessWords.connected : connection.state === 'reauth_required' ? accessWords.reconnect : connection.state === 'discovery_required' ? accessWords.connected : accessWords.disconnected}</Status><span className="break-all cf-caption text-cf-ink-muted">{connection.id}</span></div>
+    {(connection.state === 'discovery_required' || connected && connection.walletVerified !== true) && <p role="status" className="cf-body-sm text-cf-ink-muted">{personal.connectedNeedsDiscovery}</p>}
     <p className="cf-body-sm text-cf-ink-muted">{accessWords.balanceUnknown}</p>
+    <p className="cf-body-sm text-cf-ink-muted">{unit(connection.unit)}</p>
     <div className="grid gap-[12px] sm:grid-cols-2"><Input standalone name={`video-credit-job-${connection.id}`} label={accessWords.jobLimit} inputMode="decimal" value={perJob} disabled={!canWrite || !!pending || !connected || !connection.workspaceGranted} onChange={event => setPerJob(event.target.value)} /><Input standalone name={`video-credit-month-${connection.id}`} label={accessWords.monthLimit} inputMode="decimal" value={perMonth} disabled={!canWrite || !!pending || !connected || !connection.workspaceGranted} onChange={event => setPerMonth(event.target.value)} /></div>
     <p className="cf-body-sm text-cf-ink-muted">{accessWords.limitsNote}</p>
     <div className="flex flex-wrap gap-[8px]">
+      {['connected', 'discovery_required'].includes(connection.state) && <Button variant="secondary" disabled={!canWrite || !!pending || !connection.workspaceGranted} loading={pending === `discover-${connection.id}`} loadingLabel={personal.discovering} onClick={onDiscover}>{personal.discover}</Button>}
       <Button variant="secondary" disabled={!canWrite || !!pending || !valid || !connected || !connection.workspaceGranted} loading={pending === `limits-${connection.id}`} loadingLabel={words.saving} onClick={() => onLimits(perJob, perMonth)}>{accessWords.saveLimits}</Button>
       {!connection.workspaceGranted && connected && <Button variant="secondary" disabled={!canWrite || !!pending} loading={pending === `grant-${connection.id}`} loadingLabel={words.saving} onClick={onGrant}>{accessWords.grant}</Button>}
       {connection.state !== 'disconnected' && <ConfirmButton label={accessWords.disconnect} armedLabel={accessWords.confirmDisconnect} disabled={!canWrite || !!pending} loading={pending === `disconnect-${connection.id}`} loadingLabel={words.loading} onConfirm={onDisconnect} />}

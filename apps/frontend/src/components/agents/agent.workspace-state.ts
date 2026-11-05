@@ -34,7 +34,7 @@ export const distinctArtifacts = (artifacts: readonly AgentArtifact[]): AgentArt
 };
 
 type WorkspaceAction =
-  | { type: 'produced'; artifacts: readonly AgentArtifact[] }
+  | { type: 'produced'; artifacts: readonly AgentArtifact[]; draftDestinationIds?: readonly string[] }
   | { type: 'select'; artifact: AgentArtifact }
   | { type: 'hide' }
   | { type: 'dirty'; key: string }
@@ -43,6 +43,14 @@ type WorkspaceAction =
 
 /** Pure selection transitions: receiving a result never overrides a hidden or edited pane. */
 export function artifactWorkspaceReducer(state: ArtifactWorkspaceState, action: WorkspaceAction): ArtifactWorkspaceState {
+  if (action.type === 'produced' && action.draftDestinationIds?.length) {
+    const invalid = new Set(action.draftDestinationIds.map(id => `channel:${id}`));
+    const artifacts = state.artifacts.filter(artifact => !invalid.has(keyOf(artifact)));
+    if (artifacts.length !== state.artifacts.length) state = { ...state, artifacts,
+      active: state.active && invalid.has(state.active) ? null : state.active,
+      activeSource: state.active && invalid.has(state.active) ? null : state.activeSource,
+      dirty: state.dirty.filter(key => !invalid.has(key)), unread: state.unread.filter(key => !invalid.has(key)) };
+  }
   if (action.type === 'hide') return { ...state, hidden: true, unread: [], interacted: true };
   if (action.type === 'dirty') return state.dirty.includes(action.key) ? state : {
     ...state, dirty: [...state.dirty, action.key],
@@ -62,7 +70,7 @@ export function artifactWorkspaceReducer(state: ArtifactWorkspaceState, action: 
     const active = saved ? artifactKey(saved) : action.workspace ? null : artifacts.at(-1) ? keyOf(artifacts.at(-1)!) : null;
     return { ...state, artifacts, active, activeSource: 'restored', hidden: !!action.workspace && !saved, ready: true };
   }
-  const incoming = action.type === 'select' ? [action.artifact] : action.artifacts;
+  const incoming = action.type === 'select' ? [action.artifact] : action.artifacts.filter(artifact => artifact.kind !== 'channel' || !action.draftDestinationIds?.includes(artifact.id));
   const artifacts = distinctArtifacts([...state.artifacts, ...incoming]);
   if (action.type === 'select') return {
     ...state, artifacts, active: keyOf(action.artifact), activeSource: 'selected', hidden: false, unread: [], interacted: true,

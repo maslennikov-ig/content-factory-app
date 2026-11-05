@@ -5,6 +5,8 @@ import {
 } from '@contentfactory/nestjs-libraries/3rdparties/thirdparty.interface';
 import { ModuleRef } from '@nestjs/core';
 import { ThirdPartyService } from '@contentfactory/nestjs-libraries/database/prisma/third-party/third-party.service';
+import { VIDEO_PROVIDERS_V1 } from '../videos/video-settings.v1';
+import { thirdPartyHubV1, type HubPersonalChoicesV1 } from './thirdparty-hub.v1';
 
 @Injectable()
 export class ThirdPartyManager {
@@ -22,6 +24,10 @@ export class ThirdPartyManager {
         fields: p.fields || [],
       })
     );
+  }
+
+  async integrationHub(org: string, choices: HubPersonalChoicesV1) {
+    return thirdPartyHubV1(this.getAllThirdParties(), await this.getAllThirdPartiesByOrganization(org), choices, VIDEO_PROVIDERS_V1);
   }
 
   getThirdPartyByName(

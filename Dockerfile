@@ -44,6 +44,8 @@ FROM node:22.23.2-bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    ffmpeg \
+    fonts-dejavu-core \
     nginx \
 && rm -rf /var/lib/apt/lists/*
 

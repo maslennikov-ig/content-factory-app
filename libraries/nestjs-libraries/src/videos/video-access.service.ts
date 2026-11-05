@@ -8,10 +8,14 @@ import { VideoGenerationRepository } from '../database/prisma/video-generation/v
 import { VideoSubscriptionRepository } from '../database/prisma/video-subscription/video-subscription.repository';
 import { VideoConnectionService } from './subscriptions/video-connection.service';
 import { VideoSubscriptionJobService } from './subscriptions/video-subscription-job.service';
-import { subscriptionHash, SubscriptionProvider } from './subscriptions/video-provider-registry';
+import { subscriptionHash, SubscriptionProvider, personalVideoOperations } from './subscriptions/video-provider-registry';
 import { assertCreditPolicy, creditExposure, creditPeriod } from './subscriptions/video-credit-policy';
 import { parseVideoV1, videoErrorV1, videoSettingsV1, validateVideoGroundingV1, videoSourceRevisionV1 } from './video-brief.v1';
 import { VideoMediaV1, assertMp4VideoV1 } from './video-media.v1';
+import { assertResolvedSourceArtifactCurrentV1, assertSourceArtifactBindingV1 } from '../content-intelligence/social-factory/source-artifact.repository';
+import type { VideoPersonalAssetsV1, VideoPersonalReadinessV1, VideoPersonalQualificationV1, VideoPersonalOperationInputV1, VideoPersonalOperationPreparationV1 } from './video-personal-subscription.v1';
+import { isOrganizationAdmin } from '../user/organization.roles';
+import type { VideoBriefV1 } from './video-brief.v1';
 
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 const PreflightInput = z.object({draftId: z.string().uuid(), version: z.number().int().positive(), access: VideoAccessSchemaV2}).strict();
@@ -26,31 +30,124 @@ export class VideoAccessService {
     readonly api: VideoJobService, readonly connections: VideoConnectionService,
     readonly subscriptions: VideoSubscriptionJobService, readonly media: VideoMediaV1) {}
   choices(org: string, actor: string) { return this.connections.list(org, actor); }
-  async assets(org: string, actor: string, connectionId: string) {
-    const credential = await this.connections.token(org, actor, connectionId);
+  async assets(org: string, actor: string, connectionId: string): Promise<VideoPersonalAssetsV1> {
+    const credential = await this.connections.token(org, actor, connectionId, undefined, 'discovery');
     const provider = credential.connection.provider as SubscriptionProvider;
-    const def = await this.connections.enabled(org, provider);
-    await this.subscriptions.mcp.capabilities(def, credential.token, credential.assertUsable);
-    if (provider !== 'heygen') return {avatars: [], voices: [], engines: []};
-    const avatars = await this.subscriptions.mcp.call(def, credential.token, 'list_avatars', {}, credential.assertUsable);
-    const voices = await this.subscriptions.mcp.call(def, credential.token, 'list_voices', {}, credential.assertUsable);
-    if (avatars.eligibility !== 'small_trial' || voices.eligibility !== 'small_trial' || !Array.isArray(avatars.avatars) || !Array.isArray(voices.voices)) return videoErrorV1('VIDEO_SUBSCRIPTION_TRIAL_UNVERIFIED', 409);
-    const safe = (rows: any[]) => rows.slice(0,100).filter(row => typeof row.id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(row.id)).map(row => ({id: row.id, name: typeof row.name === 'string' ? row.name.slice(0,120) : row.id,
-      engines: Array.isArray(row.engines) ? row.engines.filter((e: string) => ['avatar_iii','avatar_iv'].includes(e)) : [], locales: Array.isArray(row.locales) ? row.locales.filter((l: unknown) => typeof l === 'string' && /^[A-Za-z-]{2,60}$/.test(l)) : []}));
-    return {avatars: safe(avatars.avatars), voices: safe(voices.voices), engines: ['avatar_iii','avatar_iv']};
+    const def = await this.connections.connectable(org, provider);
+    const base: VideoPersonalAssetsV1 = {avatars: [], voices: [], engines: [], ownedOnly: true, accountGeneration: credential.connection.generation,
+      status: 'unavailable', blockers: [], guidance: provider === 'heygen' ? {avatar: {url: 'https://app.heygen.com/', requiresConsent: true}, voice: {url: 'https://app.heygen.com/', requiresConsent: true}} : null};
+    if (credential.connection.state !== 'connected' || credential.connection.walletDigest.startsWith('unverified:') || !def.identityEndpoint) return {...base, status: 'discovery_required', blockers: ['VIDEO_WALLET_IDENTITY_UNVERIFIED']};
+    if (provider !== 'heygen') return {...base, blockers: ['VIDEO_SUBSCRIPTION_OPERATION_UNAVAILABLE']};
+    try {
+      const owned = await this.subscriptions.heygen.ownedAssets(def, credential.token, credential.assertUsable, credential.connection.walletDigest);
+      const blockers = [...(!owned.avatars.length ? ['VIDEO_OWNED_AVATAR_UNAVAILABLE'] : []), ...(!owned.voices.length ? ['VIDEO_OWNED_VOICE_UNAVAILABLE'] : [])];
+      return {...base, ...owned, engines: [...new Set(owned.avatars.flatMap(a => a.engines))], status: blockers.length ? 'needs_owned_assets' : 'ready', blockers};
+    } catch (error: any) {
+      const code = error?.getResponse?.()?.code;
+      if (['VIDEO_REAUTH_REQUIRED', 'VIDEO_CONNECTION_CHANGED', 'VIDEO_ACCESS_DENIED', 'VIDEO_CONNECTION_UNAVAILABLE'].includes(code)) throw error;
+      return {...base, blockers: [typeof code === 'string' && /^VIDEO_[A-Z0-9_]+$/.test(code) ? code : 'VIDEO_MCP_UNAVAILABLE']};
+    }
   }
-  private async currentDraft(org: string, id: string, version: number) {
+  /** Non-generating inspection; tools/list cannot promote an unknown schema to a profile. */
+  async personalReadiness(org: string, actor: string, connectionId: string): Promise<VideoPersonalReadinessV1> {
+    const credential = await this.connections.token(org, actor, connectionId, undefined, 'discovery');
+    const connection = credential.connection;
+    const def = await this.connections.connectable(org, connection.provider as SubscriptionProvider);
+    const walletVerified = connection.state === 'connected' && !connection.walletDigest.startsWith('unverified:') && !!def.identityEndpoint;
+    const common: string[] = [];
+    if (!walletVerified) common.push('VIDEO_WALLET_IDENTITY_UNVERIFIED');
+    let schema = {digest: null as string | null, reviewed: false, observedToolNames: [] as string[]};
+    let names: string[] = [];
+    try {
+      const discovered = await this.subscriptions.mcp.discover(def, credential.token, credential.assertUsable);
+      schema = {digest: discovered.digest, reviewed: discovered.reviewed,
+        observedToolNames: discovered.inventory.map(t => t.name).filter(n => /^[A-Za-z0-9_.-]{1,128}$/.test(n))};
+      names = discovered.tools.map(t => t.name);
+    } catch (error: any) {
+      const code = error?.getResponse?.()?.code;
+      if (['VIDEO_REAUTH_REQUIRED', 'VIDEO_CONNECTION_CHANGED', 'VIDEO_ACCESS_DENIED', 'VIDEO_CONNECTION_UNAVAILABLE'].includes(code)) throw error;
+      common.push('VIDEO_MCP_UNAVAILABLE');
+    }
+    if (!def.enabled || !schema.reviewed) common.push('VIDEO_SCHEMA_UNSUPPORTED');
+    if (!connection.perJob?.gt(0) || !connection.perMonth?.gt(0)) common.push('VIDEO_CREDIT_LIMITS_UNSET');
+    const assets = walletVerified && schema.reviewed && def.provider === 'heygen' ? await this.assets(org, actor, connectionId) : null;
+    const operations = personalVideoOperations.map(kind => {
+      const supported = kind === (def.provider === 'heygen' ? 'presenter' : 'generated_clip');
+      const blockers = [...common];
+      if (!supported) blockers.push('VIDEO_SUBSCRIPTION_OPERATION_UNAVAILABLE');
+      else if (def.provider === 'heygen') {
+        if (assets) blockers.push(...assets.blockers);
+        if (!def.ownedAssetProfile) blockers.push('VIDEO_OWNED_ASSET_PROFILE_UNVERIFIED');
+        if (!['create_video', 'get_video', 'list_avatars', 'list_voices'].every(n => names.includes(n))) blockers.push('VIDEO_TOOL_UNAVAILABLE');
+        if (!names.includes('quote_video')) blockers.push('VIDEO_PRICE_UNAVAILABLE');
+      } else if (!['generate_clip', 'jobs_wait'].every(n => names.includes(n))) blockers.push('VIDEO_TOOL_UNAVAILABLE');
+      return {kind, ready: blockers.length === 0, blockers: [...new Set(blockers)]};
+    });
+    return {connectionId, provider: def.provider, accountGeneration: connection.generation, walletVerified, unit: connection.unit, schema, operations};
+  }
+  async discoverPersonal(org: string, actor: string, connectionId: string) {
+    await this.connections.discoverWallet(org, actor, connectionId);
+    return this.personalReadiness(org, actor, connectionId);
+  }
+  /** Explicit operator export: no identity/profile/tool calls or qualification promotion. */
+  async personalQualification(org: string, actor: string, connectionId: string): Promise<VideoPersonalQualificationV1> {
+    const assertOperator = async () => {
+      const member = await this.repository.member(org, actor);
+      if (!isOrganizationAdmin(member.role)) return videoErrorV1('VIDEO_ACCESS_DENIED', 403);
+    };
+    await assertOperator();
+    const credential = await this.connections.token(org, actor, connectionId, undefined, 'discovery', {allowRefresh: false});
+    const connection = credential.connection;
+    const def = await this.connections.connectable(org, connection.provider as SubscriptionProvider);
+    const assertUsable = async () => {await assertOperator(); await credential.assertUsable();};
+    // discover refuses paginated or oversized inventories rather than returning a partial digest.
+    const discovered = await this.subscriptions.mcp.discoverQualification(def, credential.token, assertUsable);
+    if (new Set(discovered.inventory.map(t => t.name)).size !== discovered.inventory.length) return videoErrorV1('VIDEO_SCHEMA_UNSUPPORTED', 409);
+    await assertUsable();
+    return {version: 1, purpose: 'schema_qualification', capturedAt: this.connections.runtime.now().toISOString(),
+      connectionId, provider: def.provider, resource: def.resource, accountGeneration: connection.generation,
+      walletVerified: connection.state === 'connected' && !connection.walletDigest.startsWith('unverified:') && !!def.identityEndpoint,
+      schema: {digest: discovered.digest, reviewed: discovered.reviewed, inventory: discovered.inventory,
+        complete: true, truncated: false, provenance: 'authenticated_mcp_tools_list', untrusted: true}};
+  }
+  async preparePersonalOperation(org: string, actor: string, input: VideoPersonalOperationInputV1): Promise<VideoPersonalOperationPreparationV1> {
+    // These have their own typed, ordered production payload. A live reviewed
+    // non-generating quote/workflow profile is still missing; never coerce them
+    // into an API model or an arbitrary MCP tool/shell request.
+    if (input.operation === 'narration' || input.operation === 'captions' || input.operation === 'final_composition') {
+      await this.repository.connection(org, actor, input.connectionId);
+      return videoErrorV1('VIDEO_SUBSCRIPTION_OPERATION_UNAVAILABLE', 409);
+    }
+    const credential = await this.connections.token(org, actor, input.connectionId);
+    const provider = credential.connection.provider as SubscriptionProvider;
+    if (input.operation !== (provider === 'heygen' ? 'presenter' : 'generated_clip')) return videoErrorV1('VIDEO_SUBSCRIPTION_OPERATION_UNAVAILABLE', 409);
+    const settings = videoSettingsV1(input.settings); const brief = input.brief as VideoBriefV1;
+    if (settings.provider !== provider) return videoErrorV1('VIDEO_PROVIDER_MODE_MISMATCH');
+    if (!brief || !Array.isArray(brief.referenceMediaIds) || !Array.isArray(input.references) || input.references.length > 3 ||
+      subscriptionHash(input.references) !== subscriptionHash(brief.referenceMediaIds)) return videoErrorV1('VIDEO_REFERENCE_NOT_FOUND', 404);
+    validateVideoGroundingV1(brief, settings);
+    const def = await this.connections.enabled(org, provider);
+    const references = await this.apiRepository.references(org, input.references);
+    if (references.length !== input.references.length) return videoErrorV1('VIDEO_REFERENCE_NOT_FOUND', 404);
+    for (const reference of references) await this.media.referenceDimensions(reference.path);
+    const request = await this.subscriptions.provider(provider).prepare(def, credential.token, settings, brief, references.map(r => ({id: r.id, url: r.path})), credential.assertUsable, credential.connection.walletDigest);
+    assertCreditPolicy(credential.connection, request.quote);
+    await credential.assertUsable();
+    return {connectionId: input.connectionId, provider, accountGeneration: credential.connection.generation, operation: input.operation, request};
+  }
+  private async currentDraft(org: string, actor: string, id: string, version: number) {
     const draft = await this.apiRepository.draft(org, id);
     if (!draft || draft.version !== version) return videoErrorV1('VIDEO_DRAFT_CHANGED', 409);
     const piece = await this.apiRepository.piece(org, draft.pieceId);
     if (!piece || videoSourceRevisionV1(piece) !== draft.pieceRevision) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
+    if ((draft.brief as any)?.sourceArtifact) await this.api.assertCurrentSource(org, actor, draft);
     return draft;
   }
   async preflight(org: string, actor: string, input: unknown) {
     await this.repository.member(org, actor);
     const value = parseVideoV1(PreflightInput, input);
     if (value.access.kind === 'manual') return videoErrorV1('VIDEO_MANUAL_AWAITING_UPLOAD', 409);
-    const draft = await this.currentDraft(org, value.draftId, value.version);
+    const draft = await this.currentDraft(org, actor, value.draftId, value.version);
     const settings = videoSettingsV1(draft.settings); const brief = draft.brief as any;
     validateVideoGroundingV1(brief, settings);
     let request: any, quote: any, connection: any = null, remaining: string | null = null;
@@ -62,23 +159,23 @@ export class VideoAccessService {
         asOf: this.connections.runtime.now().toISOString(), expiresAt: result.estimate.expiresAt, upperBound: result.estimate.upperBoundUsd === undefined ? null : String(result.estimate.upperBoundUsd)};
       if (quote.amount === null) return videoErrorV1('VIDEO_PRICE_UNAVAILABLE', 409);
     } else {
-      const credential = await this.connections.token(org, actor, value.access.connectionId);
-      connection = credential.connection;
-      if (connection.provider !== settings.provider) return videoErrorV1('VIDEO_PROVIDER_MODE_MISMATCH');
-      const def = await this.connections.enabled(org, settings.provider as SubscriptionProvider);
-      const references = await this.apiRepository.references(org, brief.referenceMediaIds);
-      if (references.length !== brief.referenceMediaIds.length) return videoErrorV1('VIDEO_REFERENCE_NOT_FOUND', 404);
-      for (const reference of references) await this.media.referenceDimensions(reference.path);
-      request = await this.subscriptions.provider(settings.provider).prepare(def, credential.token, settings, brief, references.map(r => ({id: r.id, url: r.path})), credential.assertUsable);
-      quote = request.quote; assertCreditPolicy(connection, quote);
+      const prepared = await this.preparePersonalOperation(org, actor, {connectionId: value.access.connectionId,
+        operation: settings.mode === 'presenter' ? 'presenter' : 'generated_clip', settings, brief, references: brief.referenceMediaIds});
+      connection = await this.repository.connection(org, actor, value.access.connectionId);
+      if (connection.generation !== prepared.accountGeneration) return videoErrorV1('VIDEO_CONNECTION_CHANGED', 409);
+      request = prepared.request; quote = request.quote;
       remaining = connection.perMonth.minus(await creditExposure(this.repository.db, connection.id, this.connections.runtime.now())).toFixed();
     }
     const expiresAt = new Date(Math.min(Date.parse(quote.expiresAt), this.connections.runtime.now().getTime() + 300_000));
-    const row = await this.repository.db.videoAccessPreflight.create({data: {organizationId: org, actorId: actor, draftId: draft.id,
+    const data = {organizationId: org, actorId: actor, draftId: draft.id,
       draftVersion: draft.version, draftDigest: draftAccessDigest(draft), access: json(value.access), snapshot: json({brief, settings, pieceRevision: draft.pieceRevision,
         perJob: connection?.perJob?.toFixed() ?? request.apiPreflight?.maxCostUsd?.toString() ?? null,
         perMonth: connection?.perMonth?.toFixed() ?? null, remaining}), request: json(request), quote: json(quote), connectionId: connection?.id,
-      generation: connection?.generation, schemaDigest: request.schemaDigest, expiresAt}});
+      generation: connection?.generation, schemaDigest: request.schemaDigest, expiresAt};
+    const row = brief.sourceArtifact ? await this.repository.transaction(async tx => {
+      await assertResolvedSourceArtifactCurrentV1(tx, org, actor, brief.sourceArtifact, draft.pieceId);
+      return tx.videoAccessPreflight.create({data});
+    }) : await this.repository.db.videoAccessPreflight.create({data});
     return this.approvalView(row);
   }
   private approvalView(row: any) {
@@ -90,7 +187,7 @@ export class VideoAccessService {
     await this.repository.member(org, actor);
     const row = await this.repository.db.videoAccessPreflight.findFirst({where: {id, organizationId: org, actorId: actor}});
     if (!row) return videoErrorV1('VIDEO_PREFLIGHT_NOT_FOUND', 404);
-    const draft = await this.currentDraft(org, row.draftId, row.draftVersion);
+    const draft = await this.currentDraft(org, actor, row.draftId, row.draftVersion);
     if (draftAccessDigest(draft) !== row.draftDigest || (!allowExpired && row.expiresAt <= this.connections.runtime.now())) return videoErrorV1('VIDEO_PREFLIGHT_STALE', 409);
     if ((row.access as any).kind === 'subscription') {
       const connection = await this.repository.connection(org, actor, row.connectionId!);
@@ -109,6 +206,11 @@ export class VideoAccessService {
       // Bind that alias too, so it cannot later authorize a different route.
       await this.repository.transaction(async tx => {
         await this.repository.member(org, actor, true, tx);
+        const artifact = (existing.snapshot as any)?.brief?.sourceArtifact;
+        if (artifact) {
+          assertSourceArtifactBindingV1(artifact, org, actor, existing.pieceId);
+          if (existing.state === 'accepted') await assertResolvedSourceArtifactCurrentV1(tx, org, actor, artifact, existing.pieceId);
+        }
         const digest = subscriptionHash({kind: 'subscription', connectionId: existing.connectionId});
         const receipt = await tx.videoRouteIntent.upsert({where: {organizationId_intentId: {organizationId: org, intentId: value.intentId}},
           create: {organizationId: org, actorId: actor, intentId: value.intentId, preflightId: value.preflightId, accessDigest: digest}, update: {}});
@@ -133,6 +235,8 @@ export class VideoAccessService {
       if (!draft || draftAccessDigest(draft) !== row.draftDigest || row.expiresAt <= this.connections.runtime.now()) return videoErrorV1('VIDEO_PREFLIGHT_STALE', 409);
       const piece = await tx.contentPiece.findFirst({where: {id: draft.pieceId, organizationId: org, archivedAt: null}});
       if (!piece || videoSourceRevisionV1(piece) !== draft.pieceRevision) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
+      const artifact = (draft.brief as any)?.sourceArtifact;
+      if (artifact) await assertResolvedSourceArtifactCurrentV1(tx, org, actor, artifact, draft.pieceId);
       const existingIntent = await tx.videoRouteIntent.findUnique({where: {organizationId_intentId: {organizationId: org, intentId: value.intentId}}});
       if (existingIntent && (existingIntent.actorId !== actor || existingIntent.preflightId !== row.id || existingIntent.accessDigest !== subscriptionHash(access))) return videoErrorV1('VIDEO_INTENT_MISMATCH', 409);
       if (!existingIntent) await tx.videoRouteIntent.create({data: {organizationId: org, actorId: actor, intentId: value.intentId, preflightId: row.id, accessDigest: subscriptionHash(access)}});
@@ -160,7 +264,7 @@ export class VideoAccessService {
     const [api, subscription, manual] = await Promise.all([this.api.list(org, pieceId),
       this.repository.db.videoSubscriptionJob.findMany({where: {organizationId: org, ...(pieceId ? {pieceId} : {})}, orderBy: {createdAt: 'desc'}, take: 50}),
       this.repository.db.videoManualAttachment.findMany({where: {organizationId: org, ...(pieceId ? {pieceId} : {})}, orderBy: {createdAt: 'desc'}, take: 50})]);
-    return [...api.map(j => ({...j, access: {kind: 'api'}})), ...await Promise.all(subscription.map(j => this.subscriptions.view(j, actor))),
+    return [...api.map(j => ({...j, access: {kind: 'api'}})), ...await Promise.all(subscription.filter(j=>(j.request as any)?.kind!=='hgg-pilot-stage/v1').map(j => this.subscriptions.view(j, actor))),
       ...await Promise.all(manual.map(j => this.manualView(j)))].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
   async get(org: string, actor: string, id: string) {
@@ -183,7 +287,7 @@ export class VideoAccessService {
     cost: {amount: null as string | null, unit: null as string | null, certainty: 'external_unknown'}, result: await this.apiRepository.media(row.organizationId, row.mediaId), createdAt: row.createdAt}; }
   async attach(org: string, actor: string, input: unknown) {
     await this.repository.member(org, actor);
-    const value = parseVideoV1(ManualInput, input); const draft = await this.currentDraft(org, value.draftId, value.version);
+    const value = parseVideoV1(ManualInput, input); const draft = await this.currentDraft(org, actor, value.draftId, value.version);
     const media = await this.apiRepository.media(org, value.mediaId);
     if (!media) return videoErrorV1('VIDEO_OWNED_FILE_UNAVAILABLE', 404);
     const bytes = await this.media.readOwned(media.path); await assertMp4VideoV1(bytes);
@@ -194,6 +298,8 @@ export class VideoAccessService {
       if (!current || !owned) return videoErrorV1('VIDEO_DRAFT_CHANGED', 409);
       const piece = await tx.contentPiece.findFirst({where: {id: current.pieceId, organizationId: org, archivedAt: null}});
       if (!piece || videoSourceRevisionV1(piece) !== current.pieceRevision) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
+      const artifact = (current.brief as any)?.sourceArtifact;
+      if (artifact) await assertResolvedSourceArtifactCurrentV1(tx, org, actor, artifact, current.pieceId);
       // The legacy uploader defaults Media.type to image. Establish video type from validated bytes, never a filename or client claim.
       await tx.media.updateMany({where: {id: owned.id, organizationId: org, deletedAt: null}, data: {type: 'video', fileSize: bytes.length}});
       return tx.videoManualAttachment.upsert({where: {organizationId_draftId_draftVersion_mediaId: {organizationId: org, draftId: value.draftId, draftVersion: value.version, mediaId: value.mediaId}},

@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+const { isKnownTikTokValidationMessage, translateValidationMessage } = loadTypeScriptModule('apps/frontend/src/components/new-launch/validation-message.text.ts');
 
 const repositoryRoot = path.resolve(__dirname, '..');
 const calendarPath = path.join(
@@ -28,11 +30,22 @@ function loadExportedFunction(name) {
     },
   }).outputText;
   const loaded = { exports: {} };
-  new Function('exports', 'module', compiled)(loaded.exports, loaded);
+  new Function('exports', 'module', 'translateValidationMessage', 'isKnownTikTokValidationMessage', compiled)(loaded.exports, loaded, translateValidationMessage, isKnownTikTokValidationMessage);
   return loaded.exports[name];
 }
 
 describe('calendar error and accessibility boundary', () => {
+  test('known TikTok validation uses the existing locale port even inside a stored error envelope', () => {
+    const message = 'TikTok privacy must be selected from the current account options before publishing.';
+    const calendarErrorMessage = loadExportedFunction('calendarErrorMessage');
+    for (const expected of [message, 'Выберите приватность TikTok.']) {
+      const t = (key, fallback) => key === 'validation_tiktok_privacy_required' ? expected : fallback;
+      expect(calendarErrorMessage(message, t)).toBe(expected);
+      expect(calendarErrorMessage(JSON.stringify({message, token: 'must-not-surface'}), t)).toBe(expected);
+      expect(calendarErrorMessage(JSON.stringify({message: 'TikTok unknown provider message', token: 'must-not-surface'}), t))
+        .toBe('An error occurred while publishing this post');
+    }
+  });
   // The «+N» remainder of the day slot's channel avatars left with the
   // avatars themselves (`97dq.50`): the slot names its channels in text now,
   // which a screen reader reads without an image role.

@@ -3,6 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { z } from 'zod';
 import type { VideoSettingsV1 } from './video-provider.v1';
 import { selectedFactsBrief } from '../content-intelligence/pieces/piece-facts.v2';
+import { SourceArtifactRefSchemaV1, ResolvedSourceArtifactSchemaV1, type ResolvedSourceArtifactV1 } from '../content-intelligence/social-factory/contracts/source-artifact.v1';
 
 const text = z.string().trim().max(12000);
 export const VideoSettingsSchemaV1 = z.object({
@@ -18,7 +19,9 @@ export const VideoPrepareSchemaV1 = z.object({
   intent: text.default(''), audience: text.default(''), keyMessage: text.default(''), visualIntent: text.default(''),
   referenceMediaIds: z.array(z.string().uuid()).max(1).default([]),
   scriptPolicy: z.enum(['exact', 'adaptable']).default('exact'), prepareWithAi: z.boolean().default(false),
-}).strict().refine(value => (value.fromDraftId === undefined) === (value.fromDraftVersion === undefined));
+  sourceArtifact: SourceArtifactRefSchemaV1.optional(),
+}).strict().refine(value => (value.fromDraftId === undefined) === (value.fromDraftVersion === undefined))
+  .refine(value => !value.sourceArtifact || value.sourceArtifact.pieceId === value.pieceId);
 export type VideoPrepareInputV1 = z.input<typeof VideoPrepareSchemaV1>;
 export interface VideoFactV1 {text: string; sourceId: string; policy: 'must_include' | 'context_only'}
 export interface VideoBriefV1 {
@@ -27,6 +30,7 @@ export interface VideoBriefV1 {
   sourceLocale: string; outputLocale: string; prompt: string; script: string;
   scriptPolicy: 'exact' | 'adaptable'; facts: VideoFactV1[];
   avoidImplications: string[]; referenceMediaIds: string[];
+  sourceArtifact?: ResolvedSourceArtifactV1;
 }
 export const videoErrorV1 = (code: string, status = 400): never => {throw new HttpException({code}, status);};
 export const parseVideoV1 = <T>(schema: z.ZodType<T>, value: unknown): T => {
@@ -48,10 +52,10 @@ export const videoSourceRevisionV1 = (piece: {title: string; body: string; brief
   createHash('sha256').update(JSON.stringify({title: piece.title, body: piece.body, brief: piece.brief, language: piece.language, updatedAt: piece.updatedAt.toISOString()})).digest('hex');
 const plain = (text: string) => text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' ').trim();
 
-export function compileVideoBriefV1(piece: {id: string; title: string; body: string; brief: unknown; language: string}, input: z.output<typeof VideoPrepareSchemaV1>): VideoBriefV1 {
+export function compileVideoBriefV1(piece: {id: string; title: string; body: string; brief: unknown; language: string}, input: z.output<typeof VideoPrepareSchemaV1>, sourceArtifact?: ResolvedSourceArtifactV1): VideoBriefV1 {
   const core = piece.brief as any;
   const selected = Array.isArray(core?.brief?.facts) ? selectedFactsBrief(core.brief).facts : [];
-  const facts: VideoFactV1[] = selected.length
+  const facts: VideoFactV1[] = sourceArtifact ? [{text: plain(sourceArtifact.text), sourceId: `artifact:${sourceArtifact.ref.kind}:${sourceArtifact.ref.kind === 'adaptation' ? sourceArtifact.ref.adaptationId : sourceArtifact.ref.pieceId}:${sourceArtifact.ref.revision}`, policy: 'must_include'}] : selected.length
     ? selected.slice(0, 50).map((fact, index) => ({text: String(fact.statement || '').trim(), sourceId: String(fact.evidenceId || fact.factId || `${piece.id}:${index}`), policy: 'context_only' as const})).filter(f => f.text)
     : [{text: plain(piece.body), sourceId: piece.id, policy: 'must_include'}];
   if (!facts.length || !facts[0].text) return videoErrorV1('VIDEO_SOURCE_EMPTY');
@@ -61,11 +65,12 @@ export function compileVideoBriefV1(piece: {id: string; title: string; body: str
   const mandatory = facts.filter(f => f.policy === 'must_include').map(f => f.text).join('\n');
   const visual = input.visualIntent || input.intent || piece.title;
   return {
-    intent: input.intent, audience: input.audience, keyMessage: input.keyMessage || piece.title,
-    visualIntent: input.visualIntent, sourceLocale: piece.language, outputLocale: input.settings.locale,
+    intent: input.intent, audience: input.audience, keyMessage: input.keyMessage || sourceArtifact?.title || piece.title,
+    visualIntent: input.visualIntent, sourceLocale: sourceArtifact?.locale ?? piece.language, outputLocale: input.settings.locale,
     facts, avoidImplications: [], referenceMediaIds: input.referenceMediaIds,
     scriptPolicy: input.scriptPolicy, script: mandatory,
     prompt: [visual, mandatory].filter(Boolean).join('\n\n'),
+    ...(sourceArtifact ? {sourceArtifact} : {}),
   };
 }
 
@@ -76,6 +81,7 @@ const BriefSchema = z.object({
   // These source excerpts are immutable below, and may exceed the output limit.
   facts: z.array(z.object({text: z.string().trim().min(1), sourceId: z.string().min(1).max(300), policy: z.enum(['must_include', 'context_only'])}).strict()).min(1).max(50),
   avoidImplications: z.array(z.string().max(500)).max(30), referenceMediaIds: z.array(z.string().uuid()).max(1),
+  sourceArtifact: ResolvedSourceArtifactSchemaV1.optional(),
 }).strict();
 export function editVideoBriefV1(original: VideoBriefV1, value: unknown, settings: VideoSettingsV1): VideoBriefV1 {
   // A fallback source can initialize both outputs with a long excerpt. Editing
@@ -85,6 +91,10 @@ export function editVideoBriefV1(original: VideoBriefV1, value: unknown, setting
     prompt: text.or(z.literal(original.prompt)), script: text.or(z.literal(original.script)),
   });
   const brief = parseVideoV1(schema, value);
+  const sourceIdentity = (source: ResolvedSourceArtifactV1 | undefined) => source ? JSON.stringify({ref: {version: source.ref.version, kind: source.ref.kind, pieceId: source.ref.pieceId,
+    ...(source.ref.kind === 'adaptation' ? {adaptationId: source.ref.adaptationId, postId: source.ref.postId} : {}), revision: source.ref.revision}, actorId: source.actorId, organizationId: source.organizationId,
+    title: source.title, text: source.text, locale: source.locale, contentDigest: source.contentDigest}) : null;
+  if (sourceIdentity(brief.sourceArtifact) !== sourceIdentity(original.sourceArtifact)) return videoErrorV1('VIDEO_FACT_SOURCE_CHANGED');
   if (brief.facts.length !== original.facts.length || brief.facts.some((fact, i) => fact.text !== original.facts[i].text || fact.sourceId !== original.facts[i].sourceId) || brief.sourceLocale !== original.sourceLocale) return videoErrorV1('VIDEO_FACT_SOURCE_CHANGED');
   return {...brief, outputLocale: settings.locale, preparedWithAi: original.preparedWithAi === true} as VideoBriefV1;
 }

@@ -1,3 +1,6 @@
+import { SocialFactoryService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.service';
+import { SourceArtifactServiceV1 } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/source-artifact.service';
+import { NativeClipPreproductionServiceV1 } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-preproduction.service.v1';
 import { createHash } from 'node:crypto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { PieceRepository } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.repository';
@@ -49,7 +52,8 @@ export class AgentWorkContextResolver {
     catch (error: any) {
       if (error?.getResponse?.()?.code !== 'VIDEO_JOB_NOT_FOUND' || !this.deps.capabilities.some(c => c.id === 'video.status_v2')) throw error;
       await this.allow(identity, 'video.status_v2');
-      const {VideoAccessService} = require('@contentfactory/nestjs-libraries/videos/video-access.service');
+      // Keep this lazy for the registry cycle; relative paths also resolve in the compiled tree.
+      const {VideoAccessService} = require('../../videos/video-access.service') as {VideoAccessService:typeof UnifiedVideoAccessService};
       return this.deps.services<UnifiedVideoAccessService>(VideoAccessService).get(identity.organizationId, identity.userId, id);
     }
   }
@@ -95,7 +99,7 @@ export class AgentWorkContextResolver {
     identity: CapabilityIdentity,
     input: AgentWorkContextV1,
     /** Stored selections are refreshed; an explicit stale client revision fails. */
-    options: { refresh?: boolean } = {}
+    options: { refresh?: boolean; threadId?: string } = {}
   ): Promise<ResolvedAgentWorkContext> {
     const target = parseAgentWorkContext(input);
     if (!target) throw missingWorkContext();
@@ -104,6 +108,11 @@ export class AgentWorkContextResolver {
     delete canonical.revision;
     try {
       switch (target.kind) {
+        case 'campaign': {
+          await this.allow(identity, target.id ? 'campaign.open' : 'campaign.list');
+          data = target.id ? await this.deps.services(SocialFactoryService).detail(identity.organizationId, target.id) : { campaigns: await this.deps.services(SocialFactoryService).campaigns.list(identity.organizationId) };
+          break;
+        }
         case 'piece':
         case 'adaptation':
         case 'plan': {
@@ -142,8 +151,26 @@ export class AgentWorkContextResolver {
             // The selected variant is what the person is discussing; keep it
             // before the core when bounded data has to omit later material.
             data = { adaptationId: variantId, currentText: variant.body ?? null, state: variant.state, plan: variant.plan ?? null, channelId, piece: data };
+            const sources = this.deps.services(SourceArtifactServiceV1);
+            if (sources) {
+              const source = await sources.resolve(identity.organizationId, identity.userId, {version: 1, kind: 'adaptation', pieceId, adaptationId: variantId});
+              data = {sourceArtifact: source.ref, ...data, currentText: source.text, title: source.title};
+            }
           } else {
             canonical = { ...canonical, id: pieceId };
+            const sources = this.deps.services(SourceArtifactServiceV1);
+            if (sources) {
+              const source = await sources.resolve(identity.organizationId, identity.userId, {version: 1, kind: 'piece', pieceId});
+              data = {sourceArtifact: source.ref, ...data, currentText: source.text, title: source.title};
+            }
+          }
+          if (target.clipPilotId) {
+            if (!options.threadId) throw missingWorkContext();
+            await this.allow(identity, 'video.preproduction_open');
+            const pilot = await this.deps.services(NativeClipPreproductionServiceV1).open(identity.organizationId, identity.userId, options.threadId, target.clipPilotId);
+            if (pilot.pieceId !== pieceId || pilot.threadId !== options.threadId || pilot.pilotId !== target.clipPilotId) throw missingWorkContext();
+            if (!pilot.sourceCurrent) throw staleWorkContext();
+            data = {nativeClip: pilot, ...data};
           }
           break;
         }

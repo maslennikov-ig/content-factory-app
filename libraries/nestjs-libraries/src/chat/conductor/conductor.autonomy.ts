@@ -20,7 +20,7 @@ import {
   writeObjective,
 } from '@mastra/core/tools';
 import { ToolSearchProcessor } from '@mastra/core/processors';
-import { MASTRA_RESOURCE_ID_KEY, MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
+import { MASTRA_RESOURCE_ID_KEY, MASTRA_SCOPES_KEY, MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
 import {
   InMemoryNotificationsStorage,
   createNotificationInboxTool,
@@ -54,8 +54,9 @@ import {
   conductorResourceId,
 } from './conductor.context';
 import { withoutSecretShapes } from './secret-shapes';
+import { nativeSubagentInputSchema, type NativeSubagentInput } from './native-subagent.input';
 
-export type ConductorSubagentType = 'research' | 'writing' | 'review';
+export type ConductorSubagentType = NativeSubagentInput['agentType'];
 export type ConductorSubagentModelOptions = { task: string; modelId?: string };
 
 export const CONDUCTOR_SUBAGENT_ROLE_MAP: Readonly<
@@ -978,34 +979,7 @@ export const buildConductorSubagentTool = (options: {
     title: 'Поручить специалисту',
     description:
       'Delegate a bounded subtask to one of the workspace specialists: research (read/search), writing (drafting/adaptation), or review (fact/slop checks). Forked execution is disabled.',
-    inputSchema: z.object({
-      agentType: z
-        .enum(['research', 'writing', 'review'])
-        .describe('Which bounded specialist to run: research, writing, or review.'),
-      task: z
-        .string()
-        .min(1)
-        .max(8000)
-        .optional()
-        .describe('Self-contained task instructions and context for the specialist.'),
-      prompt: z
-        .string()
-        .min(1)
-        .max(8000)
-        .optional()
-        .describe('Alias for task instructions.'),
-      forked: z
-        .boolean()
-        .optional()
-        .describe('Must not be true; forked subagent execution is disabled.'),
-      modelId: z
-        .string()
-        .trim()
-        .min(1)
-        .max(100)
-        .optional()
-        .describe('Optional model ID override; defaults to the workspace role model for the specialist.'),
-    }),
+    inputSchema: nativeSubagentInputSchema,
     requestContextSchema: capabilityContextSchema,
     execute: async (input, context: any) => {
       const identity = readCapabilityIdentity(context?.requestContext);
@@ -1058,6 +1032,16 @@ export const buildConductorSubagentTool = (options: {
         ? (new RequestContext(context.requestContext.entries()) as any)
         : undefined;
       subagentRequestContext?.delete(MASTRA_THREAD_ID_KEY);
+      // A resumed run can also carry its thread in native identity scopes.
+      // Keep the actor/resource scope, but do not make the child wait for the
+      // parent thread whose tool call is already awaiting this child.
+      const inheritedScopes = subagentRequestContext?.get(MASTRA_SCOPES_KEY);
+      if (Array.isArray(inheritedScopes)) {
+        subagentRequestContext!.set(
+          MASTRA_SCOPES_KEY,
+          inheritedScopes.filter((scope) => typeof scope !== 'string' || !scope.startsWith('thread:'))
+        );
+      }
       if (controllerCtx && subagentRequestContext) {
         subagentRequestContext.set('controller', {
           ...controllerCtx,

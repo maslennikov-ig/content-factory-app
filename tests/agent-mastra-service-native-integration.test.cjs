@@ -96,6 +96,7 @@ describe('MastraService native PostgreSQL/Redis integration', () => {
       expect(report).toEqual(
         expect.objectContaining({
           coldNativeStop: true,
+          ownerRetirementVerified: true,
           persistedGates: 0,
           additionalModelCalls: 0,
           toolCalls: 0,

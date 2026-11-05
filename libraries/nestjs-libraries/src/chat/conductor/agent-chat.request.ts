@@ -886,6 +886,8 @@ export const normalizeResumeDataForPendingCall = (
     (candidate) => !candidate.requiresApproval && candidate.toolCallId === toolCallId
   );
   if (call?.toolName === 'ask_user') {
+    const payload = isRecord(call.suspendPayload) ? call.suspendPayload : {};
+    if (payload.questionPurpose === 'creative' && payload.canDecideForPerson !== false && isRecord(resumeData) && resumeData.decideForPerson === true) return resumeData;
     return normalizeAskUserAnswer(resumeData) ?? resumeData;
   }
   return resumeData;

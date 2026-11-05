@@ -34,6 +34,17 @@ const serviceClass = (name) =>
 
 /** Service tokens by module path; the suite supplies the instances. */
 const SERVICE_MODULES = {
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-preproduction.service.v1':'NativeClipPreproductionServiceV1',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-production.service.v1':'NativeClipProductionServiceV1',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/source-artifact.service':'SourceArtifactServiceV1',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/draft-destination.v1':'DraftDestinationServiceV1',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/material-edit.service':'SocialFactoryMaterialEditService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/production.service': 'SocialFactoryProductionService',
+  '@contentfactory/nestjs-libraries/videos/production/video-production.service': 'VideoProductionService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/attribution/attribution.service': 'SocialFactoryAttributionService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/attribution/helixa-exchange.service': 'SocialFactoryHelixaExchangeService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/measurement/optional-analytics/optional-analytics.service': 'SocialFactoryOptionalAnalyticsService',
+
   '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.repository':
     'OnboardingRepository',
   '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service':
@@ -66,6 +77,22 @@ const SERVICE_MODULES = {
     'ContentFactService',
   '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service':
     'ContentMaterialService',
+  // Persistent campaigns and their provider-bound delivery (`campaign.*`).
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.service':
+    'SocialFactoryService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/publishing/publishing.service':
+    'SocialFactoryPublishingService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/source-permission.service': 'SocialFactorySourcePermissionService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/planning.service':
+    'SocialFactoryPlanningService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/profiles/channel-profile.v1':
+    'ChannelProfileServiceV1',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/measurement/measurement.service':
+    'SocialFactoryMeasurementService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/learning/learning.service':
+    'SocialFactoryLearningService',
+  '@contentfactory/nestjs-libraries/content-intelligence/social-factory/autonomy/editorial-decision.service':
+    'EditorialDecisionService',
   // The media library and a generated picture (`media.*`, kcxz.25).
   '@contentfactory/nestjs-libraries/database/prisma/media/media.service':
     'MediaService',
@@ -76,6 +103,14 @@ const services = Object.fromEntries(
     { [name]: serviceClass(name) },
   ])
 );
+
+services['@contentfactory/nestjs-libraries/content-intelligence/social-factory/draft-destination.v1'].draftDestinationInputSchemaV1 = loadTypeScriptModule('libraries/nestjs-libraries/src/content-intelligence/social-factory/draft-destination.v1.ts').draftDestinationInputSchemaV1;
+
+// Reuse the strict production schema while retaining the suite's service token.
+services['@contentfactory/nestjs-libraries/content-intelligence/social-factory/profiles/channel-profile.v1'].channelEditorialProfileSchemaV1 = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/social-factory/profiles/channel-profile.v1.ts',
+  { '../social-factory.repository': { resourceRef: (kind, id) => `resource:${kind}:${id}`, sourceRef: id => `source:${id}` } }
+).channelEditorialProfileSchemaV1;
 
 const doors = doorsWithPolicies({ all: true });
 
@@ -383,6 +418,7 @@ const videoFixtures = () => {
   const preflightId = '44444444-4444-4444-8444-444444444444';
   const mediaId = '55555555-5555-4555-8555-555555555555';
   const requestMessageId = '66666666-6666-4666-8666-666666666666';
+  const personalConnectionId = '77777777-7777-4777-8777-777777777777';
   const settings = {provider: 'higgsfield', model: 'wan-2.5', mode: 'clip', locale: 'ru', duration: 5, aspectRatio: '9:16', audio: false, captions: false};
   const brief = {prompt: INJECTION, script: INJECTION};
   const draft = {id: draftId, pieceId, version: 1, settings, brief};
@@ -392,6 +428,31 @@ const videoFixtures = () => {
   const approval = {id: preflightId, preflightId, draftId, version: 1, brief, settings, access, quote: {amount: '0.25', unit: 'USD'}, perJob: '1'};
   const own = (org) => { if (org !== IDENTITY.organizationId) throw new Error('not found'); };
   const services = {
+    NativeClipProductionServiceV1: {
+      recoverVisionFencedV1: async (org,actor,threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      referenceApprovalV2: async org => {own(org);return {version:2,mode:'review',referenceDigest:'a'.repeat(64),frames:[{slot:'first',ownedMediaId:'owned-first'},{slot:'last',ownedMediaId:'owned-last'}],authorization:{pilotLimit:'10'},quote:null,priceCheckedAfterApproval:true,maximumVideos:1};},
+      launchReviewedClipV2: async (org,actor,threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      credentialRenewalApproval: async org => {own(org);return {pilotId:'clip-fixture',scope:'same_oauth_grant_only',quote:false,generation:false};},
+      renewCredentialsV2: async (org,actor,threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{credentialRenewal:{state:'completed',requiresFreshQuote:true}}};},
+      prepare: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{authorization:{state:'missing'},blockers:[INJECTION]}};},
+      open: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{authorization:{state:'missing'},blockers:[INJECTION]}};},
+      budgetQuestion: async org => {own(org);return {question:INJECTION,options:[],questionPurpose:'fact',canDecideForPerson:false};},
+      answerBudget: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{authorization:{state:'authorized',pilotLimit:'10'},blockers:[INJECTION]}};},
+      launch: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      prepareLastFrameRepair: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      refreshLastFrameRepairQuote: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      launchLastFrameRepair: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      lastFrameRepairApproval: async org => {own(org);return {quote:{amount:'1.5'},ownerLimit:{remaining:'15',pilotLimit:'18'},reason:INJECTION};},
+      recover: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      stop: async (org, actor, threadId) => {own(org);return {pilotId:'clip-fixture',pieceId,threadId,production:{blockers:[INJECTION]}};},
+      approval: async org => {own(org);return {executionApproval:{current:true,canApprove:true,approved:false},authorization:{pilotLimit:'10'},firstQuote:{amount:'1'},imageSettings:{resolution:'1k'},videoResolution:'720p'};},
+    },
+    NativeClipPreproductionServiceV1: {
+      reviseV2: async (org,actor,threadId) => {own(org);if(actor!==IDENTITY.userId)throw new Error('not found');return {pilotId:'clip-revision',pieceId,threadId,state:'reviewed',scenario:{screenText:INJECTION},revisionV2:{version:2,parentPilotId:'clip-fixture',scope:'scenario',newImagePair:true}};},
+      prepare: async (org, actor, threadId) => { own(org); if(actor!==IDENTITY.userId)throw new Error('not found'); return {pilotId:'clip-fixture',pieceId,threadId,state:'reviewed',scenario:{screenText:INJECTION},frames:{state:'unavailable'},video:{state:'unavailable'}}; },
+      open: async (org, actor, threadId) => { own(org); if(actor!==IDENTITY.userId)throw new Error('not found'); return {pilotId:'clip-fixture',pieceId,threadId,state:'reviewed',scenario:{screenText:INJECTION},frames:{state:'unavailable'},video:{state:'unavailable'}}; },
+      resumeReview: async (org, actor, threadId) => { own(org); if(actor!==IDENTITY.userId)throw new Error('not found'); return {pilotId:'clip-fixture',pieceId,threadId,state:'reviewed',scenario:{screenText:INJECTION},frames:{state:'unavailable'},video:{state:'unavailable'}}; },
+    },
     VideoJobService: {
       catalog: async (org) => { own(org); return {routes: [{...settings, label: INJECTION}]}; },
       prepare: async (org) => { own(org); return draft; },
@@ -408,6 +469,9 @@ const videoFixtures = () => {
     },
     VideoAccessService: {
       choices: async (org) => { own(org); return {workspaceEnabled: false, connections: [], providers: []}; },
+      assets: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {avatars:[{id:'owned-avatar',name:INJECTION,ownership:'owned',state:'available',engines:['avatar_iv'],locales:['ru']}],voices:[],engines:['avatar_iv'],ownedOnly:true,accountGeneration:1,status:'needs_owned_assets',blockers:['VIDEO_OWNED_VOICE_UNAVAILABLE'],guidance:null}; },
+      personalReadiness: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {connectionId,provider:'heygen',accountGeneration:1,walletVerified:false,unit:'heygen_credit',schema:{digest:null,reviewed:false,observedToolNames:[]},operations:[{kind:'presenter',ready:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED','VIDEO_PRICE_UNAVAILABLE']}]}; },
+      discoverPersonal: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {connectionId,provider:'heygen',accountGeneration:1,walletVerified:false,unit:'heygen_credit',schema:{digest:null,reviewed:false,observedToolNames:[]},operations:[{kind:'presenter',ready:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED','VIDEO_PRICE_UNAVAILABLE']}]}; },
       preflight: async (org) => { own(org); return approval; },
       approval: async (org) => { own(org); return approval; },
       repository: {db: {videoAccessPreflight: {findFirst: async ({where}) =>
@@ -426,6 +490,22 @@ const videoFixtures = () => {
     originalAuthorRequest: {messageId: requestMessageId, text: 'Создай видео по сохранённому сценарию.'},
   });
   return {
+    'video.preproduction': {...call({requestMessageId,sourceArtifact:{version:1,kind:'piece',pieceId,revision:'a'.repeat(64)},outputLocale:'ru'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.preproduction_open': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.preproduction_resume_review': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.preproduction_revise_v2': {...call({pilotId:'clip-fixture',requestMessageId,scope:'scenario'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_prepare': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_recover_vision_fenced_v1': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_renew_credentials': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_prepare_delegated': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_budget': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION},resumeData:{answer:'10'},nativeToolCallId:'pilot-budget-fixture'},
+    'video.pilot_launch': {...call({pilotId:'clip-fixture',preflightId,approvalHash:'a'.repeat(64)}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_launch_reviewed_clip_v2': {...call({pilotId:'clip-fixture',referenceDigest:'a'.repeat(64)}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_prepare_last_frame_repair': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_refresh_last_frame_repair_quote': {...call({pilotId:'clip-fixture',repairId:'repair-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_launch_last_frame_repair': {...call({pilotId:'clip-fixture',repairId:'repair-fixture',preflightId,approvalHash:'b'.repeat(64)}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_recover': {...call({pilotId:'clip-fixture',stage:'first_frame',action:'retry_save'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
+    'video.pilot_stop': {...call({pilotId:'clip-fixture'}),originalAuthorRequest:{messageId:requestMessageId,text:INJECTION}},
     'video.catalog': call({}),
     'video.prepare': call({pieceId, settings, intent: INJECTION, prepareWithAi: true}),
     'video.drafts': call({pieceId}),
@@ -438,6 +518,9 @@ const videoFixtures = () => {
     'video.cancel': call({jobId}),
     'video.retry-save': call({jobId}),
     'video.access_v2': call({}),
+    'video.personal_assets': call({connectionId:personalConnectionId}),
+    'video.personal_readiness': call({connectionId:personalConnectionId}),
+    'video.personal_discover': call({connectionId:personalConnectionId}),
     'video.preflight_v2': call({draftId, version: 1, access}),
     'video.launch_v2': launch(),
     'video.jobs_v2': call({pieceId}),
@@ -448,14 +531,124 @@ const videoFixtures = () => {
   };
 };
 
+/** Scoped saved campaign data, including foreign editorial/provider text. */
+const campaignFixtures = () => {
+  const campaignId = 'campaign-1';
+  const itemId = 'campaign-item-1';
+  const grantId = 'grant-1';
+  const own = (org) => { if (org !== IDENTITY.organizationId) throw new Error('not found'); };
+  const campaign = { version: 1, id: campaignId, actorId: IDENTITY.userId, name: INJECTION, mode: 'prepare_approve', timeZone: 'Europe/Moscow',
+    startsAt: '2031-03-01T21:00:00.000Z', endsAt: '2031-03-15T20:59:59.999Z', state: 'active',
+    allocations: [{ channelId: 'c1', platform: 'instagram', format: 'reel', count: 5 }, { channelId: 'c1', platform: 'instagram', format: 'story', count: 10 }],
+    itemIds: [itemId], researchIds: [], findingIds: [], createdAt: '2026-11-03T12:00:00.000Z', grantId };
+  const item = { version: 1, id: itemId, campaignId, channelId: 'c1', platform: 'instagram', format: 'reel', state: 'ready', contentRevision: 2,
+    scheduledAt: '2031-03-04T07:00:00.000Z', approvalDigest: 'revision-digest',
+    material: { version: 1, channelId: 'c1', platform: 'instagram', format: 'reel', title: INJECTION, hook: INJECTION, body: INJECTION, assets: [], evidence: [], settings: {}, playbook: { version: 'v1', sourceDate: '2026-11-03' } } };
+  const grant = { version: 1, id: grantId, actorId: IDENTITY.userId, channelIds: ['c1'], actions: ['prepare', 'publish'], mode: 'autopilot', expiresAt: '2099-01-01T00:00:00.000Z', platformConsentIds: [] };
+  const detail = { campaign, items: [item], decisions: [], findings: [] };
+  const scopedCampaign = (org, id) => { own(org); if (id !== campaignId) throw new Error('not found'); };
+  const finding = { version: 1, id: 'finding-1', channelIds: ['c1'], statement: INJECTION, status: 'accepted', uncertainty: INJECTION, observationIds: ['observation-1'], sourceIds: ['canonical-source'], expiresAt: '2099-01-01T00:00:00.000Z', interpretation: 'association', sampleSize: 5, explorationShare: 0.2, computedAt: '2026-11-03T12:00:00.000Z' };
+  const ownChannel = (org, id) => { own(org); if (id !== 'c1') throw new Error('wrong channel'); };
+  const services = {
+    SocialFactorySourcePermissionService: { save: async (org, actor, input) => { own(org); if (actor !== IDENTITY.userId) throw new Error('wrong actor'); return { id: input.sourceId, revision: input.expectedRevision + 1, payload: { ...input, organizationId: org, evidenceId: `owner:${actor}:${input.sourceId}:1` } }; }, revoke: async (org, sourceId, revision) => { own(org); if (sourceId !== 'canonical-source' || revision !== 1) throw new Error('wrong source/revision'); return { redacted: 1 }; } },
+    ChannelProfileServiceV1: { save: async (org, profile, revision) => { ownChannel(org, profile.channelId); return { id: profile.channelId, revision: revision + 1, payload: { profile } }; }, resolve: async (org, channelId) => { ownChannel(org, channelId); return { revision: 1, profile: { version: 1, channelId, platform: 'instagram', audience: INJECTION, promise: INJECTION, goals: [INJECTION], expertise: [INJECTION], pillars: [INJECTION], languages: ['ru'], geography: ['RU'], exclusions: [], evidence: [], openQuestions: [] }, facts: [{ key: 'expertise', value: INJECTION, provenance: 'owner_asserted', scope: 'channel', evidenceIds: [] }] }; } },
+    SocialFactoryPlanningService: { discover: async (org, channelId, options) => { ownChannel(org, channelId); if (options.sourceIds?.some(id => id !== 'canonical-source')) throw new Error('wrong source'); return { id: 'discovery-1', candidates: [{ id: 'candidate-1', channelId, title: INJECTION, angle: INJECTION, relevance: { score: 0.8, reason: INJECTION }, performance: { availability: 'unknown', caveat: INJECTION }, evidence: [] }], planningPrompts: [INJECTION], gaps: [INJECTION], recommendSources: true, findingIds: [finding.id] }; } },
+    EditorialDecisionService: { answer: async (org, actor, input) => { scopedCampaign(org, input.campaignId); if (actor !== IDENTITY.userId || input.itemId && input.itemId !== itemId || input.answer !== undefined || input.authority !== undefined) throw new Error('untrusted decision'); return { version: 1, campaignId, itemId: input.itemId, kind: 'editorial', question: input.question, answer: INJECTION, factStatus: 'inferred', evidenceIds: [], actorId: actor, createdAt: '2026-11-03T12:00:00.000Z', model: { provider: 'configured', model: 'advanced', role: 'agent' } }; } },
+    SocialFactoryMeasurementService: { capture: async (org, target, requestId) => { own(org); if (target !== itemId || !requestId) throw new Error('wrong measurement target'); return [{ id: 'observation-1', campaignId, itemId, revision: 2, publicationId: 'publication-1', platform: 'instagram', source: INJECTION, metric: 'views', value: null, unit: 'count', availability: 'unknown', evidence: [] }]; } },
+    SocialFactoryLearningService: {
+      forPlanning: async (org, channelId) => { ownChannel(org, channelId); return { findings: [finding], planningPrompts: [INJECTION], explorationShare: 0.2 }; },
+      review: async (org, id, revision, action) => { own(org); if (id !== finding.id || revision !== 1) throw new Error('wrong finding revision'); return { id, revision: 2, payload: { ...finding, status: action === 'accept' ? 'accepted' : 'withdrawn' } }; },
+    },
+    SocialFactoryService: {
+      assertChannel: async (org, channelId) => { ownChannel(org, channelId); return { id: channelId }; },
+      create: async (org, input) => { own(org); if (input.actorId !== IDENTITY.userId) throw new Error('wrong actor'); return campaign; },
+      detail: async (org, id) => { scopedCampaign(org, id); return detail; },
+      grant: async (org, input) => { own(org); if (input.actorId !== IDENTITY.userId || input.authority !== 'user') throw new Error('untrusted authority'); return grant; },
+      campaigns: {
+        list: async (org) => { own(org); return [campaign]; },
+        stop: async (org, id, actor) => { scopedCampaign(org, id); if (actor !== IDENTITY.userId) throw new Error('wrong actor'); return { ...campaign, state: 'stopped' }; },
+        setMode: async (org, id, input) => { scopedCampaign(org, id); if (input.actorId !== IDENTITY.userId) throw new Error('wrong actor'); return { ...campaign, mode: input.mode }; },
+        approve: async (org, id, target, input) => { scopedCampaign(org, id); if (target !== itemId || input.actorId !== IDENTITY.userId) throw new Error('wrong item/actor'); return { ...item, state: 'approved' }; },
+      },
+      autonomy: { revoke: async (org, id, actor) => { own(org); if (id !== grantId || actor !== IDENTITY.userId) throw new Error('wrong grant/actor'); return { ...grant, revokedAt: '2026-11-03T12:00:00.000Z' }; } },
+    },
+    SocialFactoryPublishingService: {
+      cancelPending: async (org, id) => { scopedCampaign(org, id); return { cancelled: 1 }; },
+      deliver: async (org, input) => { scopedCampaign(org, input.campaignId); if (input.itemId !== itemId || input.actorId !== IDENTITY.userId || input.authority !== 'user') throw new Error('untrusted delivery'); return { state: 'manual', reason: INJECTION }; },
+      reconcile: async (org, id, target) => { scopedCampaign(org, id); if (target !== itemId) throw new Error('wrong item'); return { state: 'uncertain', reason: INJECTION }; },
+    },
+  };
+  const call = (input) => ({ input, services });
+  return {
+    'campaign.create': call({ requestId: 'author-request-1', name: INJECTION, timeZone: 'Europe/Moscow', startsAt: '2031-03-02', endsAt: '2031-03-15', allocations: campaign.allocations }),
+    'campaign.open': call({ campaignId }),
+    'campaign.list': call({}),
+    'campaign.stop': call({ campaignId }),
+    'campaign.mode': call({ campaignId, mode: 'autopilot', grantId }),
+    'campaign.grant': call({ requestId: 'grant-request-1', channelIds: ['c1'], actions: ['prepare', 'publish'], mode: 'autopilot', formats: ['reel', 'story'], expiresAt: grant.expiresAt, platformConsentIds: [] }),
+    'campaign.revoke': call({ grantId }),
+    'campaign.approve': call({ campaignId, itemId, expectedContentRevision: 2, digest: item.approvalDigest }),
+    'campaign.deliver': call({ campaignId, itemId, action: 'schedule', requestId: 'delivery-request-1', expectedContentRevision: 2, approvalDigest: item.approvalDigest }),
+    'campaign.reconcile': call({ campaignId, itemId }),
+    'channel.editorial_profile': call({ channelId: 'c1' }),
+    'channel.editorial_profile_save': call({ channelId: 'c1', expectedRevision: 0, profile: { version: 1, channelId: 'c1', platform: 'instagram', audience: INJECTION, promise: INJECTION, goals: [], expertise: [], pillars: [], languages: ['ru'], geography: [], exclusions: [], evidence: [], openQuestions: [] } }),
+    'source.permission_save': call({ sourceId: 'canonical-source', expectedRevision: 0, purposes: ['editorial'], basis: 'owned', expiresAt: '2099-01-01T00:00:00.000Z', origin: 'first_party', acquisition: 'first_party', sourceContext: INJECTION, channelIds: ['c1'] }),
+    'source.permission_revoke': call({ sourceId: 'canonical-source', expectedRevision: 1 }),
+    'channel.discover': call({ channelId: 'c1', sourceIds: ['canonical-source'], allowWebSearch: true }),
+    'campaign.decide_editorial': call({ campaignId, itemId, grantId, requestId: 'editorial-request-1', question: INJECTION }),
+    'campaign.measure': call({ itemId, requestId: 'measurement-request-1' }),
+    'campaign.findings': call({ channelId: 'c1' }),
+    'campaign.finding_review': call({ findingId: finding.id, expectedRevision: 1, action: 'accept' }),
+  };
+};
+
 /**
  * One working call per capability: the services it reaches, what they answer
  * (with `INJECTION` in every field a stranger could fill), the input the model
  * sends and, for the `input` class, the person's answer. A capability without
  * a fixture here fails the guard, so a new one arrives with its proof.
  */
+const productionFixtures = () => {
+  const own=org=>{if(org!==IDENTITY.organizationId)throw new Error('foreign workspace');};
+  const itemId='item-1',campaignId='campaign-1',productionId='production-1';
+  const manifest={version:1,pieceId:'11111111-1111-4111-8111-111111111111',pieceRevision:'r1',title:INJECTION,locale:'ru',aspectRatio:'9:16',resolution:'1080p',durationSeconds:30,audio:false,captions:false,scenes:[{id:'scene1',kind:'image',durationSeconds:30,script:INJECTION,mediaId:'22222222-2222-4222-8222-222222222222',referenceMediaIds:[],generationAttempt:0,sourceCaptions:'none'}]};
+  const video={id:productionId,manifest,digest:'a'.repeat(64),approval:{id:'approval-1',maxTotalUsd:5,scenes:[],blockers:[]},state:INJECTION};
+  const production={campaignId,items:[{itemId,state:'needs_length',topic:INJECTION}],questions:[INJECTION]};
+  const services={
+    SourceArtifactServiceV1:{editDraft:async(org,actor,input)=>{own(org);if(actor!==IDENTITY.userId)throw new Error('actor');return {ref:{...input.sourceArtifact,revision:'b'.repeat(64)},text:input.body};},resolve:async(org,actor,input)=>{own(org);if(actor!==IDENTITY.userId)throw new Error('actor');return {ref:{...input,revision:'a'.repeat(64)},text:INJECTION};}},
+    DraftDestinationServiceV1:{create:async(org,actor,input)=>{own(org);if(actor!==IDENTITY.userId)throw new Error('actor');return {destination:{id:'draft-destination',kind:'draft',publishable:false,...input}};}},
+    SocialFactoryService:{detail:async(org,id)=>{own(org);return {campaign:{id,name:INJECTION},items:[{id:itemId,material:{title:INJECTION,body:INJECTION}}]};},assertChannel:async(org)=>{own(org);}},
+    SocialFactoryMaterialEditService:{edit:async(org,actor)=>{own(org);if(actor!==IDENTITY.userId)throw new Error('actor');return production;}},
+    SocialFactoryProductionService:{...Object.fromEntries(['renderLocal','plan','prepare','bindVideo','finalizeVideo','reinspect','revise','composeLocalVideoV2','localVideoCompositionV2','stopLocalVideoCompositionV2'].map(method=>[method,async(org,actor)=>{own(org);if(actor!==IDENTITY.userId)throw new Error('actor');return production;}])),get:async(org)=>{own(org);return {campaignId};}},
+    VideoProductionService:Object.fromEntries(['createRevision','get','preflight','approveAndLaunch','stop','retrySave'].map(method=>[method,async(org)=>{own(org);return video;}])),
+    SocialFactoryOptionalAnalyticsService:{evidence:async(org)=>{own(org);return {documents:[{title:INJECTION}],gaps:[INJECTION]};}},
+    SocialFactoryAttributionService:{createLink:async(org)=>{own(org);return {link:{targetUrl:INJECTION}};},clicks:async(org)=>{own(org);return {availability:'unknown',reason:INJECTION};}},
+    SocialFactoryLearningService:{proposeExperiment:async(org)=>{own(org);return {id:'experiment-1',dimension:INJECTION};},evaluate:async(org)=>{own(org);return {status:'insufficient_data',statement:INJECTION};}},
+    SocialFactoryHelixaExchangeService:{exchange:async(org)=>{own(org);return {status:'not_connected',reason:INJECTION};},prepareFindingFeedback:async(org)=>{own(org);return {document:INJECTION,statement:INJECTION,expiresAt:'2099-01-01T00:00:00Z'};},proposeRegisteredFinding:async(org)=>{own(org);return {status:'not_connected',reason:INJECTION};}},
+  };
+  const call=input=>({input,services}); const base={campaignId,requestId:'production-request-1',instruction:INJECTION};
+  const localManifest={version:3,kind:'local_owned_composition',source:{pieceId:'piece-1',revision:'a'.repeat(64),textSha256:'b'.repeat(64)},title:INJECTION,locale:'ru',funding:{kind:'local_compute',scope:'final_only'},settings:{width:1080,height:1920,fps:30,fit:'contain_pad',transition:'hard_cut',captions:'none'},scenes:[{id:'clip-1',mediaId:'owned-clip',durationSeconds:5,sourceAudio:'silent'}]};
+  return {
+    'campaign.compose_local_video':call({operationId:'operation-1',expectedContentRevision:1,requestId:'local-request',manifest:localManifest}),
+    'campaign.local_video_open':call({operationId:'operation-1',compositionId:'composition-1'}),'campaign.local_video_stop':call({operationId:'operation-1',compositionId:'composition-1'}),
+    'helixa.read':call({operation:'knowledge.read',resourceIds:['claim-1']}),'campaign.experiment':call({channelId:'channel-1',dimension:'hook',metric:'Views',objective:'maximize',baseline:{label:INJECTION,itemIds:['i1','i2','i3']},candidate:{label:INJECTION,itemIds:['i4','i5','i6']},comparisonWindowHours:48,endsAt:'2099-01-01T00:00:00Z'}),'campaign.evaluate_experiment':call({experimentId:'experiment-1'}),'campaign.propose_finding':call({findingId:'finding-1',projectId:'project-1',commandId:'command-1',occurredAt:'2030-01-01T00:00:00Z',basedOn:{claimId:'claim-1',revision:1},feedbackEvidence:[{id:'e1',sourceDomain:'content',sourceId:'source-1',sourceRevisionId:'r1',artifactId:'artifact-1',evidenceHash:'a'.repeat(64),policyRevision:'p1',providerPermissionRequired:false}],sensitive:true}),
+    'source.resolve_artifact':call({version:1,kind:'piece',pieceId:'piece-1'}),'source.edit_draft_artifact':call({sourceArtifact:{version:1,kind:'adaptation',pieceId:'piece-1',adaptationId:'adaptation-1',revision:'a'.repeat(64)},body:INJECTION,requestId:'edit-draft-1'}),'campaign.draft_destination_create':call({requestId:'draft-1',name:INJECTION,platform:'instagram',locale:'ru'}),'campaign.render_local_reel':call({operationId:'operation-1',expectedContentRevision:1}),
+    'campaign.revise':call({campaignId,itemId,requestId:'explicit-revision-1',expectedContentRevision:1,instruction:INJECTION}),'campaign.reinspect':call({operationId:'operation-1',expectedContentRevision:1}),'campaign.edit':call({campaignId,itemId,expectedContentRevision:1,body:INJECTION}),'campaign.plan_materials':call(base),'campaign.prepare':call(base),
+    'campaign.bind_video':call({campaignId,itemId,operationId:'operation-1',manifest,intentId:'production_intent_01'}),
+    'campaign.finalize_video':call({operationId:'operation-1'}),
+    'video.production_create':call({manifest,intentId:'production_intent_01'}),
+    'video.production_open':call({productionId}), 'video.production_preflight':call({productionId,maxTotalUsd:5}),
+    'video.production_launch':call({productionId,approvalId:'approval-1',digest:'a'.repeat(64)}),
+    'video.production_stop':call({productionId}),'video.production_retry_save':call({productionId,jobId:'job-1'}),
+    'campaign.optional_evidence':call({channelId:'channel-1',sourceIds:['source-1'],connectorId:'licensed_registry_export_v1'}),
+    'campaign.tracking_link':call({campaignId,channelId:'channel-1',itemId,surface:'post',targetUrl:'https://example.com/',requestId:'tracking-1'}),
+    'campaign.tracking_clicks':call({linkId:'link-1'}),'campaign.finding_feedback':call({findingId:'finding-1'}),
+  };
+};
 const fixtures = () => ({
   ...videoFixtures(),
+  ...campaignFixtures(),
+  ...productionFixtures(),
   'workspace.snapshot': {
     input: {},
     services: {
@@ -1331,7 +1524,7 @@ const requestContextFor = (registry, identity = IDENTITY) => {
  * input, the request context, a writer and, for questions, the agent's
  * suspend/resume pair.
  */
-const executeTool = async (tool, input, { requestContext, resumeData, suspendPayload, mastra } = {}) => {
+const executeTool = async (tool, input, { requestContext, resumeData, suspendPayload, mastra, toolCallId } = {}) => {
   const parts = [];
   const suspended = [];
   const output = await tool.execute(input, {
@@ -1339,6 +1532,7 @@ const executeTool = async (tool, input, { requestContext, resumeData, suspendPay
     ...(mastra ? { mastra } : {}),
     writer: { custom: async (part) => void parts.push(part) },
     agent: {
+      ...(toolCallId ? {toolCallId} : {}),
       resumeData,
       // On resume Mastra hands back what the call suspended with.
       ...(suspendPayload !== undefined ? { suspendPayload } : {}),
@@ -1366,11 +1560,12 @@ const executeFixture = async (tool, fixture, { requestContext }) => {
     requestContext.set('cf.originalAuthorRequest', JSON.stringify(fixture.originalAuthorRequest));
   }
   if (fixture.resumeData === undefined) {
-    return executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra });
+    return executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra, toolCallId: fixture.nativeToolCallId });
   }
-  const asked = await executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra });
+  const asked = await executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra, toolCallId: fixture.nativeToolCallId });
   const answered = await executeTool(tool, fixture.input, {
     requestContext,
+    toolCallId: fixture.nativeToolCallId,
     mastra: fixture.mastra,
     resumeData: fixture.resumeData,
     suspendPayload: asked.suspended[0],

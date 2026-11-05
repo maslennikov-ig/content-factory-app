@@ -1,3 +1,4 @@
+import type { ProductionAssetV1, JsonValueV1 } from '../../content-intelligence/social-factory/contracts/social-factory.v1';
 import { Integration } from '@prisma/client';
 
 export interface ClientInformation {
@@ -57,7 +58,7 @@ export interface IAuthenticator {
 export interface AnalyticsData {
   label: string;
   data: Array<{ total: string; date: string }>;
-  percentageChange: number;
+  percentageChange: number | null;
 }
 
 export type GenerateAuthUrlResponse = {
@@ -142,6 +143,9 @@ export interface SocialProvider
   extends IAuthenticator,
     ISocialMediaIntegration {
   identifier: string;
+  /** Provider-side authenticated account capability lookup; never a client assertion. */
+  readAccountType?(integration: Integration): Promise<'business' | 'creator' | 'unknown'>;
+  nativeEditorialSettings?(assets: Pick<ProductionAssetV1, 'mediaId'|'kind'|'role'|'url'>[]): Record<string, JsonValueV1>;
   refreshWait?: boolean;
   convertToJPEG?: boolean;
   stripLinks?: () => boolean;

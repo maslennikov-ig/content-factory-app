@@ -20,11 +20,19 @@ integration('actual shared VideoModule initializes through Nest DI and recovers 
         start: async (...args) => { starts.push(args); return {}; },
       } }) },
     };
-    // Only the inherited donor providers and the external text client boundary
-    // are substituted. Every new VideoModule provider is its actual source.
-    const { VideoModule } = loadTypeScriptModule(
-      'libraries/nestjs-libraries/src/videos/video.module.ts',
+    // Video providers, connection authority and AgentThreadsService use actual
+    // source. External text/memory/Redis and unrelated chat channels are fixtures.
+    class MastraMemoryBoundary {}
+    const { VideoModule, ChatModule } = loadTypeScriptModule(
+      'tests/helpers/video-chat-module.fixture.ts',
       {
+        '@contentfactory/nestjs-libraries/chat/mastra.service': { MastraService: MastraMemoryBoundary },
+        '@contentfactory/nestjs-libraries/chat/channels/telegram-agent-channel.service': { TelegramAgentChannelService: class TelegramAgentChannelService {} },
+        '@contentfactory/nestjs-libraries/chat/capabilities/mcp-confirmation': { McpConfirmationService: class McpConfirmationService {} },
+        '@contentfactory/nestjs-libraries/redis/redis.service': { ioRedis: {} },
+        '@mastra/ai-sdk/ui': { toAISdkMessages: (messages) => messages },
+        '@mastra/memory': { Memory: class {} },
+        '@mastra/core/processors': { RegexFilterProcessor: class {}, UnicodeNormalizer: class {} },
         '@contentfactory/nestjs-libraries/videos/images-slides/images.slides': { ImagesSlides: class ImagesSlides {} },
         '@contentfactory/nestjs-libraries/videos/veo3/veo3': { Veo3: class Veo3 {} },
         '../openai/ai.clients': {
@@ -60,8 +68,11 @@ integration('actual shared VideoModule initializes through Nest DI and recovers 
     Global()(SyntheticInfrastructureModule);
     Module({ providers: globals, exports: globals.map((provider) => provider.provide) })(SyntheticInfrastructureModule);
 
+    const threadRows = new Map();
     context = await Test.createTestingModule({
-      imports: [SyntheticInfrastructureModule, VideoModule],
+      imports: [SyntheticInfrastructureModule, ChatModule, VideoModule],
+    }).overrideProvider(MastraMemoryBoundary).useValue({
+      conductor: async () => ({ getMemory: async () => ({ getThreadById: async ({ threadId }) => threadRows.get(threadId) ?? null }) }),
     }).compile();
     await context.init();
 
@@ -80,6 +91,24 @@ integration('actual shared VideoModule initializes through Nest DI and recovers 
     expect(port).toBeDefined();
     expect(context.get(port.provide)).toBe(context.get(Execution));
     expect(context.get(Recovery)).toBeInstanceOf(Recovery);
+    const personalProduction = context.get(registeredClass('VideoProductionPersonalServiceV2'));
+    expect(context.get(registeredClass('VideoProductionService')).personal).toBe(personalProduction);
+    expect(personalProduction.access).toBe(context.get(registeredClass('VideoAccessService')));
+    const chatProviders = Reflect.getMetadata('providers', ChatModule);
+    const Threads = chatProviders.find((provider) => typeof provider === 'function' && provider.name === 'AgentThreadsService');
+    const chatPort = chatProviders.find((provider) => provider?.useExisting === Threads);
+    expect(chatPort).toBeDefined();
+    const connections = context.get(registeredClass('VideoConnectionService'));
+    expect(connections.returnContext).toBe(context.get(Threads));
+    expect(context.get(chatPort.provide)).toBe(connections.returnContext);
+    const identity = { organizationId: f.org.id, userId: f.user.id };
+    threadRows.set('owned-chat', { id: 'owned-chat', resourceId: `${f.org.id}:${f.user.id}` });
+    threadRows.set('foreign-chat', { id: 'foreign-chat', resourceId: `${f.org.id}:${f.otherUser.id}` });
+    threadRows.set('hidden-chat', { id: 'hidden-chat', resourceId: `${f.org.id}:${f.user.id}`, metadata: { forkedSubagent: true } });
+    expect(await connections.returnContext.ownThread(identity, 'owned-chat')).toMatchObject({ id: 'owned-chat' });
+    expect(await connections.returnContext.ownThread(identity, 'missing-chat')).toBeNull();
+    expect(await connections.returnContext.ownThread(identity, 'hidden-chat')).toBeNull();
+    await expect(connections.returnContext.ownThread(identity, 'foreign-chat')).rejects.toMatchObject({ status: 403 });
     expect(starts).toContainEqual(['videoGenerationWorkflowV1', {
       workflowId: `video-v1:${pending.id}`, taskQueue: 'main',
       args: [{ organizationId: f.org.id, jobId: pending.id }],

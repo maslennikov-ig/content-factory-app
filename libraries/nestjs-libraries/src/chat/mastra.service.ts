@@ -29,6 +29,8 @@ import { readAgentOperationRunGuard } from './conductor/agent-operation-receipts
 import { observeConductorRun } from './conductor/native-run-observer';
 import { createNativeObservability } from './conductor/native-observability';
 import { NativeSessionCache } from './conductor/native-session-cache';
+import { assertNativeRecoveryAllowed, cancelNativeRunSnapshots, NativeRecoveryRefusedError,
+  nativeSnapshotTerminal, nativeStopIntent, NativeStopOwnerPendingError, NATIVE_NESTED_WORKFLOW, type NativeStopBinding } from './conductor/native-stop';
 import { restoreNativeRunContext } from './conductor/native-session-context';
 import { protectPersistedApprovals } from './conductor/native-session-permissions';
 import {
@@ -230,7 +232,7 @@ export class MastraService
   resolveWorkContext(
     identity: CapabilityIdentity,
     context: AgentWorkContextV1,
-    options?: { refresh?: boolean }
+    options?: { refresh?: boolean; threadId?: string }
   ) {
     return this.workContextResolver().resolve(identity, context, options);
   }
@@ -588,7 +590,9 @@ export class MastraService
     });
   }
 
-  async cancelModelAvailability(runId: string, threadId?: string) {
+  async cancelModelAvailability(runId: string, threadId?: string, options?: {
+    markOnly?: boolean; expected?: {resourceId: string; requestId: string};
+  }) {
     await this.mastra();
     const agent = await this.conductor();
     const id =
@@ -603,108 +607,150 @@ export class MastraService
       const pointer = thread?.metadata?.assistantNativeRun as
         | Record<string, unknown>
         | undefined;
+      if (options?.expected && (thread?.resourceId !== options.expected.resourceId ||
+          pointer?.logicalRequestId !== options.expected.requestId)) throw new Error('Native Stop task changed.');
       if (
         pointer &&
         (pointer.runId === runId || pointer.previousRunId === runId)
       ) {
-        const marker = thread?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as
-          | Record<string, unknown>
-          | undefined;
-        await memory!.updateThread({
-          id,
-          metadata: {
-            assistantNativeRun: {
-              ...pointer,
-              state: 'stopped',
-              continuationPending: false,
-              continuationIdentity: null,
-              retryAt: null,
-            },
-            ...(typeof pointer.logicalRequestId === 'string'
-              ? {
-                  [AGENT_EXECUTION_METADATA_KEY]: {
-                    ...marker,
-                    requestId: pointer.logicalRequestId,
-                    state:
-                      marker?.requestId === pointer.logicalRequestId &&
-                      marker.state === 'settled'
-                        ? 'settled'
-                        : 'stopping',
-                    stopRequested: true,
-                  },
-                }
-              : {}),
+        const memoryStore = await pStore.getStore('memory');
+        if (!memoryStore || !thread || typeof pointer.logicalRequestId !== 'string')
+          throw new Error('Native Stop task ownership is unavailable.');
+        const marked = await memoryStore.updateThreadMetadata({
+          id, resourceId: thread.resourceId,
+          update: current => {
+            const currentPointer = current.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+            const currentMarker = current.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+            if (currentPointer?.runId !== pointer.runId || currentPointer.logicalRequestId !== pointer.logicalRequestId ||
+                currentMarker?.requestId && currentMarker.requestId !== pointer.logicalRequestId) return undefined;
+            return {
+              assistantNativeRun: {
+                ...currentPointer,
+                state: 'stopped',
+                continuationPending: false,
+                continuationIdentity: null,
+                retryAt: null,
+              },
+              ...(typeof pointer.logicalRequestId === 'string'
+                ? {
+                    [AGENT_EXECUTION_METADATA_KEY]: {
+                      ...currentMarker,
+                      requestId: pointer.logicalRequestId,
+                      state:
+                        currentMarker?.requestId === pointer.logicalRequestId &&
+                        currentMarker.state === 'settled'
+                          ? 'settled'
+                          : 'stopping',
+                      stopRequested: true,
+                    },
+                  }
+                : {}),
+            };
           },
         });
-        if (isDurableAgent(agent) && thread) {
-          const related = new Set(
-            [
-              runId,
-              pointer.runId,
-              pointer.previousRunId,
-              ...(Array.isArray(pointer.lineageRunIds)
-                ? pointer.lineageRunIds
-                : []),
-            ].filter((value): value is string => typeof value === 'string')
-          );
-          const suspended = await agent.listSuspendedRuns({
-            threadId: id,
-            resourceId: thread.resourceId,
-          });
-          const workflows = await pStore.getStore('workflows');
-          if (!workflows)
-            throw new Error('Native Stop storage is unavailable.');
-          for (const pending of suspended.runs) {
-            if (!related.has(pending.runId)) continue;
-            const local = agent.runRegistry.get(pending.runId);
-            await (
-              await agent.getWorkflow().createRun({ runId: pending.runId })
-            ).cancel();
-            const persisted = await workflows.getWorkflowRunById({
-              workflowName: 'durable-agentic-loop',
-              runId: pending.runId,
-            });
-            const snapshot =
-              typeof persisted?.snapshot === 'string'
-                ? JSON.parse(persisted.snapshot)
-                : persisted?.snapshot;
-            // Run.cancel can swallow its storage error. A persisted terminal
-            // state, rather than its resolved Promise, acknowledges cold Stop.
-            if (snapshot?.status !== 'canceled')
-              throw new Error('Native Stop cancellation was not persisted.');
-            if (!local)
-              await this.reconcileNativeRun(id, pending.runId, 'interrupted');
-          }
-          if (
-            pointer.continuationPending === true &&
-            typeof pointer.runId === 'string' &&
-            typeof pointer.previousRunId === 'string'
-          ) {
-            const handedOff = [pointer.runId, pointer.previousRunId];
-            const states = await Promise.all(
-              handedOff.map(async (nativeRunId) => ({
-                local: agent.runRegistry.get(nativeRunId),
-                snapshot: await workflows.getWorkflowRunById({
-                  workflowName: 'durable-agentic-loop',
-                  runId: nativeRunId,
-                }),
-                owner: await workflows.getRunOwnership({ runId: nativeRunId }),
-              }))
-            );
-            if (
-              states.every(
-                (state) => !state.local && !state.snapshot && !state.owner?.live
-              )
-            ) {
-              // Queue acceptance was saved, but no native driver/checkpoint
-              // remains to emit FINISH. Stop itself settles this exact intent.
-              await this.reconcileNativeRun(id, pointer.runId, 'interrupted');
-            }
-          }
-        }
+        const stillOwned = async () => {
+          const current = await memory!.getThreadById({threadId: id});
+          const currentPointer = current?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+          const currentMarker = current?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+          return current?.resourceId === thread.resourceId && currentPointer?.runId === pointer.runId &&
+            currentPointer.logicalRequestId === pointer.logicalRequestId && currentMarker?.requestId === pointer.logicalRequestId &&
+            currentMarker.stopRequested === true;
+        };
+        if (!marked || !await stillOwned()) throw new Error('Native Stop task changed.');
+        if (!options?.markOnly) await this.finalizeNativeStop({runId, threadId: id,
+          resourceId: thread.resourceId, requestId: pointer.logicalRequestId});
       }
     }
     await this.modelAvailability!.cancel(runId);
+  }
+
+  /** Durable cancellation phase: called after the captured HTTP owner was aborted and drained. */
+  async finalizeNativeStop(input: NativeStopBinding, options?: {waitForOwnerMs?: number}) {
+    const agent = await this.conductor();
+    const memory = await agent.getMemory();
+    const thread = await memory?.getThreadById({threadId: input.threadId});
+    const pointer = thread?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+    const marker = thread?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+    const related = [pointer?.runId, pointer?.previousRunId, ...(Array.isArray(pointer?.lineageRunIds) ? pointer.lineageRunIds : [])];
+    if (!thread || thread.resourceId !== input.resourceId || pointer?.logicalRequestId !== input.requestId ||
+        !related.includes(input.runId) || marker?.requestId !== input.requestId || !nativeStopIntent(thread, input))
+      throw new Error('Native Stop task changed.');
+    const stillOwned = async () => {
+      const current = await memory!.getThreadById({threadId: input.threadId});
+      const actual = current?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+      const execution = current?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined;
+      return current?.resourceId === input.resourceId && actual?.runId === pointer.runId &&
+        actual.logicalRequestId === input.requestId && execution?.requestId === input.requestId && nativeStopIntent(current, input);
+    };
+    if (isDurableAgent(agent)) {
+      const related = new Set(
+        [
+          input.runId,
+          pointer.runId,
+          pointer.previousRunId,
+          ...(Array.isArray(pointer.lineageRunIds)
+            ? pointer.lineageRunIds
+            : []),
+        ].filter((value): value is string => typeof value === 'string')
+      );
+      const workflows = await pStore.getStore('workflows');
+      if (!workflows)
+        throw new Error('Native Stop storage is unavailable.');
+      const deadline = Date.now() + Math.max(0, Math.min(35_000, options?.waitForOwnerMs ?? 0));
+      for (const nativeRunId of related) {
+        const capturedOwner = await workflows.getRunOwnership({runId: nativeRunId});
+        let owner = capturedOwner;
+        // A killed host can retain a live lease. Only its same fenced identity
+        // may retire here; Stop never releases or takes over a foreign owner.
+        while (owner?.live && Date.now() < deadline) {
+          if (!await stillOwned()) throw new Error('Native Stop task changed.');
+          await new Promise(resolve => setTimeout(resolve, Math.min(250, Math.max(1, deadline - Date.now()))));
+          owner = await workflows.getRunOwnership({runId: nativeRunId});
+          if (owner?.ownerId !== capturedOwner?.ownerId || owner?.generation !== capturedOwner?.generation)
+            throw new Error('Native Stop native owner changed.');
+        }
+        if (owner?.live) throw new NativeStopOwnerPendingError();
+        if (!await stillOwned()) throw new Error('Native Stop task changed.');
+        const persisted = await workflows.getWorkflowRunById({
+          workflowName: 'durable-agentic-loop',
+          runId: nativeRunId,
+        });
+        // Completed predecessors are history, not cancellation targets.
+        if (persisted && nativeSnapshotTerminal(persisted)) {
+          const nested = await workflows.getWorkflowRunById({workflowName: NATIVE_NESTED_WORKFLOW, runId: nativeRunId});
+          if (!nested || nativeSnapshotTerminal(nested)) continue;
+        }
+        await cancelNativeRunSnapshots(pStore, {runId: nativeRunId, threadId: input.threadId,
+          resourceId: thread.resourceId, requestId: pointer.logicalRequestId as string}, stillOwned);
+        if (persisted && !agent.runRegistry.get(nativeRunId))
+          await this.reconcileNativeRun(input.threadId, nativeRunId, 'interrupted');
+      }
+      if (
+        typeof pointer.runId === 'string' &&
+        typeof pointer.previousRunId === 'string'
+      ) {
+        const handedOff = [pointer.runId, pointer.previousRunId];
+        const states = await Promise.all(
+          handedOff.map(async (nativeRunId) => ({
+            local: agent.runRegistry.get(nativeRunId),
+            snapshot: await workflows.getWorkflowRunById({
+              workflowName: 'durable-agentic-loop',
+              runId: nativeRunId,
+            }),
+            owner: await workflows.getRunOwnership({ runId: nativeRunId }),
+          }))
+        );
+        if (
+          states.every(
+            (state) => !state.local && !state.snapshot && !state.owner?.live
+          )
+        ) {
+          // Queue acceptance was saved, but no native driver/checkpoint
+          // remains to emit FINISH. Stop itself settles this exact intent.
+          await this.reconcileNativeRun(input.threadId, pointer.runId, 'interrupted');
+        }
+      }
+    }
   }
 
   /** Called only after Stop drained its HTTP owner and verified the saved tail. */
@@ -727,7 +773,6 @@ export class MastraService
         ['completed', 'failed', 'interrupted'].includes(String(marker.outcome));
     };
     if (!owns(thread)) return false;
-    if (settled(thread)) return true;
     const pointer = thread!.metadata!.assistantNativeRun as Record<string, unknown>;
     const workflows = await pStore.getStore('workflows');
     const memoryStore = await pStore.getStore('memory');
@@ -737,8 +782,9 @@ export class MastraService
     ].filter((id): id is string => typeof id === 'string' && !!id))];
     for (const runId of related) {
       if (agent.runRegistry.get(runId)) return false;
-      const [saved, owner] = await Promise.all([
+      const [saved, nested, owner] = await Promise.all([
         workflows.getWorkflowRunById({ workflowName: 'durable-agentic-loop', runId }),
+        workflows.getWorkflowRunById({ workflowName: NATIVE_NESTED_WORKFLOW, runId }),
         workflows.getRunOwnership({ runId }),
       ]);
       const snapshot = typeof saved?.snapshot === 'string' ? JSON.parse(saved.snapshot) : saved?.snapshot;
@@ -747,8 +793,12 @@ export class MastraService
       // acknowledge its successor's Stop. Nonterminal ancestors still fence it.
       const terminalPredecessor = runId !== input.runId &&
         ['success', 'failed', 'tripwire', 'bailed', 'skipped'].includes(snapshot?.status);
-      if (owner?.live || (saved && snapshot?.status !== 'canceled' && !terminalPredecessor)) return false;
+      const completedTarget = runId === input.runId && settled(thread) &&
+        (thread?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown>)?.outcome === 'completed' && nativeSnapshotTerminal(saved);
+      if (owner?.live || (saved && snapshot?.status !== 'canceled' && !terminalPredecessor && !completedTarget) ||
+          nested && !nativeSnapshotTerminal(nested)) return false;
     }
+    if (settled(thread)) return true;
     // No driver/checkpoint remains to emit FINISH after a failed resume. Stop
     // owns this terminal write, atomically guarded against a successor task.
     const updated = await memoryStore.updateThreadMetadata({
@@ -895,7 +945,7 @@ export class MastraService
           : readStoredAgentWorkspace(thread.metadata).workContext
         : selectedOverride;
     const workContext = selected
-      ? await this.resolveWorkContext(identity, selected, { refresh: true })
+      ? await this.resolveWorkContext(identity, selected, { refresh: true, threadId })
       : null;
     const writing = writingOverride === undefined
       ? pointer?.logicalRequestId === requestId && pointer.continuationWritingSelection !== undefined
@@ -1194,6 +1244,16 @@ export class MastraService
           : {}),
       },
     });
+    // Identify this writer separately from the owning HTTP lifecycle. Log no
+    // content, context, tool arguments or raw provider errors.
+    try {
+      this.instance?.getLogger().info('agent_native_execution_outcome', {
+        origin: 'native-reconcile', threadId, runId,
+        requestId: typeof pointer?.logicalRequestId === 'string' ? pointer.logicalRequestId
+          : typeof marker?.requestId === 'string' ? marker.requestId : undefined,
+        requestedOutcome: outcome, effectiveOutcome: effective, stopRequested: stopped,
+      });
+    } catch { /* Diagnostic output must not change a persisted outcome. */ }
   }
 
   private nativeFinishOutcome(
@@ -1572,6 +1632,15 @@ export class MastraService
         // the backend heap. Completed reconnects use saved native history;
         // suspended gates keep their snapshots and are not auto-cleaned here.
       });
+      // Fleet bootstrap, its later owner-expiry rechecks and explicit force
+      // recovery all dispatch through this public instance method. Preserve
+      // SDK discovery/ownership/timers while refusing stopped work first.
+      const nativeRecover = durableAgent.recover.bind(durableAgent);
+      durableAgent.recover = (async (...args: Parameters<typeof nativeRecover>) => {
+        if (typeof args[0] !== 'string') throw new NativeRecoveryRefusedError('unverified');
+        await assertNativeRecoveryAllowed(pStore, await durableAgent.getMemory(), args[0]);
+        return nativeRecover(...args);
+      }) as typeof durableAgent.recover;
       const agents = { [CONDUCTOR_AGENT_ID]: durableAgent };
       const namespace = createHash('sha256')
         .update(
@@ -1911,7 +1980,7 @@ export class MastraService
             status: 'failed',
             error: error instanceof Error ? error : new Error(String(error)),
           });
-          if (threadId)
+          if (threadId && !(error instanceof NativeRecoveryRefusedError))
             await this.reconcileNativeRun(threadId, target.runId, 'failed');
         }
       }

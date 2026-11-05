@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import dayjs from 'dayjs';
 import { Integration, Prisma, State } from '@prisma/client';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
@@ -295,6 +295,40 @@ export class IntegrationRepository {
   }
 
   async updateIntegration(id: string, params: Partial<Integration>) {
+    const organizationId = params.organizationId;
+    if (!organizationId) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    const fresh = await this._integration.model.integration.findUnique({
+      where: { id, organizationId },
+      select: {
+        rootInternalId: true,
+        refreshToken: true,
+        tokenExpiration: true,
+        providerIdentifier: true,
+      },
+    });
+    if (!fresh) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    const existing = await this._integration.model.integration.findUnique({
+      where: {
+        organizationId_internalId: {
+          organizationId,
+          internalId: params.internalId,
+        },
+      },
+    });
+
+    if (existing && existing.providerIdentifier !== fresh.providerIdentifier) {
+      throw new ConflictException({
+        code: 'CF_CHANNEL_PROVIDER_COLLISION',
+        message: 'This connection conflicts with another channel in this workspace. Your existing channel has not been changed.',
+      });
+    }
+
     if (
       params.picture &&
       (params.picture.indexOf(process.env.CLOUDFLARE_BUCKET_URL!) === -1 ||
@@ -303,16 +337,7 @@ export class IntegrationRepository {
       params.picture = await this.storage.uploadSimple(params.picture);
     }
 
-    const existing = await this._integration.model.integration.findUnique({
-      where: {
-        organizationId_internalId: {
-          organizationId: params.organizationId!,
-          internalId: params.internalId,
-        },
-      },
-    });
-
-    if (existing) {
+    if (existing && existing.id !== id) {
       await this._posts.model.post.updateMany({
         where: {
           integrationId: id,
@@ -325,6 +350,8 @@ export class IntegrationRepository {
       await this._integration.model.integration.update({
         where: {
           id,
+          organizationId,
+          providerIdentifier: fresh.providerIdentifier,
         },
         data: {
           internalId: `deleted_${params.internalId}_${makeId(10)}`,
@@ -336,11 +363,17 @@ export class IntegrationRepository {
     return this._integration.model.integration.update({
       where: {
         ...(existing ? { id: existing.id } : { id }),
+        organizationId,
+        providerIdentifier: fresh.providerIdentifier,
       },
       data: {
         ...params,
+        ...(fresh.rootInternalId ? { rootInternalId: fresh.rootInternalId } : {}),
+        ...(fresh.refreshToken ? { refreshToken: fresh.refreshToken } : {}),
+        ...(fresh.tokenExpiration ? { tokenExpiration: fresh.tokenExpiration } : {}),
         disabled: false,
         deletedAt: null,
+        refreshNeeded: false,
       },
     });
   }
@@ -375,7 +408,7 @@ export class IntegrationRepository {
     internalId: string,
     provider: string,
     token: string,
-    refreshToken = '',
+    refreshToken: string | null = '',
     expiresIn = 999999999,
     username?: string,
     isBetweenSteps = false,
@@ -406,7 +439,7 @@ export class IntegrationRepository {
         profile: username,
         ...(picture ? { picture } : {}),
         inBetweenSteps: isBetweenSteps,
-        refreshToken,
+        refreshToken: refreshToken || '',
         ...(expiresIn
           ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
           : {}),
@@ -435,7 +468,8 @@ export class IntegrationRepository {
         profile: username,
         providerIdentifier: provider,
         token,
-        refreshToken,
+        // Missing reconnect credentials do not revoke an existing grant.
+        ...(refreshToken ? { refreshToken } : {}),
         ...(expiresIn
           ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
           : {}),
@@ -483,7 +517,7 @@ export class IntegrationRepository {
         },
         data: {
           token,
-          refreshToken,
+          ...(refreshToken ? { refreshToken } : {}),
           refreshNeeded: false,
           ...(expiresIn
             ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }

@@ -59,7 +59,8 @@ describe('the full-suite CI job', () => {
   test('keeps the canonical three halves and native whole-population discovery', () => {
     const scripts = require('../package.json').scripts;
     expect(scripts.test).toBe('pnpm run test:jest && pnpm run test:node && pnpm run test:python');
-    expect(scripts['test:jest']).toContain('jest --coverage --detectOpenHandles');
+    expect(scripts['test:jest']).toBe('NODE_OPTIONS=--max-old-space-size=12288 node scripts/ci/jest-shards.cjs run --coverage --detectOpenHandles --reporters=default --reporters=jest-junit');
+    expect(runText).not.toContain('CF_RELEASE_JEST_MODE');
     expect(scripts['test:node']).toMatch(/^node --test --test-concurrency=1 /);
     expect(scripts['test:python']).toMatch(/^python3 -m unittest /);
     expect(runText).toContain('jest --listTests --json');

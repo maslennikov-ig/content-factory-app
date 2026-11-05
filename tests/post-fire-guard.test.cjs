@@ -235,8 +235,11 @@ describe('publish activities after the sleep (F2 activity guard)', () => {
 });
 
 describe('stopping a post workflow (F2 termination)', () => {
-  const service = (temporal) => {
+  const service = (temporal, campaignBound = false) => {
     const created = new PostsService({}, {}, {}, {}, {}, {}, {}, {}, {});
+    created._postRepository = {
+      isSocialFactoryPublication: jest.fn(async () => campaignBound),
+    };
     created._temporalService = temporal;
     return created;
   };
@@ -273,9 +276,11 @@ describe('stopping a post workflow (F2 termination)', () => {
   test('a draft terminates `post_<id>` by id even when search finds nothing, and starts nothing', async () => {
     const terminated = [];
     const temporal = temporalWith({ terminate: (id) => terminated.push(id) });
-    await service(temporal).startWorkflow('telegram', 'p1', 'org-a', 'DRAFT');
+    const posts = service(temporal);
+    await posts.startWorkflow('telegram', 'p1', 'org-a', 'DRAFT');
     expect(terminated).toEqual(['post_p1']);
     expect(temporal.calls.starts).toEqual([]);
+    expect(posts._postRepository.isSocialFactoryPublication).not.toHaveBeenCalled();
     expect(errors).toEqual([]);
   });
 
@@ -296,12 +301,23 @@ describe('stopping a post workflow (F2 termination)', () => {
     expect(errors.join('\n')).toContain('post_p1_abc was not terminated: search terminate failed');
   });
 
-  test('a queued post is stopped by id, then started again under the same id', async () => {
+  test.each([[false, 'postWorkflowV108'], [true, 'postWorkflowV109']])('a queued post with campaign binding %s restarts under the same id using %s', async (campaignBound, workflow) => {
     const terminated = [];
     const temporal = temporalWith({ terminate: (id) => terminated.push(id) });
-    await service(temporal).startWorkflow('telegram', 'p1', 'org-a', 'QUEUE');
+    const posts = service(temporal, campaignBound);
+    expect(await posts.startWorkflow('telegram', 'p1', 'org-a', 'QUEUE')).toBe(true);
     expect(terminated).toEqual(['post_p1']);
-    expect(temporal.calls.starts).toEqual([['postWorkflowV108', 'post_p1']]);
+    expect(posts._postRepository.isSocialFactoryPublication).toHaveBeenCalledWith('org-a', 'p1');
+    expect(temporal.calls.starts).toEqual([[workflow, 'post_p1']]);
+  });
+
+  test('a failed binding lookup refuses to start a queued post through either workflow', async () => {
+    const temporal = temporalWith({ terminate: () => undefined });
+    const posts = service(temporal);
+    posts._postRepository.isSocialFactoryPublication = async () => { throw new Error('binding database unavailable'); };
+    expect(await posts.startWorkflow('telegram', 'p1', 'org-a', 'QUEUE')).toBe(false);
+    expect(temporal.calls.starts).toEqual([]);
+    expect(errors.join('\n')).toContain('binding database unavailable');
   });
 });
 
@@ -309,6 +325,7 @@ describe('queue status tells whether the workflow started (review F7)', () => {
   const withStart = (start) => {
     const created = new PostsService({}, {}, {}, {}, {}, {}, {}, {}, {});
     created._postRepository = {
+      isSocialFactoryPublication: async () => false,
       getPostById: async (id) => ({ id, integration: { providerIdentifier: 'telegram' } }),
       changeState: async () => undefined,
       // A plain Postiz post: the CF one-queue gate lets the write through (97dq.67).
@@ -351,6 +368,7 @@ describe('syncPostWorkflow follows a state that changed during the Temporal call
     const terminated = [];
     const service = new PostsService({}, {}, {}, {}, {}, {}, {}, {}, {});
     service._postRepository = {
+      isSocialFactoryPublication: async () => false,
       getPostById: async (id) => ({
         id,
         state: states.shift(),
@@ -378,6 +396,7 @@ describe('syncPostWorkflow follows a state that changed during the Temporal call
     const reads = [];
     const service = new PostsService({}, {}, {}, {}, {}, {}, {}, {}, {});
     service._postRepository = {
+      isSocialFactoryPublication: async () => false,
       getPostById: async (id) => {
         reads.push(id);
         return { id, state: 'QUEUE', deletedAt: null, integration: { providerIdentifier: 'telegram' } };

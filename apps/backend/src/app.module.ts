@@ -1,3 +1,4 @@
+import { SocialFactoryModule } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.module';
 import { Global, Module } from '@nestjs/common';
 import { DatabaseModule } from '@contentfactory/nestjs-libraries/database/prisma/database.module';
 import { ApiModule } from '@contentfactory/backend/api/api.module';
@@ -23,6 +24,7 @@ import { VoiceRetentionModule } from '@contentfactory/backend/services/content-i
 @Module({
   imports: [
     DatabaseModule,
+    SocialFactoryModule,
     ApiModule,
     PublicApiModule,
     AgentModule,

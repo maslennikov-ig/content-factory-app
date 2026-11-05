@@ -11,6 +11,8 @@ import {
   defaultAdvancedModelForProvider,
   defaultTextModelForProvider,
   defaultTextFallbackModelForProvider,
+  resolveConfiguredTextChain,
+  hasConfiguredOperatorRoles,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
   includedQuotaFallback,
@@ -165,7 +167,7 @@ export class InstanceAiDefaultsService {
       readStoredModelRouting(row?.roleModels), defaultAdvancedModelForProvider(provider)
     );
     const orderedPolicy = resolveOrderedTextChainPolicy(withModelRoutingTextChain({
-      provider, modelRouting, textChain: resolveTextChainSettings(row),
+      provider, modelRouting, textChain: resolveConfiguredTextChain(provider, row, effective.textModel, hasConfiguredOperatorRoles(provider)),
     }), {
       provider,
       usageMode: 'included',
@@ -201,8 +203,9 @@ export class InstanceAiDefaultsService {
       textFallbackDisabled: parsedFallback.disabled,
       textMaxRetries: parsedFallback.maxRetries ?? null,
       textChain: {
-        ...resolveTextChainSettings(row),
-        defaultFallbackModel: defaultTextFallbackModelForProvider(provider),
+        ...resolveConfiguredTextChain(provider, row, effective.textModel, hasConfiguredOperatorRoles(provider)),
+        defaultFallbackModel: provider === 'openrouter' && !effective.textModel && !Object.keys(parseRoleModels(row?.roleModels)).length && !hasConfiguredOperatorRoles(provider)
+          ? '' : defaultTextFallbackModelForProvider(provider),
         fallbackModels: orderedPolicy.fallbackModels,
         configuredFallbackModels: orderedPolicy.configuredFallbackModels,
         fallbackDisabled: orderedPolicy.fallbackDisabled,

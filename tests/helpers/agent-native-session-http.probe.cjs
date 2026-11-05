@@ -154,8 +154,10 @@ async function scenario(kind) {
       resourceId, scope: id, threadId: id, createInitialThread: false, requestContext: options?.requestContext }),
   };
   let admissions = 0;
+  let checkpoints = 0;
   const finished = [];
-  const usage = { beginAiOperation: async () => { admissions++; return { run: work => work(), finish: async value => finished.push(value) }; } };
+  const usage = { beginAiOperation: async () => { admissions++; return { run: work => work(),
+    checkpoint: async () => { checkpoints++; return true; }, finish: async value => finished.push(value) }; } };
   const threads = new AgentThreadsService(service, inProcessRunClaimStore());
   const handler = new HttpController(service, threads, usage);
   const firstResponse = new Response();
@@ -213,6 +215,8 @@ async function scenario(kind) {
   let ownerSettled = false;
   void firstTask.then(() => { ownerSettled = true; });
   await until(() => firstResponse.writableEnded, `${kind} card and HTTP detach`);
+  assert.deepEqual(firstResponse.parts().filter(part => part.type === 'error'), [], 'A parked gate must not hide a failed initial HTTP task.');
+  assert.ok(checkpoints > 0, 'The original admission is checkpointed before exposing the native gate.');
   assert.equal(ownerSettled, false, 'The original task retains its admission while a native gate is parked.');
   assert.equal(admissions, 1);
   assert.deepEqual(finished, []);

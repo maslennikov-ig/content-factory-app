@@ -11,7 +11,7 @@ const auth = {
 };
 const policy = { enabled: true, maxCostUsd: 2, monthlyBudgetUsd: 10 };
 const setup = (workspace, instance) => {
-  const state = { workspace, instance, writes: [] };
+  const state = { workspace, instance, writes: [], integrations: [], sourceReads: [] };
   const prisma = {
     aiProviderSetting: {
       findUnique: async ({ where }) => state.workspace?.organizationId === where.organizationId ? state.workspace : null,
@@ -21,11 +21,12 @@ const setup = (workspace, instance) => {
       },
     },
     instanceAiDefaults: { findUnique: async () => state.instance },
+    thirdParty: { findFirst: async ({where}) => { state.sourceReads.push(where); return state.integrations.find(row => row.id === where.id && row.organizationId === where.organizationId && row.deletedAt === null) ?? null; } },
   };
   prisma.$transaction = async run => run(prisma);
   const mocks = {
     '@contentfactory/helpers/auth/auth.service': { AuthService: auth },
-    '@contentfactory/nestjs-libraries/database/prisma/prisma.service': { PrismaService: class {} },
+    '@contentfactory/nestjs-libraries/database/prisma/prisma.service': { PrismaService: class {}, PrismaRepository: class { constructor(model) { this.model = model; } } },
   };
   const loaded = loadTypeScriptModule(`${base}videos/video-credentials.service.ts`, mocks);
   return { ...loaded, service: new loaded.VideoCredentialsService(prisma), state, mocks, prisma };
@@ -168,4 +169,113 @@ test('video admission uses the video provider/key without altering active text c
   expect(operation.run(() => 'provider-result')).toBe('provider-result');
   expect(textContext).not.toHaveBeenCalled();
   expect(admitted).toEqual([expect.objectContaining({ provider: 'higgsfield', model: 'wan-v3', operation: 'video_generation', role: 'draft', usageMode: 'workspace_key' })]);
+});
+
+const thirdPartySource = id => ({kind: 'third_party', integrationId: id});
+const sourceWorkspace = () => ({...workspace(), videoApiKeys: {...workspace().videoApiKeys, heygen: 'encrypted:unused-inline'},
+  videoSpendPolicy: {...workspace().videoSpendPolicy, heygen: {...policy, credentialSource: thirdPartySource('legacy-heygen')}}});
+const savedSource = (overrides = {}) => ({id: 'legacy-heygen', organizationId: 'org-a', identifier: 'heygen', name: 'Saved presenter API', apiKey: 'encrypted:legacy-secret', deletedAt: null, ...overrides});
+
+test('explicit saved API source resolves only the owned HeyGen row and returns secret-free settings', async () => {
+  const {service,state}=setup(sourceWorkspace(),instance()); state.integrations.push(savedSource());
+  const credential=await service.resolve('org-a','heygen','workspace_key');
+  expect(credential).toMatchObject({provider:'heygen',payer:'workspace_key',apiKey:'legacy-secret',maxCostUsd:2,monthlyBudgetUsd:10});
+  expect(credential.reference).toMatch(/^[a-f0-9]{64}$/);
+  expect(await service.admissionConfig('org-a',credential,'heygen-avatar')).toMatchObject({provider:'heygen',usageMode:'workspace_key',apiKey:'legacy-secret',workspaceKeyConfigured:true});
+  const settings=await service.getSettings('org-a');
+  expect(settings.workspace.heygen).toMatchObject({hasKey:true,available:true,credentialSource:{kind:'third_party',integrationId:'legacy-heygen',name:'Saved presenter API',status:'configured'}});
+  expect(JSON.stringify(settings)).not.toMatch(/encrypted:|legacy-secret|unused-inline/);
+  expect(state.sourceReads.every(where=>where.organizationId==='org-a'&&where.id==='legacy-heygen'&&where.deletedAt===null)).toBe(true);
+  await expect(service.resolvePinned('org-a','heygen','workspace_key',credential.reference)).resolves.toEqual(credential);
+});
+
+test.each([
+  {organizationId:'foreign'}, {identifier:'higgsfield'}, {deletedAt:new Date('2030-01-01T00:00:00Z')}, {apiKey:''},
+])('a foreign, wrong-provider, deleted or empty selected source never falls back to an inline key: %j', async overrides=>{
+  const {service,state}=setup(sourceWorkspace(),instance());state.integrations.push(savedSource(overrides));
+  await expect(service.resolve('org-a','heygen')).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+  const settings=await service.getSettings('org-a');expect(settings.workspace.heygen).toMatchObject({hasKey:false,available:false,credentialSource:{status:'unavailable'}});
+});
+
+test('source rotation, deletion, explicit revoke and source replacement invalidate pinned recovery without changing history',async()=>{
+  for(const change of ['rotate','delete','revoke','replace']){
+    const {service,state}=setup(sourceWorkspace(),instance());state.integrations.push(savedSource());
+    const accepted=await service.resolve('org-a','heygen');const preserved=structuredClone(accepted);
+    if(change==='rotate')state.integrations[0].apiKey='encrypted:new-secret';
+    if(change==='delete')state.integrations[0].deletedAt=new Date('2030-01-01T00:00:00Z');
+    if(change==='revoke')state.workspace.videoSpendPolicy.heygen={...policy,enabled:false,credentialSource:null};
+    if(change==='replace'){state.integrations.push(savedSource({id:'replacement'}));state.workspace.videoSpendPolicy.heygen.credentialSource=thirdPartySource('replacement');}
+    await expect(service.resolvePinned('org-a','heygen','workspace_key',accepted.reference)).rejects.toMatchObject(expect.objectContaining({response:expect.objectContaining({code:expect.stringMatching(/^VIDEO_(CREDENTIAL_CHANGED|CREDENTIAL_SOURCE_UNAVAILABLE)$/)})}));
+    expect(accepted).toEqual(preserved);expect(state.writes).toHaveLength(0);
+  }
+});
+
+test('included payer never reads workspace API integrations, and an instance source is rejected without reading it',async()=>{
+  const own=sourceWorkspace();own.usageMode='included';const operator=instance();
+  const {service,state}=setup(own,operator);state.integrations.push(savedSource());
+  expect((await service.resolve('org-a','heygen')).apiKey).toBe('operator-presenter');
+  await service.getSettings('org-a');expect(state.sourceReads).toEqual([]);
+  state.instance.videoSpendPolicy.heygen.credentialSource=thirdPartySource('legacy-heygen');
+  await expect(service.resolve('org-a','heygen')).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+  await expect(service.resolvePinned('org-a','heygen','included','opaque')).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+  expect(state.sourceReads).toEqual([]);
+});
+
+test('budget-only saves retain the source, explicit null selects inline, and disabled policy still allows pinned reads',async()=>{
+  const {service,state,videoSettingsUpdateV1}=setup(sourceWorkspace(),instance());state.integrations.push(savedSource());
+  expect(videoSettingsUpdateV1(state.workspace,{videoSpendPolicy:{heygen:policy}}).videoSpendPolicy.heygen.credentialSource).toEqual(thirdPartySource('legacy-heygen'));
+  const old=await service.resolve('org-a','heygen');
+  await service.saveWorkspace('org-a',{videoSpendPolicy:{heygen:{...policy,maxCostUsd:3,enabled:false}}});
+  expect(state.workspace.videoSpendPolicy.heygen.credentialSource).toEqual(thirdPartySource('legacy-heygen'));
+  await expect(service.resolve('org-a','heygen')).rejects.toMatchObject(code('VIDEO_SPEND_POLICY_UNAVAILABLE'));
+  await expect(service.resolvePinned('org-a','heygen','workspace_key',old.reference)).resolves.toMatchObject({apiKey:'legacy-secret',reference:old.reference});
+  await service.saveWorkspace('org-a',{videoSpendPolicy:{heygen:{...policy,credentialSource:null}}});
+  expect((await service.resolve('org-a','heygen')).apiKey).toBe('unused-inline');
+  expect(state.integrations[0].apiKey).toBe('encrypted:legacy-secret');
+});
+
+test('source selection is validated before a write; only explicit existing workspace HeyGen sources can be bound',async()=>{
+  const {service,state,mocks,videoSettingsUpdateV1}=setup(workspace(),instance());state.integrations.push(savedSource());
+  const {VideoProviderSettingsDto}=loadTypeScriptModule(`${base}dtos/settings/ai.provider.dto.ts`,mocks);
+  for(const source of [{kind:'third_party',integrationId:''},{kind:'third_party',integrationId:'legacy-heygen',apiKey:'secret'},{kind:'other',integrationId:'legacy-heygen'}]){
+    const body={videoSpendPolicy:{heygen:{...policy,credentialSource:source}}};
+    expect(validateSync(Object.assign(new VideoProviderSettingsDto(),body)).length).toBeGreaterThan(0);
+    await expect(service.saveWorkspace('org-a',body)).rejects.toMatchObject(code('VIDEO_SETTINGS_INVALID'));
+  }
+  await expect(service.saveWorkspace('org-a',{videoSpendPolicy:{higgsfield:{...policy,credentialSource:thirdPartySource('legacy-heygen')}}})).rejects.toMatchObject(code('VIDEO_SETTINGS_INVALID'));
+  await expect(service.saveWorkspace('org-a',{videoSpendPolicy:{heygen:{...policy,credentialSource:thirdPartySource('missing')}}})).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+  expect(state.writes).toHaveLength(0);
+  expect(()=>videoSettingsUpdateV1(null,{videoSpendPolicy:{heygen:{...policy,credentialSource:thirdPartySource('legacy-heygen')}}})).toThrow();
+  const body={videoSpendPolicy:{heygen:{...policy,credentialSource:thirdPartySource('legacy-heygen')}}};
+  expect(validateSync(Object.assign(new VideoProviderSettingsDto(),body))).toEqual([]);
+  await service.saveWorkspace('org-a',body);
+  expect(state.workspace.videoSpendPolicy.heygen.credentialSource).toEqual(thirdPartySource('legacy-heygen'));
+  expect(state.workspace.videoApiKeys).toEqual(workspace().videoApiKeys);
+});
+
+test('malformed persisted source and unreadable selected ciphertext fail closed without inline recovery',async()=>{
+  const {service,state}=setup(sourceWorkspace(),instance());state.integrations.push(savedSource({apiKey:'broken-secret'}));
+  await expect(service.resolve('org-a','heygen')).rejects.toMatchObject(code('VIDEO_KEY_UNREADABLE'));
+  state.workspace.videoSpendPolicy.heygen.credentialSource={kind:'unknown',integrationId:'legacy-heygen'};
+  await expect(service.resolvePinned('org-a','heygen','workspace_key','opaque')).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+});
+
+test('existing inline credential reference bytes remain compatible',async()=>{
+  const {service}=setup(workspace(),instance());const credential=await service.resolve('org-a','higgsfield');
+  expect(credential.reference).toBe(require('node:crypto').createHash('sha256').update(JSON.stringify(['org-a','workspace_key','higgsfield','encrypted:workspace-video'])).digest('hex'));
+});
+
+test.each([{organizationId:'foreign'},{identifier:'higgsfield'},{deletedAt:new Date('2030-01-01T00:00:00Z')}])('invalid source cannot be saved before resolving credentials: %j',async overrides=>{
+  const {service,state}=setup(workspace(),instance());state.integrations.push(savedSource(overrides));
+  await expect(service.saveWorkspace('org-a',{videoSpendPolicy:{heygen:{...policy,credentialSource:thirdPartySource('legacy-heygen')}}})).rejects.toMatchObject(code('VIDEO_CREDENTIAL_SOURCE_UNAVAILABLE'));
+  expect(state.writes).toHaveLength(0);
+});
+
+test('saving the first explicit source retains included payer and never substitutes its workspace key for included use',async()=>{
+  const {service,state}=setup(null,instance());state.integrations.push(savedSource());
+  const result=await service.saveWorkspace('org-a',{videoSpendPolicy:{heygen:{...policy,credentialSource:thirdPartySource('legacy-heygen')}}});
+  expect(state.workspace.usageMode).toBe('included');expect(result.usageMode).toBe('included');
+  expect(result.workspace.heygen.credentialSource.status).toBe('inactive');
+  state.sourceReads=[];
+  expect((await service.resolve('org-a','heygen')).apiKey).toBe('operator-presenter');expect(state.sourceReads).toEqual([]);
 });

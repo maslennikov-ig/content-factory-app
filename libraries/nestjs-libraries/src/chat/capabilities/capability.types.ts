@@ -133,6 +133,8 @@ export type CapabilityRunContext = CapabilityIdentity & {
 
 /** What `describeApproval` may read: the caller and the door's services. */
 export type ApprovalDescribeContext = CapabilityIdentity & {
+  /** Trusted native context for validating a selected owned object before parking approval. */
+  requestContext?: import('./capability.context').ReadableRequestContext;
   service: <T>(token: Type<T>) => T;
   /** Set when the question is asked over MCP (`kcxz.49`); the web chat's card leaves it out. */
   entrance?: CapabilityEntrance;

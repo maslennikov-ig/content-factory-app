@@ -252,11 +252,14 @@ test('all legacy workflow bodies and activity publication methods remain intact'
 
 });
 
-test('new ordinary/recovery/repeat starts select V108 while accepted V106/V107 contracts stay registered', () => {
+test('binding-aware starts and V110 recovery select guarded V109 while ordinary V108 and legacy contracts stay registered', () => {
   const read = p => fs.readFileSync(p, 'utf8');
-  expect(read('libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts')).toContain("workflow.start('postWorkflowV108'");
+  expect(read('libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts')).toMatch(/workflow\.start\(\s*await this\._postRepository\.isSocialFactoryPublication\(orgId,\s*postId\)\s*\?\s*'postWorkflowV109'\s*:\s*'postWorkflowV108'/);
+  expect(read('apps/orchestrator/src/activities/post.activity.v109.ts')).toContain("await this.publicationGuard.isCampaign(post.organizationId, post.id) ? 'postWorkflowV109' : 'postWorkflowV108'");
+  expect(read('libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts')).toContain("start('missingPostWorkflowV110'");
+  expect(read('apps/orchestrator/src/workflows/missing.post.workflow.v110.ts')).toContain('searchForMissingThreeHoursPostsV110');
+  expect(read('apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.9.ts')).toContain('startChild(postWorkflowV109');
   expect(read('apps/orchestrator/src/activities/post.activity.v108.ts')).toContain("signalWithStart('postWorkflowV108'");
-  expect(read('libraries/nestjs-libraries/src/temporal/infinite.workflow.register.ts')).toContain("start('missingPostWorkflowV109'");
   expect(read('apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.8.ts')).toContain('startChild(postWorkflowV108');
   expect(read('apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.7.ts')).toContain('startChild(postWorkflowV107');
   expect(read('apps/orchestrator/src/activities/post.activity.v107.ts')).toContain("signalWithStart('postWorkflowV107'");
@@ -268,7 +271,10 @@ test('new ordinary/recovery/repeat starts select V108 while accepted V106/V107 c
   expect(index).toContain("export * from './post-workflows/post.workflow.v1.0.6'");
   expect(index).toContain("export * from './post-workflows/post.workflow.v1.0.7'");
   expect(index).toContain("export * from './post-workflows/post.workflow.v1.0.8'");
+  expect(index).toContain("export * from './post-workflows/post.workflow.v1.0.9'");
   expect(index).toContain("export * from './missing.post.workflow.v106'");
   expect(index).toContain("export * from './missing.post.workflow.v107'");
   expect(index).toContain("export * from './missing.post.workflow.v108'");
+  expect(index).toContain("export * from './missing.post.workflow.v109'");
+  expect(index).toContain("export * from './missing.post.workflow.v110'");
 });

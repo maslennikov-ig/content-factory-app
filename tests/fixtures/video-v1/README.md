@@ -12,3 +12,5 @@
 - ffprobe inspection: MP4 container, H.264 video 960 × 540, AAC audio, duration 5.055 seconds.
 
 No customer material, provider generation, account IDs or private recording is included. Tests read this committed file and need no network, FFmpeg or rendering tool at runtime. The one-time ffprobe metadata inspection does not replace browser playback acceptance.
+
+`confirmed-captions.srt` is synthetic text authored for this repository under its AGPL-3.0 licence. It is a real parser/storage fixture, not a transcript or a quality assessment of `flower.mp4`.

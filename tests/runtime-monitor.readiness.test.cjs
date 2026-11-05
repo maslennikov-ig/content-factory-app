@@ -675,6 +675,7 @@ describe('actual Nest wiring and public routes', () => {
         ...h.mocks,
         // As with aliased application controllers below, these relative
         // imports are ports outside the monitor wiring under test.
+        './routes/social-factory.controller': { SocialFactoryController: class SocialFactoryController {} },
         './routes/video-connections.controller': { VideoConnectionsController: class VideoConnectionsController {} },
         './routes/video-access.controller': { VideoAccessController: class VideoAccessController {} },
       },

@@ -10,9 +10,35 @@ const common = {group: 'media' as const, card: 'media' as const, untrusted: ['wo
 const jobCard = (output: any) => ({kind: 'media' as const, id: 'library', videoJobId: output.id, ...(output.pieceId ? {pieceId: output.pieceId} : {})});
 export const videoAccessV2 = defineCapability({
   ...common, id: 'video.access_v2', label: {ru: 'Способ создания видео', en: 'Video access'},
-  description: 'Read this actor’s safe subscription eligibility and explicit API/subscription/manual choices. OAuth login/consent, workspace grants and credit limits are person-driven screen actions; never perform them through tools. Do not reveal private account information to other users. Never choose payer or fall back automatically.',
-  input: z.object({}).strict(), risk: 'read', door: door(VideoAccessController, 'choices'),
-  run: (ctx) => ctx.service(VideoAccessService).choices(ctx.organizationId, ctx.userId), summarize: output => ({...output}),
+  description: 'Read this actor’s safe subscription eligibility and explicit API/subscription/manual choices. Optionally pass an existing actor-owned VideoPromptDraft draftId to reopen its actual video screen; use video.prepare with prepareWithAi:false and video.draft when a raw editable draft is needed. A production revision id is never a VideoPromptDraft. ConnectReady does not mean generationReady. OAuth login/consent, workspace grants and credit limits are person-driven screen actions; never perform them through tools. Never choose payer or fall back automatically.',
+  input: z.object({draftId: id.optional()}).strict(), risk: 'read', door: door(VideoAccessController, 'choices'),
+  run: async (ctx, input) => {
+    const service = ctx.service(VideoAccessService);
+    if (!input.draftId) return service.choices(ctx.organizationId, ctx.userId);
+    const draft = await service.apiRepository.draft(ctx.organizationId, input.draftId);
+    if (!draft || draft.id !== input.draftId || draft.organizationId !== ctx.organizationId) throw unspentFailure('VIDEO_DRAFT_NOT_FOUND', 'Open an existing video draft in this workspace.');
+    if (draft.userId !== ctx.userId) throw unspentFailure('VIDEO_ACCESS_DENIED', 'Use a video draft owned by this person.');
+    return {...await service.choices(ctx.organizationId, ctx.userId), videoDraftId: draft.id, pieceId: draft.pieceId};
+  }, summarize: output => ({...output}),
+  cardOf: output => 'videoDraftId' in output ? {kind: 'media' as const, id: 'library', videoDraftId: output.videoDraftId, pieceId: output.pieceId} : null,
+});
+export const videoPersonalAssets = defineCapability({
+  ...common, id: 'video.personal_assets', label: {ru: 'Мои аватары и голоса', en: 'Owned video assets'},
+  description: 'Read verified owned avatars, voices and compatible engines for this actor’s selected personal connection. Select only returned owned asset ids. Missing ownership or wallet identity stays an explicit gap. No login, quote, generation, spending or API fallback.',
+  input: z.object({connectionId: id}).strict(), risk: 'read', door: door(VideoAccessController, 'assets'),
+  run: (ctx, input) => ctx.service(VideoAccessService).assets(ctx.organizationId, ctx.userId, input.connectionId), summarize: output => ({...output}),
+});
+export const videoPersonalReadiness = defineCapability({
+  ...common, id: 'video.personal_readiness', label: {ru: 'Готовность личной подписки', en: 'Personal video readiness'},
+  description: 'Inspect wallet identity, reviewed tool schema and per-operation readiness for this actor’s selected connection without generating or spending. ConnectReady is separate from generationReady; unknown identity, schema, price or unsupported final composition remains blocked. Never infer a capability from OAuth success or fall back to API.',
+  input: z.object({connectionId: id}).strict(), risk: 'read', door: door(VideoAccessController, 'readiness'),
+  run: (ctx, input) => ctx.service(VideoAccessService).personalReadiness(ctx.organizationId, ctx.userId, input.connectionId), summarize: output => ({...output}),
+});
+export const videoPersonalDiscover = defineCapability({
+  ...common, id: 'video.personal_discover', label: {ru: 'Проверить операции подключения', en: 'Discover personal video operations'},
+  description: 'Refresh non-generating wallet/tool discovery for this actor’s existing selected personal connection. Does not log in, create OAuth consent, set credits, quote or submit paid jobs. Discovery cannot promote an unknown schema, missing identity or price into generation readiness; preserve precise blockers and no API fallback.',
+  input: z.object({connectionId: id}).strict(), risk: 'write', door: door(VideoAccessController, 'discover'),
+  run: (ctx, input) => ctx.service(VideoAccessService).discoverPersonal(ctx.organizationId, ctx.userId, input.connectionId), summarize: output => ({...output}),
 });
 export const videoPreflightV2 = defineCapability({
   ...common, id: 'video.preflight_v2', label: {ru: 'Проверить выбранный доступ к видео', en: 'Review video access'},
@@ -69,4 +95,4 @@ export const videoResumeV2 = defineCapability({
   input: z.object({jobId: id}).strict(), risk: 'write', door: door(VideoAccessController, 'action'),
   run: (ctx, input) => ctx.service(VideoAccessService).action(ctx.organizationId, ctx.userId, input.jobId, 'resume'), summarize: output => ({...output}), cardOf: jobCard,
 });
-export const VIDEO_ACCESS_CAPABILITIES_V2 = [videoAccessV2, videoPreflightV2, videoLaunchV2, videoJobsV2, videoStatusV2, videoManualV2, videoRetrySaveV2, videoResumeV2] as const;
+export const VIDEO_ACCESS_CAPABILITIES_V2 = [videoAccessV2, videoPersonalAssets, videoPersonalReadiness, videoPersonalDiscover, videoPreflightV2, videoLaunchV2, videoJobsV2, videoStatusV2, videoManualV2, videoRetrySaveV2, videoResumeV2] as const;

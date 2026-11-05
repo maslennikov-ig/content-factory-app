@@ -12,6 +12,8 @@
   "delete": "删除",
   "add_a_webhook": "添加 Webhook",
   "save": "保存",
+  "refresh": "刷新",
+  "saving": "正在保存…",
   "send_test": "发送测试",
   "select_role": "选择角色",
   "video_made_with_ai": "视频由AI制作",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "加载已保存的版本",
   "video_v1_reviewSnapshot": "启动前检查文本和设置",
   "video_v1_paymentNote": "提供商收费可能超出估算或预留金额。不保证取消或退款；HeyGen 不支持取消。",
-  "video_v1_approvalChanged": "已保存的草稿已更改。请在启动前检查新版本和价格。"
+  "video_v1_approvalChanged": "已保存的草稿已更改。请在启动前检查新版本和价格。",
+  "validation_tiktok_privacy_required": "发布前，请从账号当前可用的选项中选择 TikTok 隐私设置。",
+  "validation_tiktok_account_unavailable": "无法获取 TikTok 账号设置。请重试或重新连接频道。",
+  "validation_tiktok_interactions_changed": "TikTok 互动设置已更改。发布前请检查评论、Duet 和 Stitch。",
+  "validation_tiktok_disclosure_invalid": "发布前，TikTok商业内容披露必须与所选品牌和隐私设置一致。",
+  "validation_tiktok_duration_invalid": "无法获取TikTok视频时长，或视频超过了当前账户限制。请在发布前检查视频。"
 }

@@ -8,14 +8,17 @@ import { AssistantArtifactBoundary } from './assistant.workspace-context';
 import { useRevalidateArtifact } from './agent.revalidate';
 
 /** One copy of each visited real editor, retained while hidden or another object is selected. */
-export function AgentArtifactHost({ artifact, selectionVersion = 0, available, words, onDirty, onWriteFromLead, onSelectArtifact }: {
+export function AgentArtifactHost({ artifact, selectionVersion = 0, available, words, onDirty, onWriteFromLead, onRequest, onSelectArtifact, chatThreadId, onBindChatVideo }: {
   artifact: AgentArtifact | null;
   selectionVersion?: number;
   available: readonly AgentArtifact[];
   words: AgentWords;
   onDirty: (key: string) => void;
   onWriteFromLead?: WriteFromLead;
+  onRequest?: (text:string) => void;
   onSelectArtifact: (artifact: AgentArtifact) => void;
+  chatThreadId?: string | null;
+  onBindChatVideo?: (value: {threadId: string; draftId: string; pieceId?: string; jobId?: string}) => Promise<void>;
 }) {
   const [visited, setVisited] = useState<AgentArtifact[]>(() => artifact ? [artifact] : []);
   const revalidate = useRevalidateArtifact();
@@ -50,7 +53,7 @@ export function AgentArtifactHost({ artifact, selectionVersion = 0, available, w
             const target = event.target as HTMLElement;
             if (target.matches('select,input:not([type="search"]),textarea')) onDirty(key);
           }}>
-            <ArtifactEditor artifact={one} words={words} onWriteFromLead={onWriteFromLead} onSelectArtifact={onSelectArtifact} />
+            <ArtifactEditor artifact={one} words={words} onWriteFromLead={onWriteFromLead} onRequest={onRequest} onSelectArtifact={onSelectArtifact} chatThreadId={chatThreadId} onBindChatVideo={onBindChatVideo} />
           </div>
         );
       })}

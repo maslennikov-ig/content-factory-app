@@ -42,9 +42,11 @@ export const CARD_KINDS = [
   'avatar',
   'adaptation',
   'plan',
+  'campaign',
   'channel',
   'channel-connect',
   'secret',
+  'clip-preproduction',
   'ideas',
   'facts',
   'media',
@@ -53,8 +55,9 @@ export type CardKind = (typeof CARD_KINDS)[number];
 
 /** Validated selection scope only. Titles, prompts and content are read server-side. */
 export type AgentWorkContextV1 = {
+  clipPilotId?: string;
   version: 'assistant-work-context/v1';
-  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'calendar' | 'ideas' | 'facts' | 'media';
+  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'campaign' | 'calendar' | 'ideas' | 'facts' | 'media';
   id?: string;
   pieceId?: string;
   channelId?: string;
@@ -71,7 +74,7 @@ export type AgentWritingSelection = { channelId?: string; avatarId?: string };
 
 /** Persistent references never copy product text, secrets or another user's history. */
 export type AgentArtifactRef = {
-  kind: Exclude<CardKind, 'channel-connect' | 'secret'>;
+  kind: Exclude<CardKind, 'channel-connect' | 'secret' | 'clip-preproduction'>;
   id: string;
   pieceId?: string;
   channelId?: string;
@@ -126,6 +129,13 @@ export type BrandVoiceFactScoreSummary = {
  * long texts are never repeated here, the screen reads them by id.
  */
 export type AgentCardPayloads = {
+  campaign: {kind: 'campaign'; id: string};
+  'clip-preproduction': {
+    kind: 'clip-preproduction';
+    id: string;
+    pieceId: string;
+    threadId: string;
+  };
   workspace: { kind: 'workspace'; id: string };
   channels: { kind: 'channels'; id: string };
   piece: {

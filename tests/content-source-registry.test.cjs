@@ -50,6 +50,9 @@ const searchEvidenceModule = loadTypeScriptModule(
 const repositoryModule = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/source-registry/source-registry.repository.ts',
   {
+    '../social-factory/source-lifecycle.port': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/content-intelligence/social-factory/source-lifecycle.port.ts'
+    ),
     '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
       PrismaRepository: class PrismaRepository {},
       PrismaTransaction: class PrismaTransaction {},

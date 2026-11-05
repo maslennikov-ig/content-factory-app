@@ -47,6 +47,7 @@ describe('orchestrator autopost activity registration', () => {
     class PostActivityV106 {}
     class PostActivityV107 {}
     class PostActivityV108 {}
+    class PostActivityV109 {}
     class AutopostActivity {}
     class AutopostDraftV2Activity {}
     class AutopostService {}
@@ -58,14 +59,31 @@ describe('orchestrator autopost activity registration', () => {
     class ContentLeadCheckActivity {}
     class VideoSubscriptionActivityV1 {}
     class VideoGenerationActivityV1 {}
+    class VideoProductionActivityV1 {}
+    class HggPilotStageActivityV1 { constructor() { throw new Error('HGG execution is outside this registration fixture'); } }
+    class LocalCompositionActivityV2 { constructor() { throw new Error('Local composition execution is outside this registration fixture'); } }
+    class SocialFactoryModule {}
     class VideoModule {}
     class DatabaseModule {}
     class HealthController {}
     class WorkerReadinessService {}
     let registeredActivities;
+    let moduleMetadata;
 
     loadTypeScriptModule('apps/orchestrator/src/app.module.ts', {
-      '@nestjs/common': { Module: () => (target) => target },
+      '@nestjs/common': {
+        Module: (metadata) => (target) => {
+          moduleMetadata = metadata;
+          return target;
+        },
+      },
+      './activities/video-production.activity.v1': { VideoProductionActivityV1 },
+      './activities/hgg-pilot-stage.activity.v1': { HggPilotStageActivityV1 },
+      './activities/local-composition.activity.v2': { LocalCompositionActivityV2 },
+      './activities/post.activity.v109': { PostActivityV109 },
+      '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.module': {
+        SocialFactoryModule,
+      },
       './activities/video-subscription.activity.v1': { VideoSubscriptionActivityV1 },
       './activities/video-generation.activity.v1': { VideoGenerationActivityV1 },
       '@contentfactory/nestjs-libraries/videos/video.module': { VideoModule },
@@ -123,9 +141,17 @@ describe('orchestrator autopost activity registration', () => {
     expect(registeredActivities).toContain(AutopostActivity);
     expect(registeredActivities).toContain(AutopostDraftV2Activity);
     expect(registeredActivities).toContain(PostActivityV108);
+    expect(registeredActivities).toContain(PostActivityV109);
     expect(registeredActivities).toContain(VideoSubscriptionActivityV1);
     expect(registeredActivities).toContain(VideoGenerationActivityV1);
+    expect(registeredActivities).toContain(VideoProductionActivityV1);
+    expect(registeredActivities).toContain(HggPilotStageActivityV1);
+    expect(registeredActivities).toContain(LocalCompositionActivityV2);
     expect(registeredActivities).not.toContain(AutopostService);
+    expect(moduleMetadata.imports).toContain(SocialFactoryModule);
+    expect(moduleMetadata.providers).toEqual(
+      expect.arrayContaining(registeredActivities)
+    );
   });
 
   test('V2 activity forwards the trusted workflow tenant and id to the draft-only service path', async () => {

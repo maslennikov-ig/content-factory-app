@@ -93,7 +93,7 @@ type PlatformMetric = {
   label: string;
   data: Array<{ total: number | string; date: string }>;
   average?: boolean;
-  percentageChange?: number;
+  percentageChange?: number | null;
 };
 
 /** The longest period the platform answers that is not longer than asked. */
@@ -108,7 +108,7 @@ export const analyticsChannel = defineCapability({
   group: 'analytics',
   label: { ru: 'Аналитика канала', en: 'Channel analytics' },
   description:
-    'Read a channel’s audience analytics, as the analytics page shows them: each metric the platform reports for the period with its number (a sum, or a percentage for a rate) and the change against the period before. The period is 7 days unless the person named a longer one; a platform that does not answer that long gets the longest it answers (Telegram answers 7) — `days` says which. Telegram gives bots no views or forwards: only reactions and discussion comments. Refused for a platform without analytics (`ANALYTICS_NOT_AVAILABLE`) or a channel switched off, waiting to be reconnected or not fully connected (`ANALYTICS_CHANNEL_OFF`). Never refreshes the channel’s access: when it has expired the answer is `ANALYTICS_CHANNEL_NEEDS_RECONNECT` (the person reconnects the channel or opens «Аналитика»), and a platform that failed to answer is `ANALYTICS_UNAVAILABLE` — neither means the channel had no activity. Asks the platform; free.',
+    'Read a channel’s audience analytics, as the analytics page shows them: each metric the platform reports, with the latest observed value for audience stocks, a sum for daily flows or a mean when the provider marks the series as an average. Empty or unavailable measurements have value=null. Average is not a unit: only a confirmed percentage metric carries a percent suffix. changePercent is optional and compares the first and last stored observations when a nonzero baseline exists; it does not compare against the previous period. The period is 7 days unless the person named a longer one; a platform that does not answer that long gets the longest it answers (Telegram answers 7) — `days` says which. Telegram audience analytics provides only the subscriber count and our stored daily snapshots; it provides no views, forwards, reactions or discussion comments through this capability. Refused for a platform without analytics (`ANALYTICS_NOT_AVAILABLE`) or a channel switched off, waiting to be reconnected or not fully connected (`ANALYTICS_CHANNEL_OFF`). Never refreshes the channel’s access: when it has expired the answer is `ANALYTICS_CHANNEL_NEEDS_RECONNECT` (the person reconnects the channel or opens «Аналитика»), and a platform that failed to answer is `ANALYTICS_UNAVAILABLE` — neither means the channel had no activity. Asks the platform; free.',
   input: z.object({
     channelId,
     days: z
@@ -159,7 +159,7 @@ export const analyticsChannel = defineCapability({
       metrics: (metrics ?? []).map((metric) => ({
         label: metric.label,
         value: audienceMetricValue(metric),
-        ...(typeof metric.percentageChange === 'number' ? { changePercent: metric.percentageChange } : {}),
+        ...(typeof metric.percentageChange === 'number' && Number.isFinite(metric.percentageChange) ? { changePercent: metric.percentageChange } : {}),
       })),
     };
   },

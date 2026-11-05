@@ -10,7 +10,11 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { ThirdPartyManager } from '@contentfactory/nestjs-libraries/3rdparties/thirdparty.manager';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import type { Organization, User } from '@prisma/client';
+import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
+import { VideoAccessService } from '@contentfactory/nestjs-libraries/videos/video-access.service';
+import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
+import { AuthorizationActions, Sections } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
@@ -27,11 +31,19 @@ export class ThirdPartyController {
   constructor(
     private _thirdPartyManager: ThirdPartyManager,
     private _mediaService: MediaService,
+    private readonly videoAccess: VideoAccessService,
   ) {}
 
   @Get('/list')
   async getThirdPartyList() {
     return this._thirdPartyManager.getAllThirdParties();
+  }
+
+  @Get('/hub')
+  async getIntegrationHub(@GetOrgFromRequest() organization: Organization, @GetUserFromRequest() user: User) {
+    // Existing facade enforces membership and actor ownership before stored inventory is read.
+    const choices = await this.videoAccess.choices(organization.id, user.id);
+    return this._thirdPartyManager.integrationHub(organization.id, choices);
   }
 
   @Get('/')
@@ -56,6 +68,7 @@ export class ThirdPartyController {
   }
 
   @Delete('/:id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   deleteById(
     @GetOrgFromRequest() organization: Organization,
     @Param('id') id: string
@@ -174,6 +187,7 @@ export class ThirdPartyController {
   }
 
   @Post('/:identifier')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async addApiKey(
     @GetOrgFromRequest() organization: Organization,
     @Param('identifier') identifier: string,

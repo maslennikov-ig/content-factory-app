@@ -206,6 +206,11 @@ export class LeadTopicGateway {
     return this.enabled;
   }
 
+  /** The anonymous community route does not dispatch research models or keyed search. */
+  get paidResearchEnabled(): boolean {
+    return this.enabled && !this.communityOnly;
+  }
+
   /** The window this gateway asks with, for the sentence that names it. */
   get checkWindowDays(): number {
     return this.windowDays;

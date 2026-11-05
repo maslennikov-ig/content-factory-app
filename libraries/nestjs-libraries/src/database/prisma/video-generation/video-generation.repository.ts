@@ -1,7 +1,10 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { Prisma, VideoGenerationJob } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { videoSourceRevisionV1 } from '../../../videos/video-brief.v1';
 import { serializableWithRetry } from '../serializable.transaction';
+import { assertResolvedSourceArtifactCurrentV1, assertSourceArtifactBindingV1 } from '../../../content-intelligence/social-factory/source-artifact.repository';
+import type { ResolvedSourceArtifactV1 } from '../../../content-intelligence/social-factory/contracts/source-artifact.v1';
 
 export const VIDEO_PENDING_V1 = ['accepted', 'submitting', 'queued', 'running', 'saving'];
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -17,6 +20,11 @@ export class VideoGenerationRepository {
     return this.prisma.media.findMany({ where: { organizationId, id: { in: ids }, deletedAt: null } });
   }
   createDraft(data: {organizationId: string; userId: string; pieceId: string; pieceRevision: string; brief: unknown; settings: unknown}) {
+    const artifact = (data.brief as any)?.sourceArtifact;
+    if (artifact) return serializableWithRetry(this.prisma, async tx => {
+      await assertResolvedSourceArtifactCurrentV1(tx, data.organizationId, data.userId, artifact, data.pieceId);
+      return tx.videoPromptDraft.create({data: {...data, brief: json(data.brief), settings: json(data.settings)}});
+    }, 'Video source changed; reload before saving the draft.');
     return this.prisma.videoPromptDraft.create({ data: {...data, brief: json(data.brief), settings: json(data.settings)} });
   }
   draft(organizationId: string, id: string) {
@@ -26,11 +34,25 @@ export class VideoGenerationRepository {
     return this.prisma.videoPromptDraft.findMany({ where: {organizationId, ...(pieceId ? {pieceId} : {})}, orderBy: {updatedAt: 'desc'}, take: 50 });
   }
   async editDraft(organizationId: string, id: string, version: number, brief: unknown, settings: unknown) {
+    const artifact = (brief as any)?.sourceArtifact;
+    if (artifact) return serializableWithRetry(this.prisma, async tx => {
+      await assertResolvedSourceArtifactCurrentV1(tx, organizationId, artifact.actorId, artifact);
+      const changed = await tx.videoPromptDraft.updateMany({where: {organizationId, id, version, userId: artifact.actorId, pieceId: artifact.ref.pieceId}, data: {brief: json(brief), settings: json(settings), version: {increment: 1}, preflight: Prisma.DbNull}});
+      if (!changed.count) throw new HttpException({code: 'VIDEO_DRAFT_CHANGED'}, 409);
+      return tx.videoPromptDraft.findFirst({where: {organizationId, id}});
+    }, 'Video source changed; reload before editing the draft.');
     const changed = await this.prisma.videoPromptDraft.updateMany({ where: {organizationId, id, version}, data: {brief: json(brief), settings: json(settings), version: {increment: 1}, preflight: Prisma.DbNull} });
     if (!changed.count) throw new HttpException({code: 'VIDEO_DRAFT_CHANGED'}, 409);
     return this.draft(organizationId, id);
   }
-  async preflight(organizationId: string, id: string, version: number, value: unknown) {
+  async preflight(organizationId: string, id: string, version: number, value: unknown, sourceArtifact?: ResolvedSourceArtifactV1) {
+    if (sourceArtifact) return serializableWithRetry(this.prisma, async tx => {
+      const draft = await tx.videoPromptDraft.findFirst({where: {organizationId, id, version, userId: sourceArtifact.actorId}});
+      if (!draft) throw new HttpException({code: 'VIDEO_DRAFT_CHANGED'}, 409);
+      await assertResolvedSourceArtifactCurrentV1(tx, organizationId, sourceArtifact.actorId, (draft.brief as any)?.sourceArtifact, draft.pieceId);
+      const changed = await tx.videoPromptDraft.updateMany({where: {organizationId, id, version}, data: {preflight: json(value)}});
+      if (!changed.count) throw new HttpException({code: 'VIDEO_DRAFT_CHANGED'}, 409);
+    }, 'Video source changed; reload before confirming.');
     const changed = await this.prisma.videoPromptDraft.updateMany({where: {organizationId, id, version}, data: {preflight: json(value)}});
     if (!changed.count) throw new HttpException({code: 'VIDEO_DRAFT_CHANGED'}, 409);
   }
@@ -42,16 +64,36 @@ export class VideoGenerationRepository {
         const existing = await tx.videoGenerationJob.findUnique({where: {organizationId_intentId: {organizationId: data.organizationId, intentId: data.intentId}}});
         if (existing) {
           if (existing.draftId !== data.draftId || existing.draftVersion !== data.draftVersion || existing.preflightId !== data.preflightId) throw new HttpException({code: 'VIDEO_INTENT_MISMATCH'}, 409);
+          const artifact = (existing.snapshot as any)?.brief?.sourceArtifact;
+          if (artifact) {
+            if (existing.userId !== data.userId) throw new HttpException({code: 'SOURCE_ARTIFACT_ACCESS_DENIED'}, 403);
+            assertSourceArtifactBindingV1(artifact, data.organizationId, data.userId, existing.pieceId);
+            if (existing.state === 'accepted') await assertResolvedSourceArtifactCurrentV1(tx, data.organizationId, data.userId, artifact, existing.pieceId);
+          }
           return existing;
         }
         const accepted = await tx.videoGenerationJob.findUnique({where: {organizationId_preflightId: {organizationId: data.organizationId, preflightId: data.preflightId}}});
-        if (accepted) return accepted;
+        if (accepted) {
+          const artifact = (accepted.snapshot as any)?.brief?.sourceArtifact;
+          if (artifact) {
+            if (accepted.userId !== data.userId) throw new HttpException({code: 'SOURCE_ARTIFACT_ACCESS_DENIED'}, 403);
+            assertSourceArtifactBindingV1(artifact, data.organizationId, data.userId, accepted.pieceId);
+            if (accepted.state === 'accepted') await assertResolvedSourceArtifactCurrentV1(tx, data.organizationId, data.userId, artifact, accepted.pieceId);
+          }
+          return accepted;
+        }
         const draft = await tx.videoPromptDraft.findFirst({where: {id: data.draftId, organizationId: data.organizationId, version: data.draftVersion}});
         const expected = (data.snapshot as any)?.preflightId;
         if (!draft || (draft.preflight as any)?.preflightId !== expected) throw new HttpException({code: 'VIDEO_PREFLIGHT_STALE'}, 409);
+        const artifact = (draft.brief as any)?.sourceArtifact;
+        if (artifact || (data.snapshot as any)?.brief?.sourceArtifact) {
+          await assertResolvedSourceArtifactCurrentV1(tx, data.organizationId, data.userId, artifact, data.pieceId);
+          const supplied = assertSourceArtifactBindingV1((data.snapshot as any)?.brief?.sourceArtifact, data.organizationId, data.userId, data.pieceId);
+          if (supplied.ref.revision !== artifact.ref.revision || supplied.contentDigest !== artifact.contentDigest) throw new HttpException({code: 'VIDEO_SOURCE_CHANGED'}, 409);
+        }
         const start = new Date();
         start.setUTCDate(1); start.setUTCHours(0, 0, 0, 0);
-        const jobs = await tx.videoGenerationJob.findMany({where: {organizationId: data.organizationId, provider: data.provider, payer: data.payer, createdAt: {gte: start}}, select: {reservedUsd: true, costUsd: true}});
+        const jobs = await tx.videoGenerationJob.findMany({where: {organizationId: data.organizationId, provider: data.provider, payer: data.payer, OR: [{createdAt: {gte: start}}, {costUsd: null}]}, select: {reservedUsd: true, costUsd: true}});
         const reserved = jobs.reduce((sum, job) => sum + (job.costUsd === null ? Number(job.reservedUsd) : Number(job.costUsd)), 0);
         if (reserved + Number(data.reservedUsd) > monthlyBudgetUsd + 0.00000001) throw new HttpException({code: 'VIDEO_MONTHLY_BUDGET_EXHAUSTED'}, 429);
         return tx.videoGenerationJob.create({data});
@@ -59,7 +101,19 @@ export class VideoGenerationRepository {
     } catch (error: any) {
       if (error?.code === 'P2002') {
         const existing = await this.prisma.videoGenerationJob.findFirst({where: {organizationId: data.organizationId, OR: [{intentId: data.intentId}, {preflightId: data.preflightId}]}});
-        if (existing && existing.draftId === data.draftId && existing.draftVersion === data.draftVersion && existing.preflightId === data.preflightId) return existing;
+        if (existing && existing.draftId === data.draftId && existing.draftVersion === data.draftVersion && existing.preflightId === data.preflightId) {
+          const artifact = (existing.snapshot as any)?.brief?.sourceArtifact;
+          if (!artifact) return existing;
+          if (existing.userId !== data.userId) throw new HttpException({code: 'SOURCE_ARTIFACT_ACCESS_DENIED'}, 403);
+          return serializableWithRetry(this.prisma, async tx => {
+            const current = await tx.videoGenerationJob.findFirst({where: {organizationId: data.organizationId, id: existing.id}});
+            if (!current) throw new HttpException({code: 'VIDEO_PREFLIGHT_STALE'}, 409);
+            const source = (current.snapshot as any)?.brief?.sourceArtifact;
+            assertSourceArtifactBindingV1(source, data.organizationId, data.userId, current.pieceId);
+            if (current.state === 'accepted') await assertResolvedSourceArtifactCurrentV1(tx, data.organizationId, data.userId, source, current.pieceId);
+            return current;
+          }, 'Video source changed; retry observation of the same intent.');
+        }
       }
       throw error;
     }
@@ -71,17 +125,44 @@ export class VideoGenerationRepository {
     return this.prisma.videoGenerationJob.findFirst({where: {organizationId, id}});
   }
   jobs(organizationId: string, pieceId?: string) {
-    return this.prisma.videoGenerationJob.findMany({where: {organizationId, ...(pieceId ? {pieceId} : {})}, orderBy: {createdAt: 'desc'}, take: 50});
+    return this.prisma.videoGenerationJob.findMany({where: {organizationId, productionRevisionId: null, ...(pieceId ? {pieceId} : {})}, orderBy: {createdAt: 'desc'}, take: 50});
+  }
+  productionState(organizationId:string,id:string){
+    return this.prisma.videoProductionRevision.findFirst({where:{organizationId,id},select:{state:true,stoppedAt:true}});
   }
   pending() {
-    return this.prisma.videoGenerationJob.findMany({where: {state: {in: VIDEO_PENDING_V1}}, select: {organizationId: true, id: true, runCycle: true}, take: 500, orderBy: {updatedAt: 'asc'}});
+    return this.prisma.videoGenerationJob.findMany({where: {state: {in: VIDEO_PENDING_V1}, OR: [{productionRevisionId: null}, {productionRevisionId: {not: null}, state: {in: ['submitting', 'queued', 'running', 'saving']}}]}, select: {organizationId: true, id: true, runCycle: true}, take: 500, orderBy: {updatedAt: 'asc'}});
   }
   async claim(organizationId: string, id: string, owner: string) {
     const result = await this.prisma.videoGenerationJob.updateMany({where: {organizationId, id, state: {in: VIDEO_PENDING_V1}, OR: [{leaseUntil: null}, {leaseUntil: {lt: new Date()}}]}, data: {leaseOwner: owner, leaseUntil: new Date(Date.now() + 180_000)}});
     return result.count === 1;
   }
   async write(organizationId: string, id: string, owner: string, data: Prisma.VideoGenerationJobUpdateManyMutationInput) {
-    const result = await this.prisma.videoGenerationJob.updateMany({where: {organizationId, id, leaseOwner: owner, leaseUntil: {gt: new Date()}}, data});
+    const where = {id, leaseOwner: owner, leaseUntil: {gt: new Date()}};
+    if (data.state === 'submitting') {
+      // Serialize the paid-action claim against production stop. A canceled accepted job cannot resurrect.
+      await serializableWithRetry(this.prisma, async tx => {
+        const job = await tx.videoGenerationJob.findFirst({where: {...where, organizationId, state: 'accepted'}});
+        if (!job) throw new Error('VIDEO_JOB_SUBMISSION_CLAIM_LOST');
+        const artifact = (job.snapshot as any)?.brief?.sourceArtifact;
+        if (artifact) await assertResolvedSourceArtifactCurrentV1(tx, organizationId, job.userId, artifact, job.pieceId);
+        if (job.productionRevisionId) {
+          const production = await tx.videoProductionRevision.findFirst({where: {organizationId, id: job.productionRevisionId, state: 'approved', stoppedAt: null}});
+          if (!production) {
+            const paused=await tx.videoProductionRevision.findFirst({where:{organizationId,id:job.productionRevisionId,state:'needs_attention',stoppedAt:null}});
+            if(paused)throw new HttpException({code:'VIDEO_PRODUCTION_PAUSED'},409);
+            throw new Error('VIDEO_PRODUCTION_STOPPED');
+          }
+          const source=await tx.contentPiece.findFirst({where:{organizationId,id:job.pieceId,archivedAt:null}});
+          if(!source||videoSourceRevisionV1(source)!==job.pieceRevision)throw new HttpException({code:'VIDEO_SOURCE_CHANGED'},409);
+          await tx.videoProductionRevision.update({where: {id: production.id, organizationId}, data: {updatedAt: new Date()}});
+        }
+        const changed = await tx.videoGenerationJob.updateMany({where: {...where, organizationId, state: 'accepted'}, data});
+        if (changed.count !== 1) throw new Error('VIDEO_JOB_SUBMISSION_CLAIM_LOST');
+      }, 'Video submission is busy; retry observation.');
+      return;
+    }
+    const result = await this.prisma.videoGenerationJob.updateMany({where: {...where, organizationId}, data});
     if (result.count !== 1) throw new Error('VIDEO_JOB_LEASE_LOST');
   }
   release(organizationId: string, id: string, owner: string) {

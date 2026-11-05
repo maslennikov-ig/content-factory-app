@@ -1,3 +1,4 @@
+import { audienceMetricValue, audienceMetricAggregation } from '@contentfactory/nestjs-libraries/integrations/audience-analytics.rules';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -21,8 +22,8 @@ import {
 
 interface AnalyticsData {
   label: string;
-  data: Array<{ total: number; date: string }>;
-  percentageChange: number;
+  data: Array<{ total: number | string; date: string }>;
+  percentageChange: number | null;
   average?: boolean;
 }
 
@@ -73,17 +74,7 @@ export const StatisticsModal: FC<{
 
   const totals = useMemo(() => {
     if (!analyticsData || !Array.isArray(analyticsData)) return [];
-    return analyticsData.map((p: AnalyticsData) => {
-      const value =
-        (p?.data?.reduce(
-          (acc: number, curr: any) => acc + Number(curr.total),
-          0
-        ) || 0) / (p.average ? p.data.length : 1);
-      if (p.average) {
-        return value.toFixed(2) + '%';
-      }
-      return Math.round(value);
-    });
+    return analyticsData.map((metric: AnalyticsData) => audienceMetricValue(metric) ?? '—');
   }, [analyticsData]);
 
   const isLoading = isLoadingStatistics || isLoadingAnalytics;
@@ -204,6 +195,7 @@ export const StatisticsModal: FC<{
                             <div className="h-[120px] relative">
                               <ChartSocial
                                 data={p.data}
+                                aggregation={audienceMetricAggregation(p)}
                                 color={color}
                                 key={`chart-${index}`}
                               />

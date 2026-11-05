@@ -85,6 +85,8 @@ const reset = () => {
     conversationProps: null,
     assistant: null,
     history: null,
+    host: null,
+    requestOverride: null,
   };
 };
 
@@ -121,6 +123,7 @@ const Gate = ({ children, onUnavailable }) => {
 };
 const request = async (url, init = {}) => {
   world.calls.push({ url, ...init });
+  if (world.requestOverride) return world.requestOverride(url, init);
   if (!init.method && world.history && url.startsWith('/agent/threads/')) return world.history;
   return { ok: true, status: 200, json: async () => init.method === 'PATCH' ? { workspace: { version: 'assistant-workspace/v1', ...JSON.parse(init.body) } } : { thread: null, messages: [], pending: [] } };
 };
@@ -160,8 +163,8 @@ const screenModule = loadWithMocks('apps/frontend/src/components/agents/agent.sc
   './agent.availability': { AgentAvailabilityGate: Gate },
   './agent.conversation': { AgentConversation: Conversation },
   './assistant.workspace-context': { useAssistantWorkspace: () => world.assistant },
-  './agent.workspace-shell': { AgentWorkspaceShell: ({ children, toolbar }) => h('div', { 'data-shared-shell': '' }, toolbar, children) },
-  './agent.artifact-host': { AgentArtifactHost: () => null },
+  './agent.workspace-shell': { AgentWorkspaceShell: ({ children, toolbar, material }) => h('div', { 'data-shared-shell': '' }, toolbar, children, material) },
+  './agent.artifact-host': { AgentArtifactHost: (props) => { world.host = props; return null; } },
   './agent.artifact-picker': { AgentArtifactPicker: () => null },
   './agent.workspace-browser': { AgentWorkspaceBrowser: ({ onSelect }) => h('button', { type: 'button', 'data-workspace-browser': '', onClick: () => onSelect({ kind: 'avatar', id: 'avatar1', title: 'Avatar', code: null, data: {} }) }, 'Workspace') },
   './agent.piece-data': { useLoadedPiece: () => null, withPieceData: (artifact) => artifact, pieceIdOf: (artifact) => artifact.kind === 'piece' ? artifact.id : null },
@@ -192,6 +195,102 @@ const field = () => document.querySelector('textarea');
 
 beforeEach(reset);
 afterEach(cleanup);
+
+test('provider callback reopens the same saved chat video only after authorized history', async () => {
+  world.routeId='thread-1';let resolveHistory;
+  world.history=new Promise(resolve=>{resolveHistory=resolve;});
+  const address='/agents/thread-1?videoDraftId=draft-1&pieceId=piece-1&connectionError=VIDEO_OAUTH_REFUSED';
+  await open(address);
+  expect(world.host?.artifact).toBeNull();expect(world.host?.chatThreadId).toBe('thread-1');
+  await act(async()=>resolveHistory({ok:true,status:200,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace:{version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'piece',id:'piece-other'},{kind:'media',id:'library',videoDraftId:'draft-1',pieceId:'piece-1'}],activeArtifact:{kind:'piece',id:'piece-other'}}})}));
+  await waitFor(()=>expect(world.host?.artifact?.data?.videoDraftId).toBe('draft-1'));
+  expect(world.host.chatThreadId).toBe('thread-1');expect(world.host.available.some(item=>item.id==='piece-other')).toBe(true);
+  expect(window.location.pathname).toBe('/agents/thread-1');expect(window.location.search).toBe('?connectionError=VIDEO_OAUTH_REFUSED');
+  expect(world.submitted).toEqual([]);
+});
+
+test('provider callback cannot select a draft absent from authorized conversation history', async()=>{
+  world.routeId='thread-1';world.history={ok:true,status:200,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace:{version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'piece',id:'piece-other'}],activeArtifact:{kind:'piece',id:'piece-other'}}})};
+  await open('/agents/thread-1?videoDraftId=not-in-history');
+  await waitFor(()=>expect(world.host?.artifact?.id).toBe('piece-other'));
+  expect(world.host.available.some(item=>item.data?.videoDraftId==='not-in-history')).toBe(false);
+  expect(world.submitted).toEqual([]);
+});
+
+test('video callback accepts only the exact thread, ordered identifiers and the two server error flags',()=>{
+  const {videoReturnFromHistory}=load('apps/frontend/src/components/agents/agent.video-return.ts');
+  const history={thread:{id:'thread-1'},messages:[],pending:[],workspace:{version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'media',id:'library',videoDraftId:'draft-1',pieceId:'piece-1'}],activeArtifact:null}};
+  const query='?videoDraftId=draft-1&pieceId=piece-1';
+  for(const suffix of ['', '&connectionError=VIDEO_OAUTH_REFUSED','&connectionError=VIDEO_CONNECTION_UNAVAILABLE']) expect(videoReturnFromHistory('thread-1','/agents/thread-1',query+suffix,history)?.data.videoDraftId).toBe('draft-1');
+  for(const bad of [query+'&connectionError=OTHER',query+'&videoDraftId=other','?pieceId=piece-1&videoDraftId=draft-1',query+'&next=https://example.test']) expect(videoReturnFromHistory('thread-1','/agents/thread-1',bad,history)).toBeNull();
+  expect(videoReturnFromHistory('other','/agents/other',query,history)).toBeNull();
+});
+
+test('artifact host passes the active chat identity to the embedded editor',()=>{
+  let editorProps;
+  const {AgentArtifactHost}=loadWithMocks('apps/frontend/src/components/agents/agent.artifact-host.tsx',{
+    './agent.panel':{ArtifactEditor:props=>{editorProps=props;return null;}},
+    './assistant.workspace-context':{AssistantArtifactBoundary:({children})=>children},
+    './agent.revalidate':{useRevalidateArtifact:()=>()=>{}},
+  });
+  const artifact={kind:'media',id:'library',title:null,code:null,data:{videoDraftId:'draft-1'}};
+  render(h(AgentArtifactHost,{artifact,available:[artifact],chatThreadId:'thread-1',words:agentWordsFor('ru'),onDirty:()=>{},onSelectArtifact:()=>{}}));
+  expect(editorProps.chatThreadId).toBe('thread-1');expect(editorProps.artifact.data.videoDraftId).toBe('draft-1');
+});
+
+test('binding a newly saved video waits for workspace readback and preserves other artifacts',async()=>{
+  world.routeId='thread-1';let workspace={version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'piece',id:'other'},{kind:'media',id:'library',videoDraftId:'old-draft'}],activeArtifact:{kind:'media',id:'library',videoDraftId:'old-draft'}};let reads=0;
+  world.requestOverride=async(url,init)=>{
+    if(url==='/agent/threads/thread-1/workspace' && init.method==='PATCH'){workspace={version:'assistant-workspace/v1',...JSON.parse(init.body)};return {ok:true,json:async()=>({workspace})};}
+    if(url==='/agent/threads/thread-1/video-binding' && init.method==='POST'){
+      const body=JSON.parse(init.body);expect(Object.keys(body)).toEqual(['artifact']);
+      workspace.artifacts.push({kind:'piece',id:'added-during-append'},body.artifact);workspace.activeArtifact=body.artifact;
+      return {ok:true,json:async()=>({workspace})};
+    }
+    if(url==='/agent/threads/thread-1'){reads++;return {ok:true,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace})};}
+    return {ok:true,json:async()=>({})};
+  };
+  await open('/agents/thread-1');await waitFor(()=>expect(world.host?.artifact?.data?.videoDraftId).toBe('old-draft'));
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,300));});
+  workspace.artifacts.push({kind:'piece',id:'added-elsewhere'});
+  await act(async()=>world.host.onBindChatVideo({threadId:'thread-1',draftId:'new-draft',pieceId:'piece-1'}));
+  expect(reads).toBeGreaterThanOrEqual(2);expect(workspace.activeArtifact.videoDraftId).toBe('new-draft');
+  expect(workspace.artifacts.some(item=>item.id==='other')).toBe(true);expect(workspace.artifacts.some(item=>item.id==='added-elsewhere')).toBe(true);expect(workspace.artifacts.some(item=>item.id==='added-during-append')).toBe(true);expect(workspace.artifacts.some(item=>item.videoDraftId==='old-draft')).toBe(true);
+  expect(world.host.artifact.data.videoDraftId).toBe('new-draft');expect(world.submitted).toEqual([]);
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,400));});
+  expect(workspace.artifacts.some(item=>item.id==='added-elsewhere')).toBe(true);
+  expect(workspace.artifacts.some(item=>item.id==='added-during-append')).toBe(true);
+});
+
+test('failed video-to-chat binding rejects without changing the selected artifact',async()=>{
+  world.routeId='thread-1';world.requestOverride=async(url,init)=>init.method==='POST'?{ok:false,status:500,json:async()=>({})}:init.method==='PATCH'?{ok:true,json:async()=>({workspace:{version:'assistant-workspace/v1',...JSON.parse(init.body)}})}:{ok:true,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace:{version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'media',id:'library',videoDraftId:'old-draft'}],activeArtifact:{kind:'media',id:'library',videoDraftId:'old-draft'}}})};
+  await open('/agents/thread-1');await waitFor(()=>expect(world.host?.artifact?.data?.videoDraftId).toBe('old-draft'));
+  await expect(world.host.onBindChatVideo({threadId:'thread-1',draftId:'new-draft'})).rejects.toThrow();
+  expect(world.host.artifact.data.videoDraftId).toBe('old-draft');expect(world.submitted).toEqual([]);
+});
+
+test('video binding waits for the existing workspace save before server append',async()=>{
+  world.routeId='thread-1';let release;let workspace={version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'media',id:'library',videoDraftId:'old-draft'}],activeArtifact:{kind:'media',id:'library',videoDraftId:'old-draft'}};
+  world.requestOverride=async(url,init)=>{
+    if(init.method==='PATCH')return new Promise(resolve=>{release=()=>{workspace={version:'assistant-workspace/v1',...JSON.parse(init.body)};resolve({ok:true,json:async()=>({workspace})});};});
+    if(url.endsWith('/video-binding')){const artifact=JSON.parse(init.body).artifact;workspace={...workspace,artifacts:[...workspace.artifacts,artifact],activeArtifact:artifact};return {ok:true,json:async()=>({workspace})};}
+    return {ok:true,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace})};
+  };
+  await open('/agents/thread-1');await waitFor(()=>expect(world.host?.artifact?.data?.videoDraftId).toBe('old-draft'));
+  await waitFor(()=>expect(release).toBeDefined());let operation;
+  await act(async()=>{operation=world.host.onBindChatVideo({threadId:'thread-1',draftId:'new-draft'});});
+  expect(world.calls.some(call=>call.url.endsWith('/video-binding'))).toBe(false);
+  await act(async()=>{release();await operation;});
+  expect(world.calls.some(call=>call.url.endsWith('/video-binding')&&call.method==='POST')).toBe(true);
+});
+
+test('an unconfirmed workspace write never authorizes the provider transition',async()=>{
+  world.routeId='thread-1';const old={version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'media',id:'library',videoDraftId:'old-draft'}],activeArtifact:{kind:'media',id:'library',videoDraftId:'old-draft'}};
+  world.requestOverride=async(url,init)=>init.method==='POST'?{ok:true,json:async()=>({workspace:{...old,artifacts:[...old.artifacts,JSON.parse(init.body).artifact],activeArtifact:JSON.parse(init.body).artifact}})}:init.method==='PATCH'?{ok:true,json:async()=>({workspace:{version:'assistant-workspace/v1',...JSON.parse(init.body)}})}:{ok:true,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace:old})};
+  await open('/agents/thread-1');await waitFor(()=>expect(world.host?.artifact?.data?.videoDraftId).toBe('old-draft'));
+  await expect(world.host.onBindChatVideo({threadId:'thread-1',draftId:'new-draft'})).rejects.toThrow();
+  expect(world.host.artifact.data.videoDraftId).toBe('old-draft');expect(world.submitted).toEqual([]);
+});
 
 test('the selected context lives in shared chat controls and leaves the composer unobstructed', async () => {
   world.assistant = { workContext: { version: 'assistant-work-context/v1', kind: 'piece', id: 'piece1' }, requestedThreadId: null, requestVersion: 0, contextVersion: 0, rememberThread: () => {}, setWorkContext: () => {} };
@@ -607,4 +706,30 @@ test('direct thread routes and back/forward select the same native sessions with
   expect(second.value).toBe('Route B draft');
   expect(world.conversations).toBe(2);
   expect(world.calls.filter((call) => call.method === 'POST')).toEqual([]);
+});
+
+test('verified historical draft-as-channel repair pauses workspace saves while pending then preserves campaign/piece refs in the normal PATCH',async()=>{
+ world.routeId='thread-1';
+ const saved={version:'assistant-workspace/v1',workContext:null,artifacts:[{kind:'channel',id:'owned-destination'},{kind:'channel',id:'draft-real-channel'},{kind:'piece',id:'piece-1'},{kind:'campaign',id:'current'}],activeArtifact:{kind:'campaign',id:'current'}};
+ world.requestOverride=async(url,init)=>{
+  if(init.method==='PATCH'){
+   const body=JSON.parse(init.body);
+   if(body.artifacts.some(ref=>ref.kind==='channel'&&ref.id==='owned-destination'))return {ok:false,status:404,json:async()=>({code:'AGENT_BAD_REQUEST'})};
+   return {ok:true,status:200,json:async()=>({workspace:{version:'assistant-workspace/v1',...body}})};
+  }
+  return {ok:true,status:200,json:async()=>({thread:{id:'thread-1'},messages:[],pending:[],workspace:saved})};
+ };
+ await open('/agents/thread-1');
+ await waitFor(()=>expect(world.host?.artifact?.id).toBe('current'));
+ await act(async()=>world.conversationProps.onArtifacts([],[],true));
+ await act(async()=>{await new Promise(resolve=>setTimeout(resolve,300));});
+ expect(world.calls.filter(call=>call.method==='PATCH'&&call.url.endsWith('/workspace'))).toEqual([]);
+ await act(async()=>world.conversationProps.onArtifacts([{kind:'campaign',id:'current',title:null,code:null,data:{id:'current'}}],['owned-destination'],false));
+ await waitFor(()=>expect(world.calls.some(call=>call.method==='PATCH'&&call.url.endsWith('/workspace'))).toBe(true));
+ const writes=world.calls.filter(call=>call.method==='PATCH'&&call.url.endsWith('/workspace')).map(call=>JSON.parse(call.body));
+ expect(writes.every(body=>body.artifacts.every(ref=>ref.id!=='owned-destination'))).toBe(true);
+ const last=writes.at(-1);expect(last.activeArtifact).toEqual({kind:'campaign',id:'current'});
+ expect(last.artifacts.map(ref=>ref.id)).toEqual(expect.arrayContaining(['piece-1','current','draft-real-channel']));
+ expect(world.host.available.some(ref=>ref.id==='owned-destination')).toBe(false);
+ expect(world.calls.some(call=>call.url==='/agent/chat')).toBe(false);
 });

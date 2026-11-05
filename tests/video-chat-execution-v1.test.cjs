@@ -187,6 +187,7 @@ test('workspace validates video artifact through tenant-scoped job reads and rej
   const mocks = { '@contentfactory/nestjs-libraries/videos/video-job.service': { VideoJobService } };
   for (const [path, name] of [
     ['content-intelligence/pieces/piece.service', 'PieceService'],
+    ['content-intelligence/social-factory/social-factory.service', 'SocialFactoryService'],
     ['content-intelligence/brand-voice/voice.service', 'VoiceService'],
     ['database/prisma/integrations/integration.service', 'IntegrationService'],
     ['content-intelligence/context/content-fact.service', 'ContentFactService'],
@@ -196,7 +197,11 @@ test('workspace validates video artifact through tenant-scoped job reads and rej
   mocks['@contentfactory/nestjs-libraries/user/organization.roles'] = {};
   const { AgentWorkContextResolver } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/work-context.resolver.ts', mocks);
   const get = jest.fn(async (org) => { if (org !== 'org-a') throw new Error('VIDEO_JOB_NOT_FOUND'); return { pieceId: 'piece', draftId: 'draft' }; });
-  const resolver = new AgentWorkContextResolver({ services: () => ({ get, readDraft: async () => ({id: 'draft', pieceId: 'piece', version: 1}) }), gate: { check: async () => ({ allowed: true }) }, capabilities: [
+  const services = jest.fn(token => {
+    expect(token).toBe(VideoJobService);
+    return { get, readDraft: async () => ({id: 'draft', pieceId: 'piece', version: 1}) };
+  });
+  const resolver = new AgentWorkContextResolver({ services, gate: { check: async () => ({ allowed: true }) }, capabilities: [
     { id: 'video.status', door: {} }, { id: 'video.draft', door: {} }, { id: 'media.library', door: {} },
   ] });
   const ref = { kind: 'media', id: 'library', videoJobId: 'job', pieceId: 'piece' };
@@ -211,6 +216,7 @@ test('active video context resolves current tenant-owned draft and job data and 
   const mocks = { '@contentfactory/nestjs-libraries/videos/video-job.service': { VideoJobService } };
   for (const [path, name] of [
     ['content-intelligence/pieces/piece.service', 'PieceService'],
+    ['content-intelligence/social-factory/social-factory.service', 'SocialFactoryService'],
     ['content-intelligence/brand-voice/voice.service', 'VoiceService'],
     ['database/prisma/integrations/integration.service', 'IntegrationService'],
     ['content-intelligence/context/content-fact.service', 'ContentFactService'],
@@ -225,7 +231,11 @@ test('active video context resolves current tenant-owned draft and job data and 
     return { id, pieceId: 'piece', version, brief: { script: `Current script ${version}` }, settings: { mode: 'presenter' } };
   });
   const get = jest.fn(async (org, id) => ({ id, pieceId: 'piece', draftId: 'draft', state: 'running', snapshot: { brief: { prompt: 'Old submitted text. '.repeat(2000), script: 'Old submitted script. '.repeat(2000) } } }));
-  const resolver = new AgentWorkContextResolver({ services: () => ({ readDraft, get }), gate: { check: async () => ({ allowed: true }) }, capabilities: [
+  const services = jest.fn(token => {
+    expect(token).toBe(VideoJobService);
+    return { readDraft, get };
+  });
+  const resolver = new AgentWorkContextResolver({ services, gate: { check: async () => ({ allowed: true }) }, capabilities: [
     { id: 'video.status', door: {} }, { id: 'video.draft', door: {} }, { id: 'media.library', door: {} },
   ] });
   const ref = { kind: 'media', id: 'library', pieceId: 'piece', videoJobId: 'job', videoDraftId: 'draft' };

@@ -65,6 +65,8 @@ describe('what the model is offered', () => {
       expect.arrayContaining([
         'workspace_snapshot',
         'channels_list',
+        'video_personal_assets',
+        'video_personal_readiness',
         'piece_rename',
         'piece_create',
         'piece_delete',

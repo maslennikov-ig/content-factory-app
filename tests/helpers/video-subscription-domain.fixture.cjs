@@ -30,7 +30,7 @@ async function create(db, options = {}) {
     const dispatches = [];
     const execution = {start: async (organizationId, jobId, cycle = 0) => { dispatches.push({organizationId, jobId, cycle}); }};
     const restartSubscriptions = () => {
-      const connections = new modules.connection.VideoConnectionService(repository, provider.runtime, provider.oauth);
+      const connections = new modules.connection.VideoConnectionService(repository, provider.runtime, provider.oauth, options.returnContext);
       const subscriptions = new jobsModule.VideoSubscriptionJobService(repository, connections, provider.runtime, provider.mcp,
         provider.higgsfield, provider.heygen, f.service.media, f.repository, execution);
       const access = new accessModule.VideoAccessService(repository, f.repository, f.service, connections, subscriptions, f.service.media);

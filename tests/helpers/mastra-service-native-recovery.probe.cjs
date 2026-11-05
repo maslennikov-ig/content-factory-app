@@ -484,9 +484,23 @@ async function scenario(kind) {
       assert.equal(
         killedOwner?.live,
         true,
-        'Stop must cancel the killed host before its native lease expires.'
+        'Killing a host does not retire its durable lease.'
       );
       const before = audit().filter((entry) => entry.type === 'model').length;
+      await runtime.service.cancelModelAvailability(runId, THREAD, {markOnly:true});
+      const stoppedIntent=await readThread();
+      assert.equal(stoppedIntent.metadata.assistantExecution.stopRequested,true);
+      assert.equal(stoppedIntent.metadata.assistantExecution.state,'stopping');
+      const binding={runId,threadId:THREAD,resourceId:stoppedIntent.resourceId,requestId:LOGICAL};
+      await assert.rejects(runtime.service.finalizeNativeStop(binding),/active or changed native owner/);
+      const retiredOwner=await waitFor(async()=>{
+        const owner=await workflows.getRunOwnership({runId});
+        assert.equal(owner.ownerId,killedOwner.ownerId);
+        assert.equal(owner.generation,killedOwner.generation);
+        assert.equal(audit().filter(entry=>entry.type==='model').length,before);
+        return owner;
+      },owner=>!owner.live,35000);
+      assert.equal(retiredOwner.live,false);
       if (kind === 'cold-stop-store-failure') {
         const update = workflows.updateWorkflowState.bind(workflows);
         workflows.updateWorkflowState = async (input) => {
@@ -557,7 +571,7 @@ async function scenario(kind) {
       return {
         kind,
         coldNativeStop: true,
-        canceledBeforeLeaseExpiry: true,
+        ownerRetirementVerified: true,
         persistedGates: 0,
         additionalModelCalls: 0,
         toolCalls: 0,
@@ -574,7 +588,7 @@ async function scenario(kind) {
       const runId = thread.metadata.assistantNativeRun.runId;
       assert.equal(audit().filter((entry) => entry.type === 'model').length, 3);
       const stopAt = Date.now();
-      await runtime.service.cancelModelAvailability(runId, THREAD);
+      await runtime.service.cancelModelAvailability(runId, THREAD, {markOnly:true});
       runtime.agent.abortRunStream(runId);
       await delay(500);
       console.log(
@@ -596,6 +610,7 @@ async function scenario(kind) {
       assert.equal(audit().filter((entry) => entry.type === 'model').length, 3);
       const states = await runtime.service.modelAvailability.states(runId);
       assert.equal(states.at(-1).status, 'canceled');
+      await runtime.service.finalizeNativeStop({runId,threadId:THREAD,resourceId:thread.resourceId,requestId:LOGICAL});
       return {
         kind,
         crossProcessStop: true,

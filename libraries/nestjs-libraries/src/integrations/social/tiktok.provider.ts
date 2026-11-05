@@ -1,3 +1,4 @@
+import { normalizeAnalytics, completeAnalyticsSum } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -8,15 +9,17 @@ import {
 import dayjs from 'dayjs';
 import {
   BadBody,
+  RefreshToken,
   SocialAbstract,
   ValidityMedia,
 } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
-import { TikTokDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/tiktok.dto';
+import { TikTokDto, validTikTokDisclosure, TIKTOK_DISCLOSURE_MESSAGE, type TikTokCreatorInfo } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/tiktok.dto';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 import { createReadStream, statSync } from 'fs';
 import { Integration } from '@prisma/client';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
+import { inspectTikTokOwnedVideo } from './tiktok-video-inspection';
 
 @Rules(
   [
@@ -24,6 +27,8 @@ import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.d
     'content_posting_method=DIRECT_POST publishes the post to the account. content_posting_method=UPLOAD does NOT publish: it only sends the media to the user inbox of the TikTok app, where the user must manually complete and publish it within 24 hours or it is discarded. Use DIRECT_POST unless the user explicitly asks to review or edit the post inside the TikTok app first.',
     'With content_posting_method=UPLOAD, TikTok ignores every setting except the title / post content. Never tell the user that video_made_with_ai, privacy_level, duet, stitch, comment, autoAddMusic, brand_content_toggle or brand_organic_toggle will be applied in UPLOAD mode - they are silently discarded. If the user asks for any of those settings, tell them it requires DIRECT_POST.',
     'video_made_with_ai, duet and stitch apply to video posts only. TikTok has no equivalent field for photo posts, so those settings are discarded when the attachment is a picture.',
+    'DIRECT_POST requires an explicit privacy_level selected by the user from the current creator account options. Never assume public visibility or choose a default; ask for the missing selection. UPLOAD remains a manual inbox draft and ignores privacy_level.',
+    'For DIRECT_POST show Music Usage Confirmation before the per-item publish approval; branded content also requires the Branded Content Policy declaration. Branded content cannot be SELF_ONLY. Never change a selected privacy to public to make a post pass.',
   ].join(' ')
 )
 export class TiktokProvider extends SocialAbstract implements SocialProvider {
@@ -404,6 +409,30 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  /** Read-only, account-scoped source for the existing editor and pre-upload checks. */
+  async creatorInfo(accessToken: string): Promise<TikTokCreatorInfo> {
+    try {
+      const response = await this.fetch('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
+        headers: {'Content-Type': 'application/json; charset=UTF-8', Authorization: `Bearer ${accessToken}`},
+      });
+      const value = await response.json();
+      const data = value?.data;
+      const options = data?.privacy_level_options;
+      if (value?.error?.code !== 'ok' || !Array.isArray(options) || !options.length || options.length > 4 ||
+        new Set(options).size !== options.length || options.some(option => !['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'].includes(option)) ||
+        typeof data.creator_nickname !== 'string' || !data.creator_nickname || data.creator_nickname.length > 512 ||
+        !['comment_disabled', 'duet_disabled', 'stitch_disabled'].every(key => typeof data[key] === 'boolean') ||
+        !Number.isSafeInteger(data.max_video_post_duration_sec) || data.max_video_post_duration_sec <= 0) throw new Error();
+      return {creatorNickname: data.creator_nickname, privacyLevelOptions: options, commentDisabled: data.comment_disabled,
+        duetDisabled: data.duet_disabled, stitchDisabled: data.stitch_disabled, maxVideoDurationSeconds: data.max_video_post_duration_sec};
+    } catch (error) {
+      if (error instanceof RefreshToken) throw error;
+      throw new BadBody('tiktok-creator-info-unavailable', '{}', '{}',
+        'TikTok account settings are unavailable. Try again or reconnect the channel.');
+    }
+  }
+
   private async uploadedVideoSuccess(
     id: string,
     publishId: string,
@@ -503,7 +532,18 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     const method = this.contentPostingMethod(firstPost);
 
     if (method === 'DIRECT_POST') {
+      if (!validTikTokDisclosure({...firstPost.settings,
+        brand_content_toggle: this.assetBoolean(firstPost.settings?.brand_content_toggle),
+        brand_organic_toggle: this.assetBoolean(firstPost.settings?.brand_organic_toggle)})) {
+        throw new BadBody('tiktok-disclosure-invalid', '{}', '{}', TIKTOK_DISCLOSURE_MESSAGE);
+      }
+      const privacy = firstPost.settings?.privacy_level;
+      if (!['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'].includes(privacy)) {
+        throw new BadBody('tiktok-privacy-required', '{}', '{}',
+          'TikTok privacy must be selected from the current account options before publishing.');
+      }
       return {
+        method,
         post_info: {
           ...(isPhoto && firstPost.settings.title
             ? { title: firstPost.settings.title.slice(0, 90) }
@@ -512,8 +552,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
             ? { title: firstPost.message }
             : {}),
           ...(isPhoto ? { description: firstPost.message } : {}),
-          privacy_level:
-            firstPost.settings.privacy_level || 'PUBLIC_TO_EVERYONE',
+          privacy_level: privacy,
           ...(isPhoto
             ? {}
             : { disable_duet: !this.assetBoolean(firstPost.settings.duet) }),
@@ -546,6 +585,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     }
 
     return {
+      method,
       post_info: {
         ...(isPhoto && firstPost.settings.title
           ? { title: firstPost.settings.title }
@@ -684,6 +724,8 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     return statSync(path).size;
   }
 
+  private inspectVideoForTikTok(path: string) { return inspectTikTokOwnedVideo(path); }
+
   // Returns a streaming body for the [start, end] byte range of the media so we
   // never hold the whole file in memory: a ranged GET for remote URLs, a ranged
   // read stream for local files.
@@ -787,23 +829,48 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     postDetails: PostDetails<TikTokDto>[],
     integration: Integration
   ): Promise<PostResponse[]> {
-    const [firstPost] = postDetails;
+    const original = postDetails[0];
+    const firstPost = {...original, settings: {...original.settings}, media: original.media?.map(media => ({...media}))};
+    // Bind validation and upload to the same media and publication choices.
+    const postInfo = this.buildTikokPostInfoBody(firstPost);
+    const method = postInfo.method;
     const isPhoto = !hasExtension(firstPost?.media?.[0]?.path, 'mp4');
+    let creator: TikTokCreatorInfo | undefined;
+    if (postInfo.method === 'DIRECT_POST') {
+      creator = await this.creatorInfo(accessToken);
+      const approvedInfo = postInfo.post_info;
+      if (!creator.privacyLevelOptions.includes(approvedInfo.privacy_level)) {
+        throw new BadBody('tiktok-privacy-required', '{}', '{}',
+          'TikTok privacy must be selected from the current account options before publishing.');
+      }
+      if ((approvedInfo.disable_comment === false && creator.commentDisabled) ||
+        (!isPhoto && ((approvedInfo.disable_duet === false && creator.duetDisabled) ||
+          (approvedInfo.disable_stitch === false && creator.stitchDisabled)))) {
+        throw new BadBody('tiktok-interactions-changed', '{}', '{}',
+          'TikTok interaction settings changed. Review comments, Duet and Stitch before publishing.');
+      }
+    }
     const videoPath = firstPost?.media?.[0]?.path!;
 
-    // For videos we only need the total size up front (HEAD / statSync) so we
-    // can init the upload; the bytes themselves are streamed later, never fully
-    // loaded into memory.
-    const videoSize = isPhoto
-      ? undefined
-      : await this.tiktokMediaSize(videoPath);
+    let videoSize: number | undefined;
+    if (!isPhoto) {
+      if (creator) {
+        let inspected;
+        try {inspected = await this.inspectVideoForTikTok(videoPath);}
+        catch {throw new BadBody('tiktok-video-inspection-unavailable', '{}', '{}',
+          'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.');}
+        if (inspected.durationSeconds > creator.maxVideoDurationSeconds) throw new BadBody('tiktok-video-too-long', '{}', '{}',
+          'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.');
+        videoSize = inspected.size;
+      } else videoSize = await this.tiktokMediaSize(videoPath);
+    }
 
     const {
       data: { publish_id, upload_url },
     } = await (
       await this.fetch(
         `https://open.tiktokapis.com/v2/post/publish${this.postingMethod(
-          this.contentPostingMethod(firstPost),
+          method,
           isPhoto
         )}`,
         {
@@ -813,7 +880,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            ...this.buildTikokPostInfoBody(firstPost),
+            post_info: postInfo.post_info,
             ...this.buildTikokSourceInfoBody(firstPost, videoSize),
           }),
         }
@@ -874,7 +941,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         if (userStats.follower_count !== undefined) {
           result.push({
             label: 'Followers',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(userStats.follower_count), date: today }],
           });
         }
@@ -882,7 +949,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         if (userStats.following_count !== undefined) {
           result.push({
             label: 'Following',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(userStats.following_count), date: today }],
           });
         }
@@ -890,7 +957,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         if (userStats.likes_count !== undefined) {
           result.push({
             label: 'Total Likes',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(userStats.likes_count), date: today }],
           });
         }
@@ -898,7 +965,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         if (userStats.video_count !== undefined) {
           result.push({
             label: 'Videos',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(userStats.video_count), date: today }],
           });
         }
@@ -942,45 +1009,29 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         const videoDetails = videoQueryData?.data?.videos;
 
         if (videoDetails && videoDetails.length > 0) {
-          let totalViews = 0;
-          let totalLikes = 0;
-          let totalComments = 0;
-          let totalShares = 0;
-
-          for (const video of videoDetails) {
-            totalViews += video.view_count || 0;
-            totalLikes += video.like_count || 0;
-            totalComments += video.comment_count || 0;
-            totalShares += video.share_count || 0;
+          // These are lifetime counters of the latest returned videos, not
+          // a time series or engagement earned within the selected window.
+          const metrics = [
+            ['Recent Views', 'view_count'],
+            ['Recent Likes', 'like_count'],
+            ['Recent Comments', 'comment_count'],
+            ['Recent Shares', 'share_count'],
+          ];
+          for (const [label, field] of metrics) {
+            const total = videoDetails.length === videoIds.length
+              ? completeAnalyticsSum(videoDetails.map((video: any) => video[field]))
+              : null;
+            if (total === null) continue;
+            result.push({
+              label,
+              percentageChange: null,
+              data: [{ total: String(total), date: today }],
+            });
           }
-
-          result.push({
-            label: 'Views',
-            percentageChange: 0,
-            data: [{ total: String(totalViews), date: today }],
-          });
-
-          result.push({
-            label: 'Recent Likes',
-            percentageChange: 0,
-            data: [{ total: String(totalLikes), date: today }],
-          });
-
-          result.push({
-            label: 'Recent Comments',
-            percentageChange: 0,
-            data: [{ total: String(totalComments), date: today }],
-          });
-
-          result.push({
-            label: 'Recent Shares',
-            percentageChange: 0,
-            data: [{ total: String(totalShares), date: today }],
-          });
         }
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching TikTok analytics:', err);
       return [];
@@ -1083,7 +1134,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       if (video.view_count !== undefined) {
         result.push({
           label: 'Views',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(video.view_count), date: today }],
         });
       }
@@ -1091,7 +1142,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       if (video.like_count !== undefined) {
         result.push({
           label: 'Likes',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(video.like_count), date: today }],
         });
       }
@@ -1099,7 +1150,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       if (video.comment_count !== undefined) {
         result.push({
           label: 'Comments',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(video.comment_count), date: today }],
         });
       }
@@ -1107,12 +1158,12 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       if (video.share_count !== undefined) {
         result.push({
           label: 'Shares',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(video.share_count), date: today }],
         });
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching TikTok post analytics:', err);
       return [];

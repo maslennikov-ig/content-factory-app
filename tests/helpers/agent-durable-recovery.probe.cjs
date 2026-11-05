@@ -73,7 +73,9 @@ async function acquireTestPostgres() {
   if (run.status !== 0) {
     throw new Error(`Failed to start disposable PostgreSQL: ${run.stderr || run.stdout}`);
   }
-  const portRes = spawnSync('docker', ['port', containerName, '5432/tcp'], {
+  const containerId = (run.stdout || '').trim();
+  assert.match(containerId, /^[a-f0-9]{64}$/, 'owned PostgreSQL container identity');
+  const portRes = spawnSync('docker', ['port', containerId, '5432/tcp'], {
     encoding: 'utf8',
   });
   const mappedPort = Number(
@@ -81,7 +83,7 @@ async function acquireTestPostgres() {
   );
   let ready = false;
   for (let i = 0; i < 60; i += 1) {
-    const logs = spawnSync('docker', ['logs', containerName], { encoding: 'utf8' });
+    const logs = spawnSync('docker', ['logs', containerId], { encoding: 'utf8' });
     const initialized = `${logs.stdout || ''}${logs.stderr || ''}`.includes(
       'PostgreSQL init process complete; ready for start up.'
     );
@@ -92,7 +94,7 @@ async function acquireTestPostgres() {
         'docker',
         [
           'exec',
-          containerName,
+          containerId,
           'psql',
           '-h',
           '127.0.0.1',
@@ -112,14 +114,19 @@ async function acquireTestPostgres() {
     await new Promise((r) => setTimeout(r, 250));
   }
   if (!ready) {
-    spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+    spawnSync('docker', ['rm', '-f', containerId], { encoding: 'utf8' });
     throw new Error('Disposable PostgreSQL did not become ready');
   }
+  process.stderr.write(JSON.stringify({fixture:'agent-durable-recovery',event:'postgres-created',containerId,containerName,port:mappedPort})+'\n');
   const url = `postgresql://postgres:postgres@127.0.0.1:${mappedPort}/postgres`;
   return {
     url,
+    containerId,
     cleanup: async () => {
-      spawnSync('docker', ['rm', '-f', containerName], { encoding: 'utf8' });
+      spawnSync('docker', ['rm', '-f', containerId], { encoding: 'utf8' });
+      const absent = spawnSync('docker', ['inspect', containerId], {encoding:'utf8'});
+      assert.ok(absent.status !== 0 && /No such (object|container)/i.test(absent.stderr || ''), 'only the owned PostgreSQL container is gone');
+      process.stderr.write(JSON.stringify({fixture:'agent-durable-recovery',event:'postgres-removed',containerId,verifiedAbsent:true})+'\n');
     },
   };
 }
@@ -499,6 +506,33 @@ async function verifyExplicitStopAndLateRejection() {
     },
     toolTitle: () => 'Создать заготовку',
   };
+  // The HTTP/Session façade keeps its original test driver, while Stop uses
+  // the real persisted cancellation/finalization contract on this owned store.
+  const { MastraService } = loadCapabilityModule('../mastra.service.ts', { mocks: {
+    '@contentfactory/nestjs-libraries/chat/mastra.store': { pStore: storage },
+    './mastra.store': { pStore: storage },
+    './conductor/agent-turn-lifecycle': stack.lifecycle,
+    '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
+    '@contentfactory/nestjs-libraries/openai/ai.clients': {
+      getAiSdkProvider: async () => { throw new Error('Provider access is outside this Stop fixture.'); },
+      getModelForRole: async () => { throw new Error('Model routing is outside this Stop fixture.'); },
+    },
+  } });
+  const { NativeModelAvailability, createNativeModelAvailabilityWorkflow } = loadCapabilityModule('../conductor/native-model-availability.ts');
+  const stopService = new MastraService({ get: () => ({}) }, {});
+  stopService.instance = mastra;
+  stopService.modelAvailability = new NativeModelAvailability(mastra, createNativeModelAvailabilityWorkflow());
+  for (const method of ['cancelNativeQueuedInputs', 'cancelModelAvailability', 'finalizeNativeStop', 'settleStoppedNativeRun']) {
+    mastraService[method] = stopService[method].bind(stopService);
+  }
+  let stopFinalizations = 0;
+  mastraService.finalizeNativeStop = async (binding, options) => {
+    assert.equal(binding.resourceId, resourceId);
+    assert.equal(binding.threadId, threadId);
+    assert.equal(options.waitForOwnerMs, 35_000);
+    stopFinalizations++;
+    return stopService.finalizeNativeStop(binding, options);
+  };
   const finishedAdmissions = [];
   const aiUsage = {
     beginAiOperation: async () => ({
@@ -547,6 +581,7 @@ async function verifyExplicitStopAndLateRejection() {
   const stopOutcome = await stopPromise;
   if ('error' in stopOutcome) throw stopOutcome.error;
   const stopResult = stopOutcome.result;
+  assert.equal(stopFinalizations, 1, 'Stop must execute the real durable finalization gate exactly once.');
   assert.equal(stopResult.stopped, true);
   await chatPromise;
 
@@ -723,6 +758,7 @@ async function verifyPostgresCrashRecoveryAndFencing() {
     schemaName,
   });
   await store.init();
+  process.stderr.write(JSON.stringify({fixture:'agent-durable-recovery',event:'schema-created',containerId:pgHandle.containerId,schemaName})+'\n');
   await store.db.none(`
     CREATE TABLE IF NOT EXISTS "${schemaName}".durable_audit_log (
       id SERIAL PRIMARY KEY,
@@ -1016,9 +1052,11 @@ async function verifyPostgresCrashRecoveryAndFencing() {
       },
     };
   } finally {
-    await store.db.none(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
+    await store.db.none(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).then(() => {
+      process.stderr.write(JSON.stringify({fixture:'agent-durable-recovery',event:'schema-dropped',containerId:pgHandle.containerId,schemaName})+'\n');
+    }).catch(() => undefined);
     await store.close().catch(() => undefined);
-    await pgHandle.cleanup().catch(() => undefined);
+    await pgHandle.cleanup();
   }
 }
 

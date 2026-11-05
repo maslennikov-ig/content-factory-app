@@ -1,3 +1,5 @@
+import { validateToolInput } from '@mastra/core/tools';
+import { toStandardSchema } from '@mastra/core/schema';
 import { AGENT_APPROVAL_SUMMARY_MAX } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
 import {
@@ -8,6 +10,8 @@ import {
 } from './capability.types';
 import type { CapabilityServices } from './mastra.adapter';
 import { personPreferencesSchema } from '../conductor/conductor.memory';
+import { nativeSubagentInputSchema, type NativeSubagentInput } from '../conductor/native-subagent.input';
+import { withoutSecretShapes } from '../conductor/secret-shapes';
 
 /**
  * The approval card's «what and where» (correctness review W1 F1, spec §5.1
@@ -62,6 +66,18 @@ export const describeApprovalCall = async (
   if (!capability) {
     // Old suspended snapshots and an explicit memory ask policy remain
     // answerable. Describe the exact native input without requiring a model.
+    if (toolName === 'subagent') {
+      const parsed = validateToolInput(toStandardSchema(nativeSubagentInputSchema), args);
+      if (parsed.error) return null;
+      const input = parsed.data as NativeSubagentInput;
+      const task = cleanApprovalSummary(withoutSecretShapes(input.task ?? input.prompt ?? ''));
+      if (!task || input.forked === true || (identity.role === 'USER' && input.agentType !== 'research')) return null;
+      const roles = { research: 'Исследование', writing: 'Написание', review: 'Проверка' };
+      const model = input.modelId ? withoutSecretShapes(input.modelId) : null;
+      return cleanApprovalSummary(identity.language === 'ru'
+        ? `Поручить агенту «${roles[input.agentType]}» в этом чате; ${model ? `запрошенная модель «${model}»` : 'модель по настройкам роли'}. Задание: ${task}`
+        : `Delegate to the ${input.agentType} specialist in this chat; ${model ? `requested model “${model}”` : 'model from role settings'}. Task: ${task}`);
+    }
     if (toolName === 'updateWorkingMemory') {
       const memory = args && typeof args === 'object' ? (args as Record<string, unknown>).memory : null;
       const parsed = personPreferencesSchema.safeParse(memory);
@@ -78,8 +94,10 @@ export const describeApprovalCall = async (
     return null;
   }
   if (!mayAskApproval(capability) && capability.risk !== 'read') return null;
-  const parsed = capability.input.safeParse(args ?? {});
-  if (!parsed.success) return null;
+  // Match admission and native execution, including optional model nulls.
+  // Only the preview uses parsed data; approval fingerprints keep raw args.
+  const parsed = validateToolInput(toStandardSchema(capability.input), args);
+  if (parsed.error) return null;
   if (!capability.describeApproval) {
     const object = cleanApprovalSummary((parsed.data as Record<string, unknown>).pieceId ?? (parsed.data as Record<string, unknown>).researchId);
     return capability.risk === 'read' && object ? identity.language === 'ru'
@@ -119,9 +137,9 @@ export const approvalContentDigest = async (
   if (!capability || (capability.risk !== 'confirm' && !['video.launch', 'video.launch_v2'].includes(capability.id)) || !capability.approvalContent) {
     return null;
   }
-  const parsed = capability.input.safeParse(args ?? {});
+  const parsed = validateToolInput(toStandardSchema(capability.input), args);
   let content: unknown = null;
-  if (parsed.success) {
+  if (!parsed.error) {
     try {
       content = (await capability.approvalContent({ ...identity, service: services }, parsed.data)) ?? null;
     } catch {

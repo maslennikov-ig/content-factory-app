@@ -7,7 +7,7 @@ for (const key of ['window', 'document', 'navigator']) Object.defineProperty(glo
 global.self = dom.window;
 global.requestAnimationFrame = callback => setTimeout(callback, 0);
 global.IS_REACT_ACT_ENVIRONMENT = true;
-const { act, cleanup, fireEvent, render, within } = require('@testing-library/react');
+const { act, cleanup, fireEvent, render, within, waitFor } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const { readThreadHistory } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
@@ -15,7 +15,7 @@ const words = loadTypeScriptModule('apps/frontend/src/components/agents/agent.co
 const h = React.createElement;
 afterEach(() => { cleanup(); window.sessionStorage.clear(); });
 
-function fixture({ status = 'ready', initialMessages = [], initialExecution, pending = [], signalResult = { accepted: true, durability: 'native' }, historyResult } = {}) {
+function fixture({ status = 'ready', initialMessages = [], initialExecution, pending = [], signalResult = { accepted: true, durability: 'native' }, historyResult, chatResponse } = {}) {
   const calls = [];
   let config;
   let transport;
@@ -25,10 +25,16 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
   let chatError = null;
   const resumeStream = jest.fn(async () => undefined);
   const stop = jest.fn(async () => undefined);
-  const sendMessage = jest.fn(async () => undefined);
+  let nativeChat, nativeSend;
+  let nativeMessages = initialMessages;
+  let notify = () => undefined;
+  const nativeAi = chatResponse ? process.getBuiltinModule('module').createRequire(__filename)('ai') : null;
+  const nativeTransport = chatResponse ? loadWithMocks('apps/frontend/src/components/agents/agent.transport.ts', { ai: nativeAi }).createAgentTransport : null;
+  const sendMessage = jest.fn((...args) => nativeChat ? (nativeSend = nativeChat.sendMessage(...args)) : Promise.resolve());
   const regenerate = jest.fn(async () => undefined);
   const request = async (url, init = {}) => {
     calls.push({ url, ...init });
+    if (chatResponse && url === '/agent/chat') return chatResponse(JSON.parse(init.body));
     return { ok: true, status: 200, json: async () => String(url).endsWith('/signals')
       ? (typeof signalResult === 'function' ? signalResult(JSON.parse(init.body)) : signalResult)
       : (storedHistory instanceof Error ? Promise.reject(storedHistory) : storedHistory) };
@@ -39,8 +45,23 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
       config = options;
       const [messages, setMessages] = React.useState(options.messages);
       updateMessages = setMessages;
+      const [, changed] = React.useReducer(value => value + 1, 0);
+      notify = changed;
+      if (chatResponse && !nativeChat) {
+        const state = {
+          get status() { return chatStatus; }, set status(value) { chatStatus = value; notify(); },
+          get error() { return chatError; }, set error(value) { chatError = value; notify(); },
+          get messages() { return nativeMessages; }, set messages(value) { nativeMessages = value; setMessages(value); },
+          pushMessage(message) { this.messages = [...this.messages, message]; },
+          popMessage() { this.messages = this.messages.slice(0, -1); },
+          replaceMessage(index, message) { this.messages = this.messages.map((saved, i) => i === index ? message : saved); },
+          snapshot(value) { return structuredClone(value); },
+        };
+        nativeChat = new nativeAi.AbstractChat({ state, transport: options.transport,
+          onError: failure => config.onError(failure), onFinish: finish => config.onFinish(finish), onData: part => config.onData(part) });
+      }
       return { messages, setMessages, status: chatStatus, resumeStream, stop, sendMessage, error: chatError,
-        clearError: () => { chatError = null; }, regenerate, addToolApprovalResponse: async () => undefined };
+        clearError: () => { if (nativeChat) nativeChat.clearError(); else chatError = null; }, regenerate, addToolApprovalResponse: async () => undefined };
     } },
     swr: { __esModule: true, default: () => ({ data: undefined }), useSWRConfig: () => ({ mutate: async () => undefined }) },
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => request },
@@ -49,8 +70,8 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
     '@contentfactory/frontend/components/ui/allowance-hint': { ALLOWANCE_API: '/billing/allowance', AllowanceHint: () => null },
     '@contentfactory/react/translation/get.transation.service.client': { useT: () => (_key, fallback) => fallback },
     './agent.threads': { THREADS_KEY: '/agent/threads' },
-    './agent.transport': { isAgentRequestNotStarted: () => false, createAgentTransport: options => { transport = options; return {}; }, screenTimeZone: () => 'Europe/Moscow' },
-    './agent.composer': { AgentComposer: ({ onSubmit, onStop, queued, recovery }) => h('div', { 'data-queued': queued },
+    './agent.transport': { isAgentRequestNotStarted: () => false, createAgentTransport: options => { transport = options; return nativeTransport ? nativeTransport(options) : {}; }, screenTimeZone: () => 'Europe/Moscow' },
+    './agent.composer': { AgentComposer: ({ onSubmit, onStop, queued, recovery, busy }) => h('div', { 'data-queued': queued, 'data-composer-busy': busy },
       recovery ? h('output', { 'data-composer-recovery': recovery.kind }, recovery.text) : null,
       h('button', { onClick: () => void onSubmit({ text: 'Дополнительное указание', files: [] }) }, 'Send instruction'),
       h('button', { onClick: onStop }, 'Explicit Stop')) },
@@ -60,7 +81,7 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
     onThreadId: () => undefined, onTitle: () => undefined, onArtifact: () => undefined, openArtifact: null,
     onArtifactRemoved: () => undefined, starter: null, onStarterUsed: () => undefined, words };
   return { Component, props, calls, resumeStream, stop, sendMessage, regenerate, config: () => config, transport: () => transport, setStatus: value => { chatStatus = value; },
-    setMessages: next => updateMessages(next), setHistory: next => { storedHistory = next; }, setError: value => { chatError = value; } };
+    nativeMessages: () => nativeMessages, nativeSend: () => nativeSend, setMessages: next => updateMessages(next), setHistory: next => { storedHistory = next; }, setError: value => { chatError = value; } };
 }
 const human = { id: 'human', role: 'user', parts: [{ type: 'text', text: 'Исходная задача' }] };
 const active = { requestId: 'logical-native', runId: 'native-run', state: 'running' };
@@ -422,7 +443,7 @@ test('a native pending question arriving in the mounted thread restores controls
 
 test('a native question suspension supersedes the earlier approval projection for the same call', async () => {
   const call = { runId: 'native-question-run', toolCallId: 'native-question-call', toolName: 'ask_user' };
-  const question = { question: 'Какой вывод донести читателю?', canDecideForPerson: true, cardId: 'native-question-card' };
+  const question = { question: 'Какой вывод донести читателю?', questionPurpose: 'creative', canDecideForPerson: true, cardId: 'native-question-card' };
   const asked = { id: 'native-question', role: 'assistant', parts: [
     { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'approval-requested', input: { question: question.question, options: null },
       approval: { id: `${call.runId}::${call.toolCallId}` } },
@@ -441,7 +462,7 @@ test('a native question suspension supersedes the earlier approval projection fo
 test('native input wait reloads a pending ask_user question when the suspension event is absent', async () => {
   const call = { runId: 'native-choice-run', toolCallId: 'native-choice-call', toolName: 'ask_user' };
   const question = {
-    question: 'Какой ответ отправить клиенту?',
+    question: 'Какой ответ отправить клиенту?', questionPurpose: 'creative',
     options: [
       { label: 'Клиентам', description: 'Подготовить сообщение для клиентов.' },
       { label: 'Коллегам', description: 'Подготовить сообщение для коллег.' },
@@ -504,7 +525,7 @@ test('native input wait reloads a pending ask_user question when the suspension 
 test('a persisted pending ask_user question replaces its obsolete denied permission part', async () => {
   const call = { runId: 'native-choice-run', toolCallId: 'native-choice-call', toolName: 'ask_user' };
   const question = {
-    question: 'Какой ответ отправить клиенту?',
+    question: 'Какой ответ отправить клиенту?', questionPurpose: 'creative',
     options: [
       { label: 'Да', description: 'Подтвердить предложенный ответ.' },
       { label: 'Нет', description: 'Отказаться от предложенного ответа.' },
@@ -710,6 +731,62 @@ test('an uncertain native queue acknowledgement stays unknown after history relo
   expect(document.body.textContent).toContain(words.composer.signalUnknown);
   expect(document.body.textContent).not.toContain(words.composer.signalQueued);
   expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test.each([['ru','AI_PROVIDER_PAYMENT_REQUIRED'],['en','AI_PROVIDER_PAYMENT_REQUIRED'],['ru','AGENT_FAILED']])('a live native %s %s SSE unlocks the confirmed saved turn without reload or replay', async (locale,errorCode) => {
+  const copy=loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts').agentCopy[locale];
+  let stream;
+  const bodies=[];
+  const f=fixture({initialMessages:[human],chatResponse:body=>{
+    bodies.push(body);
+    return new Response(new ReadableStream({start(controller){
+      stream=controller;
+      controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'start',messageId:`failed-${bodies.length}`})+'\n\n'));
+    }}),{headers:{'Content-Type':'text/event-stream','x-vercel-ai-ui-message-stream':'v1'}});
+  }});
+  const view=render(h(f.Component,{...f.props,words:copy}));
+  await act(async()=>fireEvent.click(within(document.body).getByRole('button',{name:'Send instruction'})));
+  const submitted=f.nativeMessages().filter(m=>m.role==='user').at(-1);
+  const execution={requestId:'payment-error-request',runId:'payment-error-run',state:'settled',outcome:'failed',errorCode};
+  f.setHistory({messages:[human,submitted],pending:[],execution});
+  await act(async()=>{
+    stream.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'error',errorText:errorCode})+'\n\n'));
+    stream.close();await f.nativeSend();
+  });
+  const button=within(document.body).getByRole('button',{name:'Send instruction'});
+  await waitFor(()=>expect(button.closest('fieldset').disabled).toBe(false));
+  expect(document.body.textContent).toContain(copy.error.codes[errorCode].what);
+  expect(document.querySelector('[data-composer-busy]').getAttribute('data-composer-busy')).toBe('false');
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);expect(f.regenerate).not.toHaveBeenCalled();expect(f.resumeStream).not.toHaveBeenCalled();
+  expect(f.calls.filter(call=>call.method==='POST').map(call=>call.url)).toEqual(['/agent/chat']);
+  expect(view.container.querySelector('fieldset')).toBe(button.closest('fieldset')); // same mounted conversation
+  await act(async()=>fireEvent.click(button));
+  expect(f.sendMessage).toHaveBeenCalledTimes(2);expect(bodies).toHaveLength(2);
+  expect(bodies[1].messages[0].id).not.toBe(submitted.id);
+  await act(async()=>{stream.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'finish',finishReason:'stop'})+'\n\ndata: [DONE]\n\n'));stream.close();await f.nativeSend();});
+});
+
+test.each(['unknown','missing-user','newer-user','running','approval'])('terminal-error recovery preserves the %s boundary without replay',async boundary=>{
+  let stream;
+  const f=fixture({initialMessages:[human],chatResponse:()=>new Response(new ReadableStream({start(controller){
+    stream=controller;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'start',messageId:'boundary-error'})+'\n\n'));
+  }}),{headers:{'Content-Type':'text/event-stream','x-vercel-ai-ui-message-stream':'v1'}})});
+  render(h(f.Component,f.props));
+  await act(async()=>fireEvent.click(within(document.body).getByRole('button',{name:'Send instruction'})));
+  const submitted=f.nativeMessages().filter(m=>m.role==='user').at(-1);
+  const history={messages:[human,submitted],pending:[],execution:{requestId:'boundary-request',runId:'boundary-run',state:'settled',outcome:'failed'}};
+  if(boundary==='unknown')history.execution={requestId:'boundary-request',state:'unknown'};
+  if(boundary==='missing-user')history.messages=[human];
+  if(boundary==='newer-user')history.messages.push({...human,id:'newer-user'});
+  if(boundary==='running'||boundary==='approval')history.execution={requestId:'boundary-request',runId:'boundary-run',state:'running'};
+  if(boundary==='approval')history.pending=[{runId:'boundary-run',toolCallId:'approval-call',toolName:'video_pilot_launch',kind:'approval',summary:'Current approval'}];
+  f.setHistory(history);
+  await act(async()=>{stream.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'error',errorText:'AGENT_FAILED'})+'\n\n'));stream.close();await f.nativeSend();});
+  if(['unknown','missing-user','newer-user'].includes(boundary))expect(within(document.body).getByRole('button',{name:'Send instruction'}).closest('fieldset').disabled).toBe(true);
+  if(boundary==='running')expect(document.querySelector('[data-composer-busy]').getAttribute('data-composer-busy')).toBe('true');
+  expect(document.body.textContent).not.toContain('Status refreshed: the task did not complete.');
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.calls.filter(call=>call.method==='POST').map(call=>call.url)).toEqual(['/agent/chat']);
 });
 
 test('a reloaded failed task shows the retained provider category without retrying inference', async () => {

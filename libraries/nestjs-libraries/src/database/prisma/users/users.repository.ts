@@ -75,6 +75,8 @@ const EMPTY_ORGANIZATION_RELATIONS: Prisma.OrganizationWhereInput = {
   aiUsageRecords: { none: {} },
   videoPromptDrafts: { none: {} },
   videoGenerationJobs: { none: {} },
+  videoProductionRevisions: { none: {} },
+  socialFactoryRecords: { none: {} },
   subscription: { is: null },
   brandProfile: { none: {} },
   brandProfileVersions: { none: {} },

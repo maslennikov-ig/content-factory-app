@@ -7,6 +7,16 @@ import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database
 export class MediaRepository {
   constructor(private _media: PrismaRepository<'media' | '$transaction'>) {}
 
+  /** A measured V2 local final is a video, including after a lost registration response. */
+  saveLocalCompositionV2(org:string,name:string,path:string,originalName:string,bytes:number){
+    if(!Number.isSafeInteger(bytes)||bytes<1||bytes>512*1024*1024)throw new Error('LOCAL_COMPOSITION_MEDIA_SIZE_INVALID');
+    return serializableWithRetry(this._media.model,async tx=>{
+      const existing=await tx.media.findFirst({where:{organizationId:org,name,path,deletedAt:null}});
+      if(existing){if(existing.type!=='video'||existing.fileSize!==bytes)throw new Error('LOCAL_COMPOSITION_MEDIA_MISMATCH');return existing;}
+      return tx.media.create({data:{organizationId:org,name,path,originalName,type:'video',fileSize:bytes}});
+    },'Local video registration is busy. Please retry.');
+  }
+
   /** A completed owned upload may be retried after the HTTP response is lost. */
   saveMultipartFile(
     org: string,

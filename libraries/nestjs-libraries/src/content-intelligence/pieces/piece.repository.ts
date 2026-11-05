@@ -18,6 +18,7 @@
  *    не вторая их реализация.
  */
 
+import { digest } from '../social-factory/campaign/domain';
 import { Injectable } from '@nestjs/common';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import type { PiecesQueryV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -781,6 +782,51 @@ export class PieceRepository {
     input: Parameters<ContentBriefRepository['recordAdaptation']>[1]
   ) {
     return this.briefs.recordAdaptation(organizationId, input);
+  }
+
+  /** Arms only the exact native reply chain; the existing root workflow remains the sole sender. */
+  async setNativeThreadQueue(organizationId: string, rootPostId: string, childIds: string[], state: 'queue' | 'draft') {
+    return this.client().$transaction(async (tx: PrismaClientLike) => {
+      const fail = (code: string): never => { throw Object.assign(new Error(code), { code }); };
+      const ids = [rootPostId, ...childIds];
+      if (!childIds.length || new Set(ids).size !== ids.length) fail('NATIVE_THREAD_INVALID_CHAIN');
+      const rows = await tx.post.findMany({ where: { organizationId, id: { in: ids }, deletedAt: null } });
+      const chain = ids.map(id => rows.find((row: any) => row.id === id));
+      if (!chain[0] || chain.some((row: any, index: number) => !row || row.integrationId !== chain[0].integrationId ||
+          (index === 0 ? row.parentPostId : row.parentPostId !== ids[index - 1]))) fail('NATIVE_THREAD_INVALID_CHAIN');
+      if (state === 'queue') {
+        const binding = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'publication_binding', id: rootPostId, deletedAt: null, invalidatedAt: null } });
+        const campaign = binding && await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'campaign', id: binding.payload.campaignId, deletedAt: null, invalidatedAt: null } });
+        const item = binding && await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'campaign_item', id: binding.payload.itemId, deletedAt: null, invalidatedAt: null } });
+        if (!binding || item?.payload.platform !== 'threads' || item.payload.format !== 'thread' || campaign?.payload.state !== 'active' || !item?.payload.material ||
+            item.payload.contentRevision !== binding.payload.delivery.revision || item.payload.delivery?.postDigest !== binding.payload.delivery.postDigest ||
+            !Array.isArray(binding.payload.parts) || binding.payload.parts.length !== ids.length) fail('NATIVE_THREAD_AUTHORITY_CHANGED');
+        for (let index = 0; index < chain.length; index++) {
+          const row = chain[index], part = binding.payload.parts[index];
+          const hash = digest({ content: row.content, image: JSON.parse(row.image || '[]'), settings: JSON.parse(row.settings || '{}'),
+            channelId: row.integrationId, provider: 'threads' });
+          if (part.postId !== row.id || part.postDigest !== hash || !['DRAFT', 'QUEUE'].includes(row.state) || row.releaseId ||
+              row.publicationJournal && row.publicationJournal.attempts?.length) fail('NATIVE_THREAD_SNAPSHOT_CHANGED');
+        }
+      }
+      let changed = 0;
+      for (const row of chain.slice(1)) {
+        if (row.releaseId || row.publicationJournal && row.publicationJournal.attempts?.length || !['DRAFT', 'QUEUE'].includes(row.state)) continue;
+        const saved = await tx.post.updateMany({ where: { organizationId, id: row.id, integrationId: row.integrationId,
+          parentPostId: row.parentPostId, deletedAt: null, state: row.state }, data: { state: state === 'queue' ? 'QUEUE' : 'DRAFT' } });
+        if (saved.count !== 1) fail('NATIVE_THREAD_STATE_CHANGED');
+        changed++;
+      }
+      return changed;
+    }, { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 10_000 });
+  }
+
+  /** Native social-factory material joins the existing draft path atomically. */
+  createNativeMaterialDraft(
+    organizationId: string,
+    input: Parameters<ContentBriefRepository['createNativeMaterialDraft']>[1]
+  ) {
+    return this.briefs.createNativeMaterialDraft(organizationId, input);
   }
 
   createAdaptationSeries(

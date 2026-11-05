@@ -42,12 +42,20 @@ async function scenario(policy, decision, access) {
     const pubsub = original.agent.getPubSub();
     const record = event => { events.push(clone(event)); };
     await pubsub.subscribe(topic, record);
-    const parent = original.handler.chat(org, user, { threadId, messages: [{ id: 'original-instruction', role: 'user', parts: [{ type: 'text', text: 'Set the controlled objective after permission.' }] }] }, new Response());
+    const originalResponse = new Response();
+    const parent = original.handler.chat(org, user, { threadId, messages: [{ id: 'original-instruction', role: 'user', parts: [{ type: 'text', text: 'Set the controlled objective after permission.' }] }] }, originalResponse);
     parent.catch(() => {});
     await until(async () => (await original.handler.getThread(org, user, threadId)).pending.some(p => p.kind === 'approval'), 'original approval');
     await until(() => events.some(e => e.type === 'run-suspended'), 'native suspension event');
+    // Copy a real parked HTTP turn, never a snapshot left behind by a failed
+    // fixture admission. The usage checkpoint is part of the actual interface.
+    await until(() => originalResponse.parts().some(p => p.type === 'data-native-input-wait') || originalResponse.parts().some(p => p.type === 'error'), 'original HTTP input wait');
+    assert.deepEqual(originalResponse.parts().filter(p => p.type === 'error'), []);
+    if (!realStorage) assert.ok(original.admissions[0].checkpoints > 0);
     await pubsub.unsubscribe(topic, record);
     const thread = clone(await original.memory.getThreadById({ threadId }));
+    assert.equal(thread.metadata.assistantExecution.state, 'running');
+    assert.ok(['running', 'waiting'].includes(thread.metadata.assistantNativeRun.state));
     const messages = clone((await (await original.storage.getStore('memory')).listMessages({ threadId, resourceId, page: 0, perPage: 1000 })).messages);
     const runs = clone((await (await original.storage.getStore('workflows')).listWorkflowRuns({ page: 0, perPage: 1000 })).runs);
     copied = await create(async () => text, access);

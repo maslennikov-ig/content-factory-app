@@ -12,6 +12,8 @@
   "delete": "מחק",
   "add_a_webhook": "הוסף וובהוק",
   "save": "שמור",
+  "refresh": "רענן",
+  "saving": "מתבצעת שמירה…",
   "send_test": "שלח בדיקה",
   "select_role": "בחר תפקיד",
   "video_made_with_ai": "וידאו שנוצר באמצעות בינה מלאכותית",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "טעינת הגרסה השמורה",
   "video_v1_reviewSnapshot": "בדיקת הטקסט וההגדרות לפני ההפעלה",
   "video_v1_paymentNote": "חיוב הספק עשוי לחרוג מהאומדן או מהסכום השמור. ביטול והחזר אינם מובטחים; HeyGen אינו תומך בביטול.",
-  "video_v1_approvalChanged": "הטיוטה השמורה השתנתה. יש לבדוק את הגרסה החדשה ואת המחיר לפני ההפעלה."
+  "video_v1_approvalChanged": "הטיוטה השמורה השתנתה. יש לבדוק את הגרסה החדשה ואת המחיר לפני ההפעלה.",
+  "validation_tiktok_privacy_required": "לפני הפרסום, בחרו פרטיות ב-TikTok מתוך האפשרויות הנוכחיות של החשבון.",
+  "validation_tiktok_account_unavailable": "הגדרות חשבון TikTok אינן זמינות. נסו שוב או חברו מחדש את הערוץ.",
+  "validation_tiktok_interactions_changed": "הגדרות האינטראקציה ב-TikTok השתנו. בדקו תגובות, Duet ו-Stitch לפני הפרסום.",
+  "validation_tiktok_disclosure_invalid": "לפני הפרסום, הגילוי המסחרי ב-TikTok חייב להתאים למותגים ולהגדרות הפרטיות שנבחרו.",
+  "validation_tiktok_duration_invalid": "משך הסרטון ב-TikTok אינו זמין או חורג מהמגבלה הנוכחית של החשבון. יש לבדוק את הסרטון לפני הפרסום."
 }

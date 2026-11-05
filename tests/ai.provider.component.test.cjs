@@ -149,6 +149,9 @@ const component = loadWithMocks(
         'apps/frontend/src/components/settings/settings.copy.ts'
       ),
     '@contentfactory/react/form/button': {
+      buttonClassName: require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+        'libraries/react-shared-libraries/src/form/button.tsx'
+      ).buttonClassName,
       Button: ({ children, secondary: _secondary, ...props }) =>
         React.createElement('button', props, children),
     },

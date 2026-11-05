@@ -395,7 +395,6 @@ const HEX_ALLOWED = [
   'apps/frontend/src/components/new-launch/providers/linkedin/linkedin.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/tiktok/tiktok.preview.tsx',
-  'apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx',
   'apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx',
   'apps/frontend/src/components/new-launch/select.current.tsx',
   'apps/frontend/src/components/new-layout/billing.after.tsx',

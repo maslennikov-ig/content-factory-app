@@ -25,6 +25,17 @@ export class InstagramStandaloneProvider
   implements SocialProvider
 {
   identifier = 'instagram-standalone';
+  async readAccountType(integration: Integration): Promise<'business' | 'creator' | 'unknown'> {
+    if (!integration.token || integration.disabled || integration.refreshNeeded || integration.deletedAt) return 'unknown';
+    try {
+      const response = await fetch(`https://graph.instagram.com/v21.0/me?fields=user_id,account_type`, {headers:{Authorization:`Bearer ${integration.token}`},signal:AbortSignal.timeout(8000),redirect:'error'});
+      if (!response.ok) return 'unknown';
+      const body = await response.json();
+      if (String(body.user_id ?? body.id ?? '') !== String(integration.internalId)) return 'unknown';
+      const type = String(body.account_type ?? '').toUpperCase();
+      return type === 'BUSINESS' ? 'business' : ['CREATOR','MEDIA_CREATOR'].includes(type) ? 'creator' : 'unknown';
+    } catch { return 'unknown'; }
+  }
   name = 'Instagram\n(Standalone)';
   isBetweenSteps = false;
   refreshCron = true;

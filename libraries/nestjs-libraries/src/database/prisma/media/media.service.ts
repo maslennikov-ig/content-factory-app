@@ -139,6 +139,10 @@ export class MediaService {
     return this._mediaRepository.saveFile(org, fileName, filePath, originalName);
   }
 
+  saveLocalCompositionV2(org:string,name:string,path:string,originalName:string,bytes:number){
+    return this._mediaRepository.saveLocalCompositionV2(org,name,path,originalName,bytes);
+  }
+
   saveMultipartFile(
     org: string,
     fileName: string,

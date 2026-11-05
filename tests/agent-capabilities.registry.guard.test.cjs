@@ -156,7 +156,7 @@ describe('agent capability registry', () => {
     // …and the reads still reach every member, but the AI settings: their
     // doors are the administrator's (kcxz.20); and the cliché check, whose
     // door is the editor's — a reader has no draft to check (kcxz.24).
-    const notForEveryone = (entry) => entry.group === 'ai-settings' || entry.id === 'text.slop_check';
+    const notForEveryone = (entry) => entry.id.startsWith('campaign.') || entry.id==='source.resolve_artifact' || entry.id==='channel.editorial_profile' || ['video.personal_assets','video.personal_readiness'].includes(entry.id) || entry.id==='video.production_open' || entry.id==='video.preproduction_open' || entry.id==='helixa.read' || entry.group === 'ai-settings' || entry.id === 'text.slop_check';
     for (const capability of byClass('read').filter((entry) => !notForEveryone(entry))) {
       expect(offered.has(registry.toolNameOf(capability.id))).toBe(true);
     }
@@ -173,6 +173,8 @@ describe('agent capability registry', () => {
    * an editor is not offered even their reads.
    */
   const ADMIN_ONLY = [
+    'campaign.mode', 'campaign.grant', 'campaign.revoke', 'campaign.propose_finding',
+    'source.permission_save', 'source.permission_revoke',
     'channel.times',
     'channel.connect',
     'channel.bot.rename',

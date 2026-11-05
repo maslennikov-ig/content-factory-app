@@ -1,3 +1,4 @@
+import { nativeAttachmentAssetsV1 } from '../social-factory/editorial/native-attachments.v1';
 /**
  * The four reads and the one write the brief surface needs.
  *
@@ -13,6 +14,10 @@
  * tenant-scoped lookup of the ids a brief claims.
  */
 
+import type { EditorialMaterialV1, SourceAdmissionV1 } from '../social-factory/contracts/social-factory.v1';
+import { assertSourceArtifactCurrentV1, type SourceArtifactReaderV1 } from '../social-factory/source-artifact.repository';
+import { readDraftDestinationV1 } from '../social-factory/draft-destination.v1';
+import { sourceRef, resourceRef, assertSourceAdmissionsV1 } from '../social-factory/social-factory.repository';
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
@@ -76,6 +81,13 @@ const retainSeriesReceipts = (next: unknown, prior: unknown): unknown => {
   }
   return rest;
 };
+
+export interface NativeMaterialDraftInput {
+  actorUserId: string; campaignId: string; itemId: string; requestId: string;
+  material: EditorialMaterialV1; date: string; language: 'ru' | 'en'; providerIdentifier: string;
+  editor: 'none' | 'normal' | 'markdown' | 'html';
+  contents: string[]; publicBodies?: string[]; sourceAdmissions?: SourceAdmissionV1[];
+}
 
 type PrismaClientLike = Record<string, any>;
 
@@ -198,6 +210,137 @@ export class ContentBriefRepository {
       'WEB' as CreationMethod
     );
     return created?.posts?.[0]?.id ?? null;
+  }
+
+  /** Complete campaign material and its native objects commit with one immutable receipt. */
+  async createNativeMaterialDraft(organizationId: string, input: NativeMaterialDraftInput): Promise<EditorialMaterialV1> {
+    const fail = (code: string): never => { throw seriesError(code, code); };
+    const requestHash = createHash('sha256').update(canonicalJson({ organizationId,
+      campaignId: input.campaignId, itemId: input.itemId, requestId: input.requestId })).digest('hex');
+    const receiptId = `native_material_${requestHash}`;
+    const fingerprint = createHash('sha256').update(canonicalJson({ organizationId, ...input })).digest('hex');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await this.client().$transaction(async (tx: PrismaClientLike) => {
+          const member = await tx.userOrganization.findFirst({ where: { organizationId, userId: input.actorUserId, disabled: false }, select: { id: true, role: true } });
+          if (!member || !['EDITOR', 'ADMIN', 'SUPERADMIN'].includes(member.role)) fail('NATIVE_MATERIAL_MEMBERSHIP_REQUIRED');
+          const admissions = input.sourceAdmissions ?? [];
+          if (input.material.evidence.some(evidence => !evidence.sourceId || !admissions.some(stamp => stamp.sourceId === evidence.sourceId))) fail('NATIVE_MATERIAL_SOURCE_ADMISSION_REQUIRED');
+          await assertSourceAdmissionsV1(tx, organizationId, admissions);
+          if (input.material.sourceArtifact) await assertSourceArtifactCurrentV1(tx as SourceArtifactReaderV1, organizationId, input.actorUserId, input.material.sourceArtifact);
+          const draft = input.material.destination !== undefined;
+          const live: Record<string, unknown> = { deletedAt: null, invalidatedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
+          let draftLocale: string | undefined;
+          if (draft) {
+            const destination = input.material.destination;
+            if (destination?.kind !== 'draft' || destination.id !== input.material.channelId || destination.publishable !== false ||
+                !input.publicBodies?.length || input.publicBodies.length !== input.contents.length || input.publicBodies.some(body => typeof body !== 'string' || !body.trim())) fail('NATIVE_MATERIAL_DESTINATION_INVALID');
+            const row = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'draft_destination', id: input.material.channelId, ...live } });
+            if (!row) fail('NATIVE_MATERIAL_DESTINATION_SCOPE');
+            const stored = readDraftDestinationV1(row.payload, input.material.channelId);
+            if (stored.actorId !== input.actorUserId || stored.platform !== input.material.platform || input.providerIdentifier !== stored.platform) fail('NATIVE_MATERIAL_DESTINATION_SCOPE');
+            draftLocale = stored.locale;
+          }
+          const verifyReceipt = async (payload: any): Promise<EditorialMaterialV1> => {
+            const material = payload.material as EditorialMaterialV1;
+            if (!material?.pieceId || !material.derivationId || !Array.isArray(payload.postIds) || draft && payload.postIds.length !== 0) fail('NATIVE_MATERIAL_REFERENCE_MISSING');
+            const derivation = await tx.contentDerivation.findFirst({ where: { organizationId, id: material.derivationId,
+              contentPieceId: material.pieceId, integrationId: draft ? null : material.channelId }, select: { postId: true } });
+            if (!derivation || derivation.postId !== (draft ? null : payload.postIds[0])) fail('NATIVE_MATERIAL_REFERENCE_MISSING');
+            if (draft) {
+              if (!await tx.contentPiece.findFirst({ where: { organizationId, id: material.pieceId, archivedAt: null }, select: { id: true } })) fail('NATIVE_MATERIAL_REFERENCE_MISSING');
+              // A cached receipt never makes removed or foreign media usable.
+              for (const asset of material.assets) {
+                const media = await tx.media.findFirst({ where: { organizationId, id: asset.mediaId, deletedAt: null }, select: { path: true } });
+                if (!media || asset.url && media.path !== asset.url) fail('NATIVE_MATERIAL_MEDIA_NOT_FOUND');
+              }
+            } else {
+              const savedPosts = await tx.post.findMany({ where: { organizationId, id: { in: payload.postIds }, deletedAt: null }, select: { id: true } });
+              if (savedPosts.length !== payload.postIds.length) fail('NATIVE_MATERIAL_REFERENCE_MISSING');
+            }
+            return material;
+          };
+          const receipt = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'action', id: receiptId } });
+          if (receipt) {
+            if (receipt.deletedAt || receipt.invalidatedAt || receipt.expiresAt && receipt.expiresAt <= new Date() ||
+                receipt.payload?.type !== 'native_material_receipt') fail('NATIVE_MATERIAL_INVALIDATED');
+            if (receipt.payload.fingerprint !== fingerprint) fail('NATIVE_MATERIAL_IDEMPOTENCY_CONFLICT');
+            return verifyReceipt(receipt.payload);
+          }
+          const campaign = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'campaign', id: input.campaignId, ...live } });
+          const item = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'campaign_item', id: input.itemId, ...live } });
+          if (campaign?.payload.state !== 'active' || !item || item.payload.campaignId !== input.campaignId ||
+              item.payload.channelId !== input.material.channelId || item.payload.platform !== input.material.platform ||
+              item.payload.format !== input.material.format || item.payload.scheduledAt !== input.date ||
+              ['published', 'submitting', 'uncertain', 'cancelled'].includes(item.payload.state)) fail('NATIVE_MATERIAL_CAMPAIGN_SCOPE');
+          if (draft) {
+            if (item.payload.destination?.kind !== 'draft' || item.payload.destination.id !== input.material.channelId || item.payload.destination.publishable !== false) fail('NATIVE_MATERIAL_CAMPAIGN_SCOPE');
+          } else {
+            if (item.payload.destination?.kind === 'draft') fail('NATIVE_MATERIAL_CAMPAIGN_SCOPE');
+            const channel = await tx.integration.findFirst({ where: { organizationId, id: input.material.channelId,
+              providerIdentifier: input.providerIdentifier, deletedAt: null }, select: { id: true } });
+            if (!channel) fail('NATIVE_MATERIAL_CHANNEL_NOT_FOUND');
+          }
+          const images: Array<{ id: string; path: string; alt?: string; thumbnail?: string }> = [];
+          const outboundAssets = new Set(nativeAttachmentAssetsV1(input.material).map(asset=>asset.id));
+          for (const asset of input.material.assets) {
+            const media = await tx.media.findFirst({ where: { organizationId, id: asset.mediaId, deletedAt: null },
+              select: { id: true, path: true, alt: true, thumbnail: true } });
+            if (!media || asset.url && media.path !== asset.url) fail('NATIVE_MATERIAL_MEDIA_NOT_FOUND');
+            if (outboundAssets.has(asset.id)) images.push({ id: media.id, path: media.path,
+              ...(media.alt ? { alt: media.alt } : {}), ...(media.thumbnail ? { thumbnail: media.thumbnail } : {}) });
+          }
+          const revisionHash = createHash('sha256').update(canonicalJson({ organizationId, campaignId: input.campaignId,
+            itemId: input.itemId, revision: item.payload.contentRevision })).digest('hex');
+          const revisionId = `native_material_revision_${revisionHash}`;
+          const contentFingerprint = createHash('sha256').update(canonicalJson({ organizationId, campaignId: input.campaignId,
+            itemId: input.itemId, material: input.material, date: input.date, language: input.language,
+            providerIdentifier: input.providerIdentifier, editor: input.editor, contents: input.contents, sourceAdmissions: input.sourceAdmissions ?? [], ...(draft ? {publicBodies: input.publicBodies} : {}) })).digest('hex');
+          const revisionReceipt = await tx.socialFactoryRecord.findFirst({ where: { organizationId, kind: 'action', id: revisionId } });
+          if (revisionReceipt) {
+            if (revisionReceipt.deletedAt || revisionReceipt.invalidatedAt || revisionReceipt.payload?.type !== 'native_material_revision') fail('NATIVE_MATERIAL_INVALIDATED');
+            if (revisionReceipt.payload.contentFingerprint !== contentFingerprint) fail('NATIVE_MATERIAL_REVISION_CONFLICT');
+            await verifyReceipt(revisionReceipt.payload);
+            await tx.socialFactoryRecord.create({ data: { organizationId, kind: 'action', id: receiptId, parentId: input.itemId,
+              sourceIds: revisionReceipt.sourceIds, payload: { ...revisionReceipt.payload, type: 'native_material_receipt', fingerprint, actorUserId: input.actorUserId } } });
+            return revisionReceipt.payload.material as EditorialMaterialV1;
+          }
+          const scoped = new ContentBriefRepository({ model: tx } as any, this.posts);
+          const core = await scoped.recordCore(organizationId, { title: input.material.title, body: input.material.body,
+            brief: { version: 'social-factory-material/v1', material: input.material, campaignId: input.campaignId,
+              itemId: input.itemId, sourceRevision: item.payload.contentRevision }, language: draftLocale ?? input.language, createdByUserId: input.actorUserId });
+          const postIds = draft ? [] : input.contents.map((_, index) => `native_post_${revisionHash}_${index}`);
+          const existing = draft ? [] : await tx.post.findMany({ where: { organizationId, id: { in: postIds } }, select: { id: true } });
+          if (existing.length) fail('NATIVE_MATERIAL_IDENTITY_CONFLICT');
+          const created = draft ? null : await this.posts.createOrUpdatePost('draft', organizationId, input.date, {
+            integration: { id: input.material.channelId },
+            value: input.contents.map((content, index) => ({ id: postIds[index], content, image: index === 0 ? images : [] })),
+            settings: { ...input.material.settings, __type: input.providerIdentifier },
+          } as any, [], 'WEB' as CreationMethod, undefined, tx);
+          if (!draft && (created?.posts?.length !== postIds.length || created.posts.some((post: any, index: number) => post.id !== postIds[index]))) fail('NATIVE_MATERIAL_POST_NOT_SAVED');
+          const derivation = await scoped.recordAdaptation(organizationId, { pieceId: core.id, postId: draft ? null : postIds[0],
+            integrationId: draft ? null : input.material.channelId, platform: input.providerIdentifier,
+            kind: kindsOfProvider(input.providerIdentifier)[0], title: input.material.title,
+            body: draft ? input.publicBodies!.join('\n\n') : input.material.caption?.trim() || input.material.body.trim(), format: input.material.format,
+            mediaId: images[0]?.id ?? null });
+          if (!derivation?.id) fail('NATIVE_MATERIAL_ADAPTATION_NOT_SAVED');
+          const material = { ...input.material, pieceId: core.id, derivationId: derivation.id };
+          const sourceIds = [...new Set([resourceRef('campaign_item', input.itemId),
+            ...input.material.evidence.filter(e => e.sourceId).map(e => sourceRef(e.sourceId!)),
+            ...input.material.assets.flatMap(asset => asset.provenance.sourceIds).map(sourceRef)])];
+          await tx.socialFactoryRecord.create({ data: { organizationId, kind: 'action', id: revisionId, parentId: input.itemId,
+            sourceIds, payload: { type: 'native_material_revision', contentFingerprint, sourceRevision: item.payload.contentRevision,
+              actorUserId: input.actorUserId, material, postIds } } });
+          await tx.socialFactoryRecord.create({ data: { organizationId, kind: 'action', id: receiptId, parentId: input.itemId,
+            sourceIds, payload: { type: 'native_material_receipt', fingerprint, sourceRevision: item.payload.contentRevision,
+              actorUserId: input.actorUserId, material, postIds } } });
+          return material;
+        }, { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 30_000 });
+      } catch (error: any) {
+        if (!['P2034', 'P2002'].includes(error?.code) || attempt === 2) throw error;
+      }
+    }
+    throw seriesError('NATIVE_MATERIAL_BUSY', 'Retry native material persistence.');
   }
 
   /** All drafts, derivations and the completed receipt share one transaction. */
@@ -507,7 +650,7 @@ export class ContentBriefRepository {
     input: {
       pieceId: string;
       postId: string | null;
-      integrationId: string;
+      integrationId: string | null;
       /** `providerIdentifier` канала: площадка, а не имя перекройки. */
       platform: string;
       kind: string;

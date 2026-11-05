@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 626,
+  "total": 625,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 600,
+      "total": 599,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -396,7 +396,7 @@
         },
         "apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx": {
           "text-[13px]": 1,
-          "text-[14px]": 7
+          "text-[14px]": 6
         },
         "apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx": {
           "font-[400]": 2,

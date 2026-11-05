@@ -84,3 +84,18 @@ test('Higgsfield malformed status and missing completed file never become succes
     assert.equal(f.state.submits.length, 0);
   });
 });
+
+test('Higgsfield polling refuses another job even when its result and charge agree with each other', async () => {
+  await withFixture(async (f, def, token) => {
+    for (const status of ['queued', 'running', 'completed', 'failed', 'canceled']) {
+      for (const job_id of ['foreign_job', undefined]) {
+        f.script('higgsfield', 'jobs_wait', {job_id, status, video_url: 'https://93.184.216.34/foreign.mp4',
+          charge: {job_id, unit: 'higgsfield_credit', amount: '0.5'}});
+        await assert.rejects(f.higgsfield.poll(def, token, {id: 'expected_job'}),
+          e => codeOf(e) === 'VIDEO_PROVIDER_RECEIPT_MISMATCH');
+      }
+    }
+    assert.equal(f.state.submits.length, 0);
+    assert.equal(f.state.quotes.length, 0);
+  });
+});

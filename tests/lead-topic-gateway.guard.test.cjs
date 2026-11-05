@@ -636,3 +636,11 @@ test('both real dated CryptoRank candidates retain their reprint URLs without fe
  const saved=require('./fixtures/lead-story-provenance/saved-stories.json').items.filter(row=>['/leads/1','/leads/8'].includes(row.pointer));
  for(const row of saved){const research=researchStub(sweep([{url:row.sourceUrl,title:row.title,excerpt:row.excerpt,publishedAt:row.publishedAt}]));const result=await gatewayWith(research).check('org-a',row.topic);expect(result.items).toHaveLength(1);const found=result.items[0];expect(found.publishedAt).toEqual(new Date(row.publishedAt));expect(found.sourceRefsJson.attributions).toEqual([]);expect(found.sourceRefsJson.sources[0].primaryStatus).toBe('UNKNOWN');expect(isKnownLeadReprint(found.sourceRefsJson.sources[0].url)).toBe(true);}
 });
+
+test('cost inspection follows the gateway instance switches without outbound work',()=>{
+ const research=researchStub();
+ expect(gatewayWith(research,{enabled:false,communityOnly:false}).paidResearchEnabled).toBe(false);
+ expect(gatewayWith(research,{enabled:true,communityOnly:true}).paidResearchEnabled).toBe(false);
+ expect(gatewayWith(research,{enabled:true,communityOnly:false}).paidResearchEnabled).toBe(true);
+ expect(research.research).not.toHaveBeenCalled();
+});

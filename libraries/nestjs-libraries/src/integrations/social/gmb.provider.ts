@@ -1,3 +1,4 @@
+import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -595,7 +596,9 @@ export class GmbProvider extends SocialAbstract implements SocialProvider {
         const datedValues = series.timeSeries?.datedValues || [];
 
         const dataPoints = datedValues.map((dv: any) => ({
-          total: parseInt(dv.value || '0', 10),
+          // The API explicitly omits value when the measured value is zero.
+          // https://developers.google.com/my-business/reference/performance/rest/v1/TimeSeries#DatedValue
+          total: dv.value ?? '0',
           date: `${dv.date.year}-${String(dv.date.month).padStart(
             2,
             '0'
@@ -605,13 +608,13 @@ export class GmbProvider extends SocialAbstract implements SocialProvider {
         if (dataPoints.length > 0) {
           analytics.push({
             label,
-            percentageChange: 0,
+            percentageChange: null,
             data: dataPoints,
           });
         }
       }
 
-      return analytics;
+      return normalizeAnalytics(analytics);
     } catch (error) {
       console.error('Error fetching GMB analytics:', error);
       return [];

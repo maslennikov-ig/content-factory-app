@@ -1,4 +1,5 @@
 import { toAISdkStream } from '@mastra/ai-sdk';
+import { isDeepStrictEqual } from 'node:util';
 import type { Session } from '@mastra/core/agent-controller';
 import type { AgentSignalContents } from '@mastra/core/agent';
 import { AGENT_STREAM_TOPIC, type DurableAgent } from '@mastra/core/agent/durable';
@@ -207,11 +208,42 @@ export async function streamNativeSession(input: {
   await input.onRunId(runId);
   const ui = await observeNativeRun({ agent, runId, offset, nextRunId: input.nextRunId, onRunId: input.onRunId, onMessageId: input.onMessageId, onError: input.onError });
   const reader = ui.getReader();
-  const shownGates = new Map<string, { runId: string; kind: 'approval' | 'suspension' }>();
+  const shownGates = new Map<string, { runId: string; kind: 'approval' | 'suspension'; toolName?: string; args?: unknown }>();
   const announced = new Set<string>();
   let closed = false;
   let unsubscribe: (() => void) | undefined;
   let notifyGate: (toolCallId: string) => void = () => undefined;
+  const notifyPersistedApproval = async (toolCallId: string, controller: ReadableStreamDefaultController<any>) => {
+    const gate = shownGates.get(toolCallId);
+    if (!gate || gate.kind !== 'approval' || !gate.toolName) return;
+    const key = `${gate.runId}:${toolCallId}:approval`;
+    if (closed || announced.has(key) ||
+      session.resolveToolApproval(gate.toolName, input.threadId) !== 'ask') return;
+    // Durable replay can show the exact approval before Session's independent
+    // subscriber arms its local mirror. A stored manual gate is already waiting
+    // for the person; the HTTP observer must not depend on that mirror's speed.
+    // Publication can precede the durable suspension commit. Bound retries to
+    // this displayed manual call; no read can resume or decide native work.
+    for (const delay of [0, 50, 200, 1000]) {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+      if (closed || shownGates.get(toolCallId) !== gate || announced.has(key) ||
+        session.resolveToolApproval(gate.toolName, input.threadId) !== 'ask') return;
+      let saved;
+      try {
+        saved = await agent.listSuspendedRuns({ threadId: input.threadId, resourceId: input.resourceId });
+      } catch { return; } // An unread gate is never proof of a manual wait.
+      const run = saved.runs.find(run => run.runId === gate.runId &&
+        run.threadId === input.threadId && run.resourceId === input.resourceId);
+      const call = run?.toolCalls.find(call => call.toolCallId === toolCallId);
+      if (!call) continue;
+      if (closed || shownGates.get(toolCallId) !== gate || announced.has(key) ||
+        session.resolveToolApproval(gate.toolName, input.threadId) !== 'ask' ||
+        !call.requiresApproval || call.toolName !== gate.toolName || !isDeepStrictEqual(call.args, gate.args)) return;
+      announced.add(key);
+      controller.enqueue({ type: 'data-native-input-wait', data: { runId: gate.runId, toolCallId }, transient: true });
+      return;
+    }
+  };
   return new ReadableStream({
     start(controller) {
       notifyGate = (toolCallId: string) => {
@@ -250,10 +282,14 @@ export async function streamNativeSession(input: {
         else {
           const value = part.value;
           if (value?.data?.resumed !== true && ['data-tool-call-approval', 'data-tool-call-suspended'].includes(value?.type) && value.data?.toolCallId) {
-            shownGates.set(value.data.toolCallId, { runId: value.data.runId, kind: value.type === 'data-tool-call-approval' ? 'approval' : 'suspension' });
+            shownGates.set(value.data.toolCallId, { runId: value.data.runId, kind: value.type === 'data-tool-call-approval' ? 'approval' : 'suspension',
+              toolName: value.data.toolName, args: value.data.args });
           }
           controller.enqueue(value);
           if (value?.data?.toolCallId) notifyGate(value.data.toolCallId);
+          if (value?.type === 'data-tool-call-approval' && value.data?.resumed !== true && value.data?.toolCallId) {
+            await notifyPersistedApproval(value.data.toolCallId, controller);
+          }
         }
       } catch (error) {
         if (closed) return;

@@ -208,9 +208,24 @@ test('truncated MP4 is rejected even when its signature identifies MP4', async (
 test('valid real MP4 import writes the downloaded bytes once to the owned storage boundary', async () => {
   global.fetch = jest.fn().mockResolvedValue(streamResponse([fixture.subarray(0, 1024), fixture.subarray(1024)], { headers: { 'content-type': 'application/octet-stream' } }));
   const result = await new media.VideoMediaV1().importVideo('https://media.example/provider-result');
-  expect(result).toEqual({ name: 'video.mp4', path: 'owned/video.mp4', size: fixture.length });
+  expect(result).toMatchObject({ name: 'video.mp4', path: 'owned/video.mp4', size: fixture.length, metadata:{source:'mp4_bytes',width:960,height:540,durationSeconds:5.055} });
   expect(uploads).toHaveBeenCalledTimes(1);
   const file = uploads.mock.calls[0][0];
   expect(file.buffer.equals(fixture)).toBe(true);
   expect(file.mimetype).toBe('video/mp4');
+});
+
+test('production import accepts its explicit bounded 512 MiB policy and timeout within its job lease', async () => {
+  global.fetch = jest.fn().mockResolvedValue(streamResponse([fixture], {headers:{'content-length':String(150 * 1024 * 1024)}}));
+  const timeout = jest.spyOn(AbortSignal, 'timeout');
+  const result = await new media.VideoMediaV1().importVideo('https://media.example/long-provider-result', 512 * 1024 * 1024);
+  expect(result.size).toBe(fixture.length);
+  expect(timeout).toHaveBeenCalledWith(120_000);
+});
+
+test('oversized caller policies are refused before network allocation', async () => {
+  global.fetch=jest.fn();
+  await rejectCode(media.downloadVideoAssetV1('https://media.example/video.mp4',513 * 1024 * 1024),'VIDEO_DOWNLOAD_POLICY_INVALID');
+  await rejectCode(new media.VideoMediaV1().readOwned('https://media.example/video.mp4',513 * 1024 * 1024),'VIDEO_DOWNLOAD_POLICY_INVALID');
+  expect(global.fetch).not.toHaveBeenCalled();
 });

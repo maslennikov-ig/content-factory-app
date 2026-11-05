@@ -10,9 +10,9 @@ const {QuestionCard}=loadTypeScriptModule('apps/frontend/src/components/agents/a
 const {agentWordsFor}=loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
 const words=agentWordsFor('ru');
 const payload={kind:'question-batch',cardId:'saved-batch',questions:[
- {question:'Ваш взгляд на первую новость?',options:[{label:'Первое мнение',description:'Первый контекст'}]},
- {question:'Ваш взгляд на вторую новость?',options:[{label:'Второе мнение'}]},
- {question:'Ваш взгляд на третью новость?',options:[{label:'Третье мнение'}]},
+ {question:'Ваш взгляд на первую новость?',questionPurpose:'fact',canDecideForPerson:false,options:[{label:'Первое мнение',description:'Первый контекст'}]},
+ {question:'Ваш взгляд на вторую новость?',questionPurpose:'fact',canDecideForPerson:false,options:[{label:'Второе мнение'}]},
+ {question:'Как подать третью новость в учебном посте?',questionPurpose:'creative',canDecideForPerson:true,options:[{label:'Короткий практический вывод'}]},
 ]};
 const question=()=>contract.readQuestion('ask_user',payload,null);
 afterEach(()=>{cleanup();window.sessionStorage.clear();});
@@ -63,4 +63,16 @@ test('all supported locales have batch navigation and numeric series identity',(
   expect(w.question.batch.progress(3,10)).toContain('3/10');expect(w.question.batch.submit).toBeTruthy();
   if(!['en','ru'].includes(locale))expect(w.question.batch.submit).not.toBe(words.question.batch.submit);
  }
+});
+
+
+test.each([undefined,'fact'])('a personal owner opinion cannot be delegated even when its generic flag is true (purpose=%s)',async questionPurpose=>{
+ const submit=jest.fn(),question=contract.readQuestion('ask_user',{kind:'question-batch',cardId:'owner-opinion-batch',questions:[{question:'Ваш личный взгляд на третью новость?',...(questionPurpose?{questionPurpose}:{}),canDecideForPerson:true,options:[]}]},null);
+ await act(async()=>render(card(submit,{question})));
+ expect(screen.queryByRole('button',{name:words.question.decide,exact:true})).toBeNull();
+ expect(submit).not.toHaveBeenCalled();
+ fireEvent.change(screen.getByLabelText(words.question.ownAnswer),{target:{value:'Моя собственная позиция, которую я сообщил сам.'}});
+ await act(async()=>fireEvent.click(screen.getByRole('button',{name:words.question.send,exact:true})));
+ await act(async()=>fireEvent.click(screen.getByRole('button',{name:words.question.batch.submit,exact:true})));
+ expect(submit).toHaveBeenCalledTimes(1);expect(submit.mock.calls[0][0]).toEqual({answers:[{answer:'Моя собственная позиция, которую я сообщил сам.'}]});
 });

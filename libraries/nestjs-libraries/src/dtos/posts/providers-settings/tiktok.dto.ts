@@ -1,7 +1,28 @@
 import {
-  IsBoolean, ValidateIf, IsIn, IsString, MaxLength, IsOptional
+  IsBoolean, ValidateIf, IsIn, IsString, MaxLength, IsOptional, ValidateBy
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
+
+export const TIKTOK_DISCLOSURE_MESSAGE = 'TikTok commercial disclosure must match the selected brands and privacy before publishing.';
+export function validTikTokDisclosure(value: {content_posting_method?: string; disclose?: boolean; brand_content_toggle?: boolean; brand_organic_toggle?: boolean; privacy_level?: string}): boolean {
+  if (value.content_posting_method === 'UPLOAD') return true;
+  const brand = value.brand_content_toggle === true || value.brand_organic_toggle === true;
+  return !(value.disclose === true && !brand) && !(value.disclose === false && brand) &&
+    !(value.brand_content_toggle === true && value.privacy_level === 'SELF_ONLY');
+}
+const ValidTikTokDisclosure = () => ValidateBy({name: 'validTikTokDisclosure', validator: {
+  validate: (_value, args) => validTikTokDisclosure(args!.object as TikTokDto), defaultMessage: () => TIKTOK_DISCLOSURE_MESSAGE,
+}});
+
+/** Credential-free current creator settings returned by the existing integration function. */
+export interface TikTokCreatorInfo {
+  creatorNickname: string;
+  privacyLevelOptions: TikTokDto['privacy_level'][];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoDurationSeconds: number;
+}
 
 // TikTok only honors most of these settings on a DIRECT_POST. With
 // content_posting_method=UPLOAD the media lands in the user's TikTok inbox as a
@@ -20,6 +41,8 @@ export class TikTokDto {
   })
   title: string;
 
+  @ValidateIf((p) => p.content_posting_method !== 'UPLOAD')
+  @ValidTikTokDisclosure()
   @IsIn([
     'PUBLIC_TO_EVERYONE',
     'MUTUAL_FOLLOW_FRIENDS',
@@ -71,6 +94,11 @@ export class TikTokDto {
       'Applied only when content_posting_method=DIRECT_POST. Ignored by TikTok on UPLOAD.',
   })
   brand_content_toggle: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ValidTikTokDisclosure()
+  disclose?: boolean;
 
   @IsBoolean()
   @IsOptional()

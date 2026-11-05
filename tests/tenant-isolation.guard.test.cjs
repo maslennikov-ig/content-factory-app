@@ -287,6 +287,18 @@ const ALLOWED = new Map([
     'Disconnect revokes one personal wallet across all its workspace grants. repository.connection first checks live membership, ownerId and the current workspace grant; only that verified connectionId is used. The multi-workspace refresh/disconnect test proves every grant is fenced.',
   ],
   [
+    `${LIBRARY}/videos/subscriptions/video-connection.service.ts videoSubscriptionJob.findFirst in renewOwnedGrantV1`,
+    'Same-grant renewal must refuse active or unknown-liability jobs across every organisation sharing this personal connection, because rotating its global token can interrupt those jobs. repository.connection first verifies the current actor, live activated editor membership, ownerId and enabled current-org grant, then assertParent verifies the pilot. The query uses only that verified connectionId and selects id solely for a Boolean busy refusal; no foreign job is returned. hgg-workspace-lease.test.cjs proves other-org running and failed possibly-billed jobs both prevent refresh, while completed same-org retry does not refresh again.',
+  ],
+  [
+    `${LIBRARY}/videos/subscriptions/video-hgg-workspace.service.v1.ts videoAccessPreflight.findUnique in json`,
+    'withContext uses a server-derived connection-only hash for one global control lease across the owner\'s granted organisations. Before this existence read, repository.connection verifies current actor, activated editor membership, connection ownerId and enabled current-org grant. The row is never returned; scoping it to the calling org would split or strand the connection-wide workspace lock. Controlled two-org contention and denied-owner/grant proof: hgg-workspace-lease.test.cjs.',
+  ],
+  [
+    `${LIBRARY}/videos/subscriptions/video-hgg-workspace.service.v1.ts videoAccessPreflight.updateMany in json`,
+    'The same authorised global connection lease: claim filters derived id, actorId, connectionId and expiry under Serializable; release also requires the unique random snapshot.owner so it cannot release a successor. Both calls are counted in COLLAPSED. No tenant content is read or returned; hgg-workspace-lease.test.cjs proves global contention, access refusal and owner-fenced release with controlled storage.',
+  ],
+  [
     `${PRISMA}/users/users.repository.ts userOrganization.deleteMany in deleteAccount`,
     'Account deletion by the instance administrator (`content-factory-next-fn33.23`): the subject is the person, not a workspace, so their membership rows go from every organisation at once; the rejection path in the same file keeps its `organizationId`.',
   ],
@@ -313,10 +325,6 @@ const ALLOWED = new Map([
   [
     `${PRISMA}/autopost/autopost.repository.ts autoPost.update in updateUrl`,
     '`updateUrl` writes the last seen feed URL from a workflow state, with an id from that workflow. Its two request-facing neighbours, `deleteAutopost` and `changeActive`, both filter.',
-  ],
-  [
-    `${PRISMA}/integrations/integration.repository.ts integration.update in updateIntegration`,
-    'Cascade after the integration was found by the composite `organizationId_internalId` key in the same method, and the only caller — `saveProviderPage` — has already resolved the channel through `getIntegrationById(org, id)`. Collapsed with a second write; see `COLLAPSED`.',
   ],
   [
     `${PRISMA}/integrations/integration.repository.ts post.updateMany in updateIntegration`,
@@ -503,7 +511,7 @@ const COLLAPSED = new Map([
     2,
   ],
   [
-    `${PRISMA}/integrations/integration.repository.ts integration.update in updateIntegration`,
+    `${LIBRARY}/videos/subscriptions/video-hgg-workspace.service.v1.ts videoAccessPreflight.updateMany in json`,
     2,
   ],
 ]);

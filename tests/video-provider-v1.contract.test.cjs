@@ -200,3 +200,20 @@ test('HeyGen speech engine metadata remains distinct from the selected avatar re
     assert.equal(prepared.body.voice_settings.engine_settings, undefined);
   });
 });
+
+test('requested HeyGen captions require the actual captioned result and record burned provenance', async () => {
+  const provider = new HeygenProviderV1();
+  const request = { provider: 'heygen', endpoint: 'https://api.heygen.com/v3/videos', body: {
+    type:'avatar',avatar_id:'a',voice_id:'v',script:'The price is not 2.5.',voice_settings:{locale:'en'},engine:{type:'avatar_iii'},
+    resolution:'1080p',aspect_ratio:'16:9',output_format:'mp4',caption:{file_format:'srt',style:'default'},
+  } };
+  let captioned = false;
+  await network((_url, init) => init.method === 'POST' ? json({data:{video_id:'captioned_1'}}) : json({data:{id:'captioned_1',status:'completed',video_url:'https://media.example/plain.mp4',duration:40,...(captioned?{captioned_video_url:'https://media.example/captioned.mp4'}:{})}}), async () => {
+    const receipt = await provider.submit(request,'caption-intent',credential('heygen'));
+    assert.equal(receipt.captionsRequested,true);
+    await assert.rejects(provider.poll(receipt,credential('heygen')),/video_captioned_result_missing/);
+    captioned=true;
+    const status=await provider.poll(receipt,credential('heygen'));
+    assert.equal(status.url,'https://media.example/captioned.mp4');assert.equal(status.captionsBurned,true);
+  });
+});

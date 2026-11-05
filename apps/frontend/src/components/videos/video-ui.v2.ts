@@ -5,12 +5,21 @@ export type { VideoAccessV2, VideoChargeUnitV2, VideoCreditQuote };
 export type VideoApprovalUiV2 = Omit<VideoAccessApprovalV2, 'brief' | 'settings'> & { brief: VideoBriefUiV1; settings: VideoSettingsV1 };
 export interface VideoConnectionUiV2 {
   id: string; provider: 'higgsfield' | 'heygen'; state: string; generation: number;
-  unit: VideoChargeUnitV2; perJob: string | null; perMonth: string | null; workspaceGranted: boolean; balance: null;
+  unit: VideoChargeUnitV2; perJob: string | null; perMonth: string | null; workspaceGranted: boolean; balance: null; walletVerified?: boolean;
 }
 export interface VideoAccessChoicesUiV2 {
   workspaceEnabled: boolean;
-  providers: Array<{ provider: 'higgsfield' | 'heygen'; enabled: boolean; trial: boolean }>;
+  providers: Array<{ provider: 'higgsfield' | 'heygen'; enabled: boolean; trial: boolean; connectReady?: boolean; generationReady?: boolean; blockers?: string[] }>;
   connections: VideoConnectionUiV2[];
+}
+export interface VideoPersonalReadinessUi {
+  connectionId: string; provider: 'higgsfield' | 'heygen'; accountGeneration: number; walletVerified: boolean; unit: VideoChargeUnitV2;
+  schema: {digest: string | null; reviewed: boolean}; operations: Array<{kind: string; ready: boolean; blockers: string[]}>;
+}
+export interface VideoPersonalAssetsUi {
+  status: 'ready' | 'needs_owned_assets' | 'discovery_required' | 'unavailable'; blockers: string[]; guidance: {avatar: {url: 'https://app.heygen.com/'; requiresConsent: true}; voice: {url: 'https://app.heygen.com/'; requiresConsent: true}} | null; accountGeneration: number; ownedOnly: boolean;
+  avatars: Array<{id: string; name: string; engines?: string[]; ownership: string; state: string}>;
+  voices: Array<{id: string; name: string; ownership: string; state: string}>; engines?: string[];
 }
 export interface VideoJobUiV2 extends Omit<VideoJobUiV1, 'estimate'> {
   access?: {kind: 'api'; payer?: 'included' | 'workspace_key'} | {kind: 'subscription'; connectionId?: string; label?: string} | {kind: 'manual'};

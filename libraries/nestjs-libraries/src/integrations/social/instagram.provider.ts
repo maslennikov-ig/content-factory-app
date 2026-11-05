@@ -1,3 +1,4 @@
+import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -26,6 +27,17 @@ export class InstagramProvider
   implements SocialProvider
 {
   identifier = 'instagram';
+  async readAccountType(integration: Integration): Promise<'business' | 'creator' | 'unknown'> {
+    if (!integration.token || integration.disabled || integration.refreshNeeded || integration.deletedAt) return 'unknown';
+    try {
+      const response = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(integration.internalId)}?fields=id,account_type`, {headers:{Authorization:`Bearer ${integration.token}`},signal:AbortSignal.timeout(8000),redirect:'error'});
+      if (!response.ok) return 'unknown';
+      const body = await response.json();
+      if (String(body.id ?? '') !== String(integration.internalId)) return 'unknown';
+      const type = String(body.account_type ?? '').toUpperCase();
+      return type === 'BUSINESS' ? 'business' : ['CREATOR','MEDIA_CREATOR'].includes(type) ? 'creator' : 'unknown';
+    } catch { return 'unknown'; }
+  }
   name = 'Instagram\n(Facebook Business)';
   isBetweenSteps = true;
   toolTip = 'Instagram must be business and connected to a Facebook page';
@@ -943,8 +955,8 @@ export class InstagramProvider
     analytics.push(
       ...(data?.map((d: any) => ({
         label: this.setTitle(d.name),
-        percentageChange: 5,
-        data: d.values.map((v: any) => ({
+        percentageChange: null as number | null,
+        data: (d.values || []).map((v: any) => ({
           total: v.value,
           date: dayjs(v.end_time).format('YYYY-MM-DD'),
         })),
@@ -952,19 +964,19 @@ export class InstagramProvider
     );
 
     analytics.push(
-      ...data2.map((d: any) => ({
+      ...(data2 || []).map((d: any) => ({
         label: this.setTitle(d.name),
-        percentageChange: 5,
+        percentageChange: null as number | null,
         data: [
           {
-            total: d.total_value.value,
+            total: d.total_value?.value,
             date: dayjs().format('YYYY-MM-DD'),
           },
         ],
       }))
     );
 
-    return analytics;
+    return normalizeAnalytics(analytics);
   }
 
   music(accessToken: string, data: { q: string }) {
@@ -1081,13 +1093,13 @@ export class InstagramProvider
         if (label) {
           result.push({
             label,
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(value), date: today }],
           });
         }
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching Instagram post analytics:', err);
       return [];

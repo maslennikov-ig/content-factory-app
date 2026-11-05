@@ -243,7 +243,7 @@ describe('integration analytics snapshots', () => {
     expect(result[0].percentageChange).toBe(20);
   });
 
-  test('growth from an empty audience scales with the gain', () => {
+  test('a zero baseline has no defined percentage change', () => {
     const change = (first, last) =>
       mergeAnalyticsSnapshots(
         [],
@@ -263,8 +263,35 @@ describe('integration analytics snapshots', () => {
         new Date('2026-08-13T14:00:00.000Z')
       )[0].percentageChange;
 
-    expect(change(0, 0)).toBe(0);
-    expect(change(0, 5)).toBeGreaterThan(change(0, 1));
+    expect(change(0, 0)).toBeNull();
+    expect(change(0, 1)).toBeNull();
+    expect(change(0, 5)).toBeNull();
+    expect(change(100, 100)).toBe(0);
+    expect(change(100, 50)).toBe(-50);
+  });
+
+  test('one observation cannot establish growth', () => {
+    const result = mergeAnalyticsSnapshots([], [{
+      metric: 'Subscribers', value: 10,
+      bucket: new Date('2026-08-13T00:00:00Z'),
+    }], 7, new Date('2026-08-13T14:00:00Z'));
+    expect(result[0].percentageChange).toBeNull();
+  });
+
+  test('missing live totals do not overwrite an observed snapshot with zero', () => {
+    const result = mergeAnalyticsSnapshots([{
+      label: 'Subscribers', percentageChange: null,
+      data: ['', 'unavailable', null, 'Infinity'].map((total) => ({ total, date: '2026-08-13' })),
+    }], [
+      { metric: 'Subscribers', value: 100, bucket: new Date('2026-08-12T00:00:00Z') },
+      { metric: 'Subscribers', value: 120, bucket: new Date('2026-08-13T00:00:00Z') },
+      { metric: 'Subscribers', value: NaN, bucket: new Date('2026-08-11T00:00:00Z') },
+    ], 7, new Date('2026-08-13T14:00:00Z'));
+    expect(result[0].data).toEqual([
+      { total: '100', date: '2026-08-12' },
+      { total: '120', date: '2026-08-13' },
+    ]);
+    expect(result[0].percentageChange).toBe(20);
   });
 
   test('uses new versioned Temporal contracts', () => {

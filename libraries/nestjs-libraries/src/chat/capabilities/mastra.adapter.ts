@@ -704,7 +704,7 @@ export const buildCapabilityTool = (
               }
               if (capability.beforeApproval) {
                 const refused = await capability.beforeApproval(
-                  { ...identity, entrance: 'chat', service: options.services },
+                  { ...identity, entrance: 'chat', service: options.services, requestContext: context?.requestContext },
                   input
                 );
                 if (refused) return { proceed: false, output: refused };

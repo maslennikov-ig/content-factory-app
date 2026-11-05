@@ -290,6 +290,9 @@ type AgentWords = {
   };
   subagent: {
     kind: string;
+    role: string;
+    model: string;
+    modelUnspecified: string;
     agents: Readonly<Record<'research' | 'writing' | 'review', string>>;
     statuses: Readonly<Record<'working' | 'done' | 'error', string>>;
   };
@@ -592,6 +595,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         avatar: 'Аватар',
         adaptation: 'Адаптация',
         plan: 'В плане',
+        campaign: 'Кампания',
         channel: 'Канал',
         ideas: 'Откуда идеи',
         facts: 'Откуда факты',
@@ -726,6 +730,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     subagent: {
       kind: 'Специалист',
+      role: 'Роль специалиста',
+      model: 'Запрошенный ИИ',
+      modelUnspecified: 'Не указан в вызове; ещё не подтверждено, какой ИИ ответил',
       agents: {
         research: 'Поиск и разбор фактов',
         writing: 'Написание и переработка текста',
@@ -828,6 +835,62 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         VIDEO_REQUEST_NOT_AUTHORED: {
           what: 'Не удалось подтвердить ваше сообщение с запросом на видео.',
           next: 'Отправьте запрос на создание видео в этом чате и подтвердите сохранённый сценарий.',
+        },
+        CLIP_OWNED_CHAT_REQUIRED: {
+          what: 'Не удалось подтвердить доступ к разговору с этим видео.',
+          next: 'Откройте исходный разговор и проверьте доступ к сохранённому материалу.',
+        },
+        CLIP_SELECTED_PILOT_MISMATCH: {
+          what: 'Не удалось подтвердить выбранный сценарий видео.',
+          next: 'Откройте нужную сохранённую версию сценария в исходном разговоре и отправьте запрос оттуда.',
+        },
+        CLIP_NEW_REVISION_REQUEST_REQUIRED: {
+          what: 'Для новой версии сценария или референсов нужно новое сообщение от вас.',
+          next: 'В исходном разговоре с этим видео опишите правку к выбранной версии. Предыдущая версия останется сохранённой.',
+        },
+        CLIP_NEW_CREDENTIAL_RENEWAL_REQUEST_REQUIRED: {
+          what: 'Продление доступа к подключённому аккаунту требует нового запроса от вас.',
+          next: 'В исходном разговоре с видео попросите продлить доступ к тому же аккаунту. Это не запускает создание кадров или видео.',
+        },
+        CLIP_VISION_RECOVERY_REQUEST_REQUIRED: {
+          what: 'Для восстановления сохранённой проверки кадров нужен запрос от вас.',
+          next: 'В исходном разговоре попросите восстановить результат по сохранённому ответу проверки. Новая проверка или генерация не запускается.',
+        },
+        CLIP_ORIGINAL_REQUEST_REQUIRED: {
+          what: 'Не удалось подтвердить ваше сообщение с запросом.',
+          next: 'Напишите свой запрос в исходном разговоре с видео.',
+        },
+        CLIP_NEW_PRODUCTION_REQUEST_REQUIRED: {
+          what: 'Для подготовки кадров и видео нужно новое сообщение от вас.',
+          next: 'Напишите в разговоре с сохранённым сценарием, что нужно подготовить кадры и видео.',
+        },
+        CLIP_NATIVE_BUDGET_QUESTION_REQUIRED: {
+          what: 'Общий лимит расходов на видео нужно указать в карточке уточнения.',
+          next: 'Ответьте в карточке лимита для этого видео. Ответ в обычном сообщении не заменяет её.',
+        },
+        CLIP_BUDGET_PERSON_ANSWER_REQUIRED: {
+          what: 'Общий лимит расходов на видео должен указать человек.',
+          next: 'Введите положительный общий лимит кредитов в карточке уточнения. Это ещё не согласие на запуск.',
+        },
+        CLIP_PILOT_APPROVAL_CHANGED: {
+          what: 'Параметры, цена или лимит создания видео изменились.',
+          next: 'Откройте сохранённое видео и проверьте актуальные условия перед новым подтверждением.',
+        },
+        CLIP_NEW_REPAIR_REQUEST_REQUIRED: {
+          what: 'Для исправления конечного кадра нужно новое сообщение от вас.',
+          next: 'Укажите в исходном разговоре, что исправить только в конечном кадре, сохранив начальный кадр и сценарий.',
+        },
+        CLIP_NEW_QUOTE_REFRESH_REQUEST_REQUIRED: {
+          what: 'Для обновления истёкшей цены исправления нужно новое сообщение от вас.',
+          next: 'Попросите обновить цену того же исправления в исходном разговоре. Новая цена требует отдельного согласия на запуск.',
+        },
+        VIDEO_DRAFT_NOT_FOUND: {
+          what: 'Сохранённый сценарий видео недоступен.',
+          next: 'Откройте доступный сценарий в выбранном материале и проверьте его состояние.',
+        },
+        VIDEO_ACCESS_DENIED: {
+          what: 'Действие с видео недоступно в этом пространстве.',
+          next: 'Проверьте доступ к материалу и выбранному подключению в этом пространстве.',
         },
         AGENT_FAILED: {
           what: 'Не получилось довести до конца.',
@@ -1486,6 +1549,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         avatar: 'Avatar',
         adaptation: 'Adaptation',
         plan: 'In the plan',
+        campaign: 'Campaign',
         channel: 'Channel',
         ideas: 'Where ideas come from',
         facts: 'Facts',
@@ -1618,6 +1682,9 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
     },
     subagent: {
       kind: 'Specialist',
+      role: 'Specialist role',
+      model: 'Requested AI',
+      modelUnspecified: 'Not specified in the call; the responding AI is not confirmed yet',
       agents: {
         research: 'Research and fact analysis',
         writing: 'Drafting and rewriting',
@@ -1720,6 +1787,62 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         VIDEO_REQUEST_NOT_AUTHORED: {
           what: 'Your message requesting the video could not be verified.',
           next: 'Request the video in this chat and approve the saved script.',
+        },
+        CLIP_OWNED_CHAT_REQUIRED: {
+          what: 'Access to the conversation for this video could not be verified.',
+          next: 'Open the original conversation and check access to the saved material.',
+        },
+        CLIP_SELECTED_PILOT_MISMATCH: {
+          what: 'The selected video script could not be verified.',
+          next: 'Open the intended saved script version in its original conversation and send your request there.',
+        },
+        CLIP_NEW_REVISION_REQUEST_REQUIRED: {
+          what: 'A new script or reference version requires a new message from you.',
+          next: 'In the original conversation for this video, describe the change to the selected version. The previous version stays saved.',
+        },
+        CLIP_NEW_CREDENTIAL_RENEWAL_REQUEST_REQUIRED: {
+          what: 'Renewing access to the connected account requires a new request from you.',
+          next: 'In the original conversation for the video, request renewed access to the same account. This does not start frame or video generation.',
+        },
+        CLIP_VISION_RECOVERY_REQUEST_REQUIRED: {
+          what: 'Recovering the saved frame review requires a request from you.',
+          next: 'In the original conversation, request recovery from the saved review response. This does not start another review or generation.',
+        },
+        CLIP_ORIGINAL_REQUEST_REQUIRED: {
+          what: 'Your message requesting this action could not be verified.',
+          next: 'Write your request in the original conversation for the video.',
+        },
+        CLIP_NEW_PRODUCTION_REQUEST_REQUIRED: {
+          what: 'Preparing the frames and video requires a new message from you.',
+          next: 'In the conversation with the saved script, request preparation of the frames and video.',
+        },
+        CLIP_NATIVE_BUDGET_QUESTION_REQUIRED: {
+          what: 'The total video spending limit must be entered in its question card.',
+          next: 'Answer in the limit question card for this video. An ordinary chat message does not replace that answer.',
+        },
+        CLIP_BUDGET_PERSON_ANSWER_REQUIRED: {
+          what: 'A person must provide the total video spending limit.',
+          next: 'Enter a positive total credit limit in the question card. This does not approve execution.',
+        },
+        CLIP_PILOT_APPROVAL_CHANGED: {
+          what: 'The video settings, price or spending limit changed.',
+          next: 'Open the saved video and review the current terms before approving again.',
+        },
+        CLIP_NEW_REPAIR_REQUEST_REQUIRED: {
+          what: 'Correcting the last frame requires a new message from you.',
+          next: 'In the original conversation, describe what to correct in only the last frame while keeping the first frame and script.',
+        },
+        CLIP_NEW_QUOTE_REFRESH_REQUEST_REQUIRED: {
+          what: 'Refreshing the expired correction price requires a new message from you.',
+          next: 'Request a price refresh for the same correction in the original conversation. The new price requires separate execution approval.',
+        },
+        VIDEO_DRAFT_NOT_FOUND: {
+          what: 'The saved video script is unavailable.',
+          next: 'Open an accessible script in the selected material and check its status.',
+        },
+        VIDEO_ACCESS_DENIED: {
+          what: 'This video action is unavailable in this workspace.',
+          next: 'Check access to the material and selected connection in this workspace.',
         },
         AGENT_FAILED: {
           what: 'We could not finish this.',

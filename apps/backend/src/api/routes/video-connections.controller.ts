@@ -19,13 +19,12 @@ export class VideoConnectionsController {
   @Get('/:provider/callback')
   async callback(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('provider') provider: SubscriptionProvider, @Query() query: any, @Res() res: Response) {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
-    let path = '/media?video=1';
+    let path: string;
     try { path = (await this.connections.callback(org.id, user.id, provider, query)).returnPath; }
     catch (error: any) {
-      const code = error?.getResponse?.()?.code;
-      path += `&connectionError=${typeof code === 'string' && /^VIDEO_[A-Z0-9_]+$/.test(code) ? code : 'VIDEO_CONNECTION_UNAVAILABLE'}`;
+      path = await this.connections.callbackFailurePath(org.id, user.id, error);
     }
-    return res.redirect(303, `${process.env.FRONTEND_URL}${path}`);
+    return res.redirect(303, this.connections.frontendDestination(path));
   }
   @Delete('/:id')
   @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])

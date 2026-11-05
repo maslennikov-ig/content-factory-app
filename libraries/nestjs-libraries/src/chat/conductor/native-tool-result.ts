@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Processor, ProcessLLMRequestArgs, ProcessLLMRequestResult } from '@mastra/core/processors';
 import type { CapabilityToolOutput } from '../capabilities/capability.types';
+import { modelToolErrorTextV1 } from './native-history-errors.v1';
 import {
   readCommittedToolReceipt,
   recordCommittedToolReceipt,
@@ -116,6 +117,14 @@ export class NativeToolResultPromptProcessor implements Processor<'native-tool-r
   processLLMRequest({ prompt }: ProcessLLMRequestArgs): ProcessLLMRequestResult {
     let changed = false;
     const strip = <T extends { providerOptions?: any }>(part: T): T => {
+      const result = part as T & { type?: string; output?: { type: string; value?: unknown } };
+      if (result.type === 'tool-result' && ['error-text', 'error-json'].includes(result.output?.type ?? '')) {
+        const value = modelToolErrorTextV1(result.output?.value);
+        if (result.output?.type !== 'error-text' || result.output.value !== value) {
+          changed = true;
+          part = { ...part, output: { type: 'error-text', value } };
+        }
+      }
       const mastra = part.providerOptions?.mastra;
       if (!mastra || typeof mastra !== 'object' || ![
         'modelOutput', 'toolPayloadTransform', 'toolPayloadProjection',

@@ -1,7 +1,7 @@
 export type AnalyticsSeries = {
   label: string;
   data: Array<{ total: string; date: string }>;
-  percentageChange: number;
+  percentageChange: number | null;
   average?: boolean;
 };
 
@@ -18,20 +18,9 @@ export const utcAnalyticsDay = (date = new Date()) =>
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
-/**
- * Growth from nothing has no defined percentage. The missing base is read as
- * one unit, so 0 -> 1 is +100% and 0 -> 5 is +500%; a flat 100 would report the
- * same figure for every gain, however large. The result is capped because the
- * first snapshot of an existing channel starts from zero by construction, and
- * an uncapped ratio would print "+1200000%" next to a perfectly ordinary
- * audience.
- */
-const MAXIMUM_PERCENTAGE_CHANGE = 9_999;
-
 const percentageChange = (first: number, last: number) => {
-  if (first === 0) {
-    return last === 0 ? 0 : Math.min(last * 100, MAXIMUM_PERCENTAGE_CHANGE);
-  }
+  // A zero baseline cannot establish a relative change.
+  if (first === 0) return null;
   return (
     Math.round(
       (((last - first) / Math.abs(first)) * 100 + Number.EPSILON) * 100
@@ -52,7 +41,13 @@ export function mergeAnalyticsSnapshots(
   const snapshotsByMetric = new Map<string, Map<string, number>>();
   for (const snapshot of snapshots) {
     const bucket = utcAnalyticsDay(snapshot.bucket);
-    if (bucket < start || bucket > end) continue;
+    if (
+      !Number.isFinite(snapshot.value) ||
+      Number.isNaN(bucket.getTime()) ||
+      bucket < start ||
+      bucket > end
+    )
+      continue;
     const values = snapshotsByMetric.get(snapshot.metric) || new Map();
     values.set(dateKey(bucket), snapshot.value);
     snapshotsByMetric.set(snapshot.metric, values);
@@ -86,20 +81,24 @@ export function mergeAnalyticsSnapshots(
 
       const pointDate = utcAnalyticsDay(parsed);
       if (pointDate >= start && pointDate <= end) {
-        values.set(dateKey(pointDate), Number(point.total) || 0);
+        const total =
+          point.total == null || String(point.total).trim() === ''
+            ? NaN
+            : Number(point.total);
+        if (Number.isFinite(total)) values.set(dateKey(pointDate), total);
       }
     }
 
     const data = [...values.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([date, total]) => ({ date, total: String(total) }));
-    const first = Number(data[0]?.total) || 0;
-    const last = Number(data[data.length - 1]?.total) || 0;
+    const first = Number(data[0]?.total);
+    const last = Number(data[data.length - 1]?.total);
 
     return {
       ...(liveSeries?.average ? { average: true } : {}),
       label: metric,
-      percentageChange: data.length > 1 ? percentageChange(first, last) : 0,
+      percentageChange: data.length > 1 ? percentageChange(first, last) : null,
       data,
     };
   });

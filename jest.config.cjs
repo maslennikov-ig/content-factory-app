@@ -80,6 +80,21 @@ module.exports = {
   // and transpiled module fixtures), so the root test script runs them in a
   // separate, explicit zero-concurrency step.
   testPathIgnorePatterns: [
+    '/tests/local-reel-renderer.test.cjs$',
+    '/tests/local-composition-upload-v2.test.cjs$',
+    '/tests/local-composition-import-v2.test.cjs$',
+    '/tests/local-composition-operation-v2.test.cjs$',
+    '/tests/social-factory-campaign-autonomy.test.cjs$',
+    '/tests/social-factory-editorial-assets.test.cjs$',
+    '/tests/social-factory-editorial-production.test.cjs$',
+    '/tests/social-factory-profile.test.cjs$',
+    '/tests/social-factory-local-reel-import.test.cjs$',
+    '/tests/social-factory-source-lifecycle.postgres.test.cjs$',
+    '/tests/social-factory-profile-brand-fence.postgres.test.cjs$',
+    '/tests/social-factory-source-permission.postgres.test.cjs$',
+    '/tests/video-composition-providers.test.cjs$',
+    '/tests/video-higgsfield-recovery.test.cjs$',
+    '/tests/video-production.postgres.test.cjs$',
     '/tests/video-provider-v1.contract.test.cjs$',
     '/tests/video-higgsfield-subscription.contract.test.cjs$',
     '/tests/video-heygen-subscription.contract.test.cjs$',

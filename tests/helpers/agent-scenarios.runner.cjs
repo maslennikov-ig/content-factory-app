@@ -32,6 +32,8 @@ const {
   loadCapabilityModule,
   permissionsService,
   providerConfig,
+  services: serviceTokens,
+  SERVICE_MODULES,
 } = require('./agent-capabilities.cjs');
 const { loadScenarios } = require('./agent-scenarios.cjs');
 const screenContract = require('./load-tsx.cjs').loadTypeScriptModule(
@@ -353,6 +355,7 @@ const stand = (scenario) => {
     '../conductor/conductor.execution': execution, './conductor.execution': execution,
     '../../openai/ai.text-chain': textChain,
     '@contentfactory/nestjs-libraries/openai/ai.text-chain': textChain,
+    '../conductor/agent-threads.service': {AgentThreadsService: class AgentThreadsService {}},
   };
   const conductor = loadCapabilityModule('../conductor/index.ts', { aiConfig, mocks: lifecycleMocks });
   const registry = loadCapabilityModule('index.ts', { aiConfig, mocks: lifecycleMocks });
@@ -417,6 +420,15 @@ const stand = (scenario) => {
         args
       ),
   };
+  if (scenario.turns.some(turn => turn.workContext !== undefined)) {
+    const { AgentWorkContextResolver } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/work-context.resolver.ts', {
+      '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.repository': {PieceRepository: class PieceRepository {}},
+    }, {resolve: request => SERVICE_MODULES[request] ? serviceTokens[request] : undefined});
+    const resolver = new AgentWorkContextResolver({services: serviceOf,
+      gate: new registry.DoorPolicyGate(permissionsService()), capabilities: registry.CAPABILITY_CATALOGUE});
+    mastraService.resolveWorkContext = (identity, selected, options) => resolver.resolve(identity, selected, options);
+    mastraService.validateWorkArtifact = (identity, artifact) => resolver.validateArtifact(identity, artifact);
+  }
 
   const doorModules = {
     ...lifecycleMocks,
@@ -451,9 +463,13 @@ const stand = (scenario) => {
       },
     }
   );
+  const threads = new AgentThreadsService(mastraService);
+  // Authored-request replay uses the actual owned history reader, not a
+  // fixture string or the latest user message substituted for an older id.
+  services.AgentThreadsService = threads;
   const controller = new AgentController(
     mastraService,
-    new AgentThreadsService(mastraService),
+    threads,
     aiUsage
   );
   return { controller, mastra, conductor, world, table, state, storage, snapshotWrites };
@@ -742,6 +758,7 @@ const playWatched = async (scenario, logs) => {
     if (turn.say !== undefined) {
       body = {
         ...(threadId ? { threadId } : {}),
+        ...(turn.workContext !== undefined ? {workContext: turn.workContext} : {}),
         messages: [
           {
             id: `msg-user-${index + 1}`,

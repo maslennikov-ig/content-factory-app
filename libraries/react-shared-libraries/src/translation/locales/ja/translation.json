@@ -12,6 +12,8 @@
   "delete": "削除",
   "add_a_webhook": "ウェブフックを追加",
   "save": "保存",
+  "refresh": "更新",
+  "saving": "保存中…",
   "send_test": "テスト送信",
   "select_role": "役割を選択",
   "video_made_with_ai": "AIで作成された動画",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "保存済みの版を読み込む",
   "video_v1_reviewSnapshot": "開始前にテキストと設定を確認",
   "video_v1_paymentNote": "提供元の請求額が見積もりや予約額を超える場合があります。キャンセルや返金は保証されず、HeyGen はキャンセルに対応していません。",
-  "video_v1_approvalChanged": "保存済みの下書きが変更されました。開始前に新しい版と料金を確認してください。"
+  "video_v1_approvalChanged": "保存済みの下書きが変更されました。開始前に新しい版と料金を確認してください。",
+  "validation_tiktok_privacy_required": "公開前に、アカウントで現在利用できるTikTokの公開範囲を選択してください。",
+  "validation_tiktok_account_unavailable": "TikTokアカウント設定を取得できません。再試行するか、チャンネルを再接続してください。",
+  "validation_tiktok_interactions_changed": "TikTokの交流設定が変更されました。公開前にコメント、Duet、Stitchを確認してください。",
+  "validation_tiktok_disclosure_invalid": "公開前に、TikTokの商用コンテンツの開示を、選択したブランドとプライバシー設定に合わせてください。",
+  "validation_tiktok_duration_invalid": "TikTok動画の長さを取得できないか、アカウントの現在の上限を超えています。公開前に動画を確認してください。"
 }

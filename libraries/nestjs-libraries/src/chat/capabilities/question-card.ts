@@ -2,7 +2,7 @@ import { writingSettingsAnswerSchema, writingSettingsWithinLimit } from '@conten
 import { AGENT_CARD_ID_KEY, AGENT_DECIDE_FOR_PERSON_KEY } from './agent-parts.contract';
 import { approvalFingerprint } from './approval-fingerprint';
 import { validFullPreviewAnswer } from './catalogue/selection';
-import { nativeQuestionBatchAnswerFits } from '../conductor/native-question-batch';
+import { nativeQuestionBatchAnswerFits, nativeQuestionCanDelegate } from '../conductor/native-question-batch';
 import { domainQuestionAnswer, domainQuestionSchema, mergeDomainQuestionAnswers } from './domain-question-contract';
 
 /**
@@ -100,11 +100,11 @@ export const questionCardView = (
         ...(preview.target === 'title' || preview.target === 'text' ? { target: preview.target } : {}) } };
     });
   }
-  if (
-    isAskUserPayload(shown, toolName) &&
-    shown.canDecideForPerson === undefined
-  ) {
-    shown.canDecideForPerson = true;
+  if (isAskUserPayload(shown, toolName)) {
+    shown.canDecideForPerson = nativeQuestionCanDelegate(shown);
+  }
+  if (shown.kind === 'question-batch' && Array.isArray(shown.questions)) {
+    shown.questions = shown.questions.map(question => isRecord(question) ? {...question, canDecideForPerson: nativeQuestionCanDelegate(question)} : question);
   }
   return { ...shown, [AGENT_CARD_ID_KEY]: questionCardId(payload) };
 };
@@ -167,6 +167,7 @@ export const answerFitsCard = (
     );
   }
   if (isAskUserPayload(payload, toolName)) {
+    if (isRecord(answer) && answer[AGENT_DECIDE_FOR_PERSON_KEY] === true) return nativeQuestionCanDelegate(payload) && onlyKeys(answer, [AGENT_DECIDE_FOR_PERSON_KEY]);
     return normalizeAskUserAnswer(answer) !== null;
   }
   if (!isRecord(answer)) return false;

@@ -66,11 +66,15 @@ describe('subscription OAuth and MCP use real SDK over owned loopback HTTP', () 
     await expect(f.modules.registry.boundedSubscriptionResponse(new Response('x'.repeat(1024 * 1024 + 1)))).rejects.toThrow();
   }));
 
-  test('production defaults remain disabled with no reviewed schema or private-network bypass', () => withProvider(async f => {
+  test('production generation stays disabled while first-party connection is independently ready', () => withProvider(async f => {
     const runtime = new f.modules.registry.VideoSubscriptionRuntime();
     for (const provider of ['higgsfield', 'heygen']) {
       const d = runtime.definition(provider);
-      expect(d.enabled).toBe(false); expect(d.schemaDigests).toEqual([]);
+      expect(d.enabled).toBe(false); expect(d.connectEnabled).toBe(true); expect(d.schemaDigests).toEqual([]);
+      if (provider === 'heygen') {
+        expect(d.resource).toBe('https://mcp.heygen.com/mcp/v1');
+        expect(d.resourceMetadata).toBe('https://mcp.heygen.com/.well-known/oauth-protected-resource/mcp/v1');
+      }
       await expect(runtime.validateUrl(d, `${f.origin}/${provider}/mcp`)).rejects.toThrow();
     }
     expect(codeOf({getResponse: () => ({code: 'VIDEO_EXAMPLE'})})).toBe('VIDEO_EXAMPLE');

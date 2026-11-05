@@ -12,6 +12,8 @@
   "delete": "Eliminar",
   "add_a_webhook": "Agregar un webhook",
   "save": "Guardar",
+  "refresh": "Actualizar",
+  "saving": "Guardando…",
   "send_test": "Enviar prueba",
   "select_role": "Seleccionar rol",
   "video_made_with_ai": "Video hecho con IA",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "Cargar versión guardada",
   "video_v1_reviewSnapshot": "Revisar texto y ajustes antes de iniciar",
   "video_v1_paymentNote": "El cobro del proveedor puede superar la estimación o la reserva. La cancelación y el reembolso no están garantizados; HeyGen no admite cancelación.",
-  "video_v1_approvalChanged": "El borrador guardado ha cambiado. Revisa la nueva versión y el precio antes de iniciar."
+  "video_v1_approvalChanged": "El borrador guardado ha cambiado. Revisa la nueva versión y el precio antes de iniciar.",
+  "validation_tiktok_privacy_required": "Antes de publicar, selecciona la privacidad de TikTok entre las opciones actuales de la cuenta.",
+  "validation_tiktok_account_unavailable": "La configuración de la cuenta de TikTok no está disponible. Inténtalo de nuevo o vuelve a conectar el canal.",
+  "validation_tiktok_interactions_changed": "La configuración de interacción de TikTok ha cambiado. Revisa los comentarios, Duet y Stitch antes de publicar.",
+  "validation_tiktok_disclosure_invalid": "Antes de publicar, la declaración comercial de TikTok debe coincidir con las marcas y la privacidad seleccionadas.",
+  "validation_tiktok_duration_invalid": "La duración del vídeo de TikTok no está disponible o supera el límite actual de la cuenta. Revisa el vídeo antes de publicar."
 }

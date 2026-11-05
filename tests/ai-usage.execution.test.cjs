@@ -168,6 +168,7 @@ const includedLedger = ({ rows = [], quota = 1, failedUpdates = 0 } = {}) => {
   return {
     records,
     count,
+    update,
     usage: loadUsage({ transaction, create, update, config: included }),
   };
 };
@@ -1092,6 +1093,85 @@ describe('AI operation usage seam', () => {
     expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({
       organizationId: 'organization-a', userId: 'trusted-recovered-member', operation: 'agent',
     }) });
+  });
+
+  test('native-wait usage checkpoints persist absolute partial totals on the same open admission without double counting', async () => {
+    const f = includedLedger({ quota: 1 });
+    const admission = await f.usage.beginAiOperation('organization-a', 'agent');
+    const record = call => admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record(call));
+    record({ model: 'managed-text', attempt: 1, promptTokens: 10, completionTokens: 2, costUsd: 0.125 });
+    record({ model: 'managed-text', attempt: 1, promptTokens: 20, completionTokens: 3, costUsd: 0.25 });
+    expect(await admission.checkpoint()).toBe(true);
+    expect(await admission.checkpoint()).toBe(true);
+    expect(f.records).toHaveLength(1);
+    expect(f.records[0]).toMatchObject({ id: admission.id, status: 'admitted', promptTokens: 30, completionTokens: 5, costUsd: 0.375 });
+    await expect(f.usage.beginAiOperation('organization-a', 'agent')).rejects.toMatchObject({ name: 'AiIncludedQuotaExceeded' });
+    record({ model: 'managed-text', attempt: 1, promptTokens: 5, completionTokens: 1, costUsd: 0.125 });
+    await admission.finish(true);
+    expect(f.records[0]).toMatchObject({ status: 'succeeded', promptTokens: 35, completionTokens: 6, costUsd: 0.5 });
+    const writes = f.update.mock.calls.length;
+    expect(await admission.checkpoint()).toBeUndefined();
+    await admission.finish(false);
+    expect(f.update).toHaveBeenCalledTimes(writes);
+    expect(f.records[0].status).toBe('succeeded');
+  });
+
+  test('native-wait usage checkpoints and terminal writes stay ordered when storage is slow', async () => {
+    const f = includedLedger(), admission = await f.usage.beginAiOperation('organization-a', 'agent');
+    const record = costUsd => admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({ model: 'managed-text', attempt: 1, costUsd }));
+    record(1);
+    let release, started;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const writing = new Promise(resolve => { started = resolve; });
+    const update = f.update.getMockImplementation();
+    f.update.mockImplementationOnce(async value => { started(); await blocked; return update(value); });
+    const first = admission.checkpoint();
+    await writing;
+    record(2);
+    const second = admission.checkpoint(), finished = admission.finish(true);
+    let closedBarrierFinished = false;
+    const closedBarrier = admission.checkpoint().then(() => { closedBarrierFinished = true; });
+    try {
+      await tick();
+      expect(f.update).toHaveBeenCalledTimes(1);
+      expect(f.records[0].status).toBe('admitted');
+      expect(closedBarrierFinished).toBe(false);
+    } finally { release(); }
+    await Promise.all([first, second, finished, closedBarrier]);
+    expect(f.records[0]).toMatchObject({ status: 'succeeded', costUsd: 3 });
+    expect(f.update.mock.calls.filter(([value]) => value.data.status).map(([value]) => value.data.status)).toEqual(['succeeded']);
+    expect(await admission.checkpoint()).toBeUndefined();
+    expect(f.records[0].costUsd).toBe(3);
+  });
+
+  test('native-wait usage checkpoint failure remains uncheckpointed and can retry persistence without another provider call', async () => {
+    const f = includedLedger(), admission = await f.usage.beginAiOperation('organization-a', 'agent');
+    admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({ model: 'managed-text', attempt: 1, costUsd: 1 }));
+    expect(await admission.checkpoint()).toBe(true);
+    admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({ model: 'managed-text', attempt: 1, costUsd: 2 }));
+    f.update.mockRejectedValueOnce(new Error('storage unavailable'));
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await admission.checkpoint()).toBe(false);
+      expect(f.records[0]).toMatchObject({ status: 'admitted', costUsd: 1 });
+      expect(await admission.checkpoint()).toBe(true);
+      expect(f.records[0]).toMatchObject({ status: 'admitted', costUsd: 3 });
+      expect(admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().calls)).toHaveLength(2);
+      await admission.finish(true);
+      expect(f.records).toHaveLength(1);
+      expect(f.records[0]).toMatchObject({ status: 'succeeded', costUsd: 3 });
+    } finally { log.mockRestore(); }
+  });
+
+  test('native-wait usage checkpoints leave empty usage untouched and preserve unknown cost', async () => {
+    const f = includedLedger(), admission = await f.usage.beginAiOperation('organization-a', 'agent');
+    expect(await admission.checkpoint()).toBeUndefined();
+    expect(f.update).not.toHaveBeenCalled();
+    admission.run(() => require('./helpers/ai-text-chain.cjs').currentUsageLedger().record({ model: 'managed-text', attempt: 1, promptTokens: 100, failed: true, possiblyBilled: true }));
+    expect(await admission.checkpoint()).toBe(true);
+    expect(f.records[0]).toMatchObject({ status: 'admitted', promptTokens: 100, costUsd: null, possiblyBilled: true });
+    await admission.finish(false);
+    expect(f.records[0]).toMatchObject({ status: 'failed', costUsd: null, possiblyBilled: true });
   });
 
   test('a native ownership loser voids its unstarted admission without charging an operation', async () => {

@@ -1,0 +1,167 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "social-factory-20261103",
+  "goal_id": "content-factory-next-ekqe",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 1,
+  "acceptance_boundary_id": "native-chat-owned-video-preview",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "native-chat",
+      "social-factory",
+      "video-providers",
+      "owned-local-composition"
+    ],
+    "risk_models": [
+      "tenant-source-revision-binding",
+      "paid-intent-and-credit-admission",
+      "worker-recovery-and-owned-media"
+    ],
+    "test_environments": [
+      "focused-controlled-source",
+      "physical-local-render-fixtures",
+      "isolated-owner-preview"
+    ],
+    "rollback_boundary": "owned-isolated-preview-preserve-existing-data",
+    "acceptance_proofs": [
+      "immutable-source-and-focused-receipts",
+      "owned-media-and-native-readback",
+      "scoped-runtime-ui-accepted-app34",
+      "release-acceptance-pending"
+    ]
+  },
+  "work_areas": [
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-ekqe",
+    "source_digest": "04affa3c3240ebf677efe69066b5783156d67053b819d54a17d920f9bb39be77",
+    "criteria": [
+      {
+        "criterion_id": "content-factory-next-ekqe.1",
+        "text": "**content-factory-next-ekqe.1 — Общие контракты контент-кампаний и подключение к существующему продукту.** Reconcile all eight research reports with current code and define the smallest versioned contracts for channel editorial context, campaign/items, autonomy grants, source evidence, production assets and performance observations. Own shared schema, migrations, backend module wiring and public tool/DTO integration. Preserve existing Mastra, Prisma tenancy and versioned Temporal contracts.\n\nAcceptance: A runnable minimal chat request persists one campaign and one content item using real application services. Contract fixtures are shared with all streams; organization/actor isolation and migration compatibility hold. Existing video and editorial task identities are referenced, not recreated.",
+        "text_digest": "36c3cb9327428bac85031887ab4568f38b3e474fa3b0e8101dbb5032bc017a26"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.2",
+        "text": "**content-factory-next-ekqe.2 — Профиль канала и релевантный поиск без RSS.** Extend existing brand/avatar/channel context with audience, subject, promise, goals, pillars, language/geography, expertise, factual evidence and exclusions. Resolve user/channel-specific values without conflating brand identity, presenter avatar and editorial preferences. Support useful cold start without subscriptions or analytics; recommend source connections without making them mandatory.\n\nAcceptance: An empty-source channel produces relevant grounded topic candidates; conflicting/missing user facts remain explicit. Two channels of one company retain distinct audiences/goals. Recommendations are optional and do not repeat after dismissal. Existing material-specific length choices remain supported.",
+        "text_digest": "9e99b2d4601d4ff6bbaf534ec38ab849dbed4a46db4ce63c4f9fdf789d873467"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.3",
+        "text": "**content-factory-next-ekqe.3 — Источники, поиск успешных примеров и права использования.** Unify existing manual URLs, uploads, RSS, connected sources and research around provenance and permitted use. Generate topic-specific queries, deduplicate ideas and cache scoped research. Keep topic relevance distinct from comparable performance; respect content age, format and account size. Do not ingest arbitrary third-party Telegram content into AI context without a valid basis.\n\nAcceptance: Search works without RSS and without paid analytics. Every material claim traces to a source or is marked hypothesis; no invented success statistics. Tenant isolation, source removal, consent changes and cache invalidation propagate. Source access and reuse rights are independent.",
+        "text_digest": "247f92126a5579f5a3e15b9cdbe606279cbe72f0e362f1076c2ab0432ff89d69"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.4",
+        "text": "**content-factory-next-ekqe.4 — Платформенные редакционные правила и готовые визуальные материалы.** Implement versioned editorial playbooks for Telegram, Instagram, YouTube, Threads and second-wave TikTok. Generate full publication packages: Telegram formatting/media captions, Threads conversations, carousels with readable branded slide assets, Stories frames, short-video scripts, long-form outlines/scripts, titles/covers/captions and CTA. Reuse image/media tooling; chat must receive actual assets where a publication requires them, not just visual instructions.\n\nAcceptance: Representative RU/EN B2B, local-service and physical-product briefs produce complete appropriate packages without invented facts or guaranteed reach claims. Text is legible and respects safe areas; factual text is not left to unreliable image lettering. Platform requirements, editorial recommendations and experiments remain distinct. Existing Telegram rich formatting survives the entire path.",
+        "text_digest": "4555775f035cc89223b110f6f81129d9092ee7c10f775824612898e01559fab3"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.5",
+        "text": "**content-factory-next-ekqe.5 — Три режима работы и решения сильной модели в чате.** Add collaborative, autonomous preparation with publication approval, and full autopilot modes using existing Mastra routing. Persist grants scoped to channels, actions, formats, budgets, time windows and exclusions. The advanced configured model may answer editorial questions from the executor using known context; it cannot invent facts, grant permissions or increase budgets.\n\nAcceptance: Mode selection is visible and persistent. Full autopilot completes permitted work without unnecessary questions; missing business facts remain unknown or cause a precise pause. Revision changes invalidate affected approvals. Pause/revoke works for pending operations. Model choice follows available role configuration with honest fallback.",
+        "text_digest": "ab9ba74a3187dd2b4775980e4b3eb2ac9ea44d4eaa608bd95ee72d15004a9cb5"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.6",
+        "text": "**content-factory-next-ekqe.6 — Массовый контент-план, бюджет и возобновляемое выполнение.** Implement a durable campaign from requests such as 5 Reels and 10 Story frames for two weeks. Persist counts, channel assignment, shared research, calendar, per-item revisions/progress, cost admission and completed assets. One Story unit means one frame; a sequence groups frames; carousel is one publication with explicit slide count. Do not silently multiply totals per channel.\n\nAcceptance: Interrupted batches resume without recreating completed or uncertain paid operations; partial failures can be retried selectively. Changes affect only impacted items. Aggregate budgets and concurrency respect existing limits; unknown charges remain reserved/unknown, not zero. Scheduling uses the user timezone and existing publication machinery.",
+        "text_digest": "6fadcd80d4cb6c4b4c905c23a3a0dc69799e605455acd7253ed2cd18bee0fe3e"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.7",
+        "text": "**content-factory-next-ekqe.7 — Расширить начатые HeyGen/Higgsfield интеграции для агентов.** Build on existing video epic content-factory-next-zlq6, preserving API, personal subscription and manual upload paths. Expose exact provider capabilities, account eligibility, estimates, output expiry and durable job recovery to campaign/chat. Higgsfield replay uses identical endpoint/body/key; HeyGen ambiguous creates are not blindly repeated. Never silently substitute payer or provider.\n\nAcceptance: Existing API/subscription/manual journeys remain compatible. Agent generation uses production services, not Codex-session credentials. Account/tool-schema absence is an honest unavailable state. Estimates are not misrepresented as guaranteed ceilings. Owned downloadable Media is attached to the correct campaign item.",
+        "text_digest": "54b536ab58d8d8b7e40bb7fe51bdf5fcabf1efddfba955b66182f4202eb0df32"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.8",
+        "text": "**content-factory-next-ekqe.8 — Готовые длинные видео и исправление отдельной сцены.** Deliver presenter and faceless short/5-10 minute videos through provider composition. Use HeyGen Studio for supported scene composition and Hyperframes only where required; Hyperframes needs an authored project bundle. Higgsfield generates suitable scenes. Persist sufficient scene/revision provenance to replace one scene without regenerating other approved generation jobs. No new local timeline editor/render farm.\n\nAcceptance: Both styles produce final playable files with narration, captions, brand assets, cover and consistent scene order. Approved unchanged generated scenes are reused on revision; final recomposition is distinguished from regeneration. Duration is validated. Capability-specific source/rights constraints and cost limits are respected.",
+        "text_digest": "e0b9780e87feb06be5aee9fda1bf1e85a828c934d83e1266dd30a491a9cfbee8"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.9",
+        "text": "**content-factory-next-ekqe.9 — Подтвердить реальные видео, качество и списания.** Reuse and complete the outstanding real-provider acceptance in content-factory-next-zlq6.7. Small pilot: RU presenter short, EN faceless short, RU presenter 6-8 minutes, EN faceless 6-8 minutes, plus one targeted scene revision. Use the owner-authorized work scope and existing configured funding limits; missing account choice or budget is an explicit input gap, not unlimited spend.\n\nAcceptance: Retain actual playable outputs, provider receipts, estimated/actual cost, duration, latency, speech/caption/continuity review and revision evidence. Unknown-submit recovery cannot cause an undetected duplicate charge. Fixtures never satisfy this task. If account access prevents completion keep this task and epic open with exact evidence.",
+        "text_digest": "d0517e5bd6f42ddd5a1b36d5b7b453a2c155455f9ecc2d4676a4132d4301b05c"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.10",
+        "text": "**content-factory-next-ekqe.10 — Публикация с учётом возможностей аккаунта и формата.** Connect campaign packages to existing draft/editor/calendar/publishing services for Telegram, Instagram, YouTube and Threads. Persist capability results by auth route/account/format. Check Instagram Stories and Story links independently; YouTube Shorts CTA uses supported surfaces. Respect platform-required user consent even under autopilot.\n\nAcceptance: The same prepared item can be reviewed, scheduled and published through chat with no duplicate post on recovery. Unsupported formats/permissions give actionable states without pretending success. Counts, timezone and account identity remain correct. Original owned content is not rejected solely for cross-platform similarity.",
+        "text_digest": "5e67434a272c4275d4c5aa311d79d0bf7318741e7bc6bb23d908c8a7634950fa"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.11",
+        "text": "**content-factory-next-ekqe.11 — Метрики публикаций с происхождением и сроками хранения.** Extend existing analytics with publication/item mapping, observation windows, supported metrics and explicit missing/unavailable/zero values. Audit providers for placeholders. Keep first-party authorized observations separate from third-party benchmarks; enforce applicable refresh/delete/revoke requirements and derived-data lineage.\n\nAcceptance: Measurements attach to the exact publication version and provider/account. No fabricated percentages, unavailable carousel slide progression or unsupported metrics. Comparable windows and partial availability are explicit. Source deletion/revocation invalidates dependent observations and conclusions where required. Cross-tenant benchmarks are not enabled by default.",
+        "text_digest": "5511df96c9fe75c96839af91d26fb1a5751761bf4078cfe506c3bc69b24f61ce"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.12",
+        "text": "**content-factory-next-ekqe.12 — Контент-эксперименты и обучение на результатах.** Use observations to propose and evaluate bounded experiments in topics, hooks, formats, length, timing and CTA against the channel goal. Keep evidence level, sample size, uncertainty and expiration with recommendations; integrate results into future briefs and role context. Preserve exploration and distinguish correlation from causal claims.\n\nAcceptance: A completed campaign changes a subsequent plan for an explainable evidence-backed reason. Small/biased samples do not become permanent rules. Missing data cannot produce fake winners. Learning respects organization/channel scope and can be inspected, revoked or recomputed.",
+        "text_digest": "8b801f88ec3b9e655e2005349809a3b1711d0d7a40e4f9b86912b354e80021d0"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.13",
+        "text": "**content-factory-next-ekqe.13 — Связь контента с лидами, оплатами и памятью Helixa.** Implement campaign/publication attribution using available clickable surfaces, existing lead infrastructure and actual Helixa integration contracts. Keep deal value, won deal, received payment, refunds and currency separate. Export bounded evidence-backed company knowledge to Helixa through an explicit versioned boundary; inspect real Helixa code, not its marketing site.\n\nAcceptance: An attributed lead and outcome can be traced to its source at a stated post/campaign/account confidence level; Shorts/profile attribution is not falsely post-exact. Payment claims require payment evidence. Helixa memory receives scoped evidence and supports invalidation; missing connection is an honest state. Any Helixa implementation follows its own AGENTS and stage branch policy.",
+        "text_digest": "fc240fde7f830bb5bbbfbb09ea9837fa24a6ce7ace23f7bfcf01a863844c5e4d"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.14",
+        "text": "**content-factory-next-ekqe.14 — Единый сценарий кампании и управления результатами в чате.** Compose the actual user journey: intent/context, mode, optional questions, plan, costs, progress, previews, edit one item/scene, approve/schedule, results and learning. Reuse native chat cards, questions/approvals and existing editor/calendar rather than introducing a separate wizard or duplicate runtime.\n\nAcceptance: A user can request 5 Reels and 10 Story frames, receive actual content/assets, revise one item, recover after reload and schedule approved outputs entirely from chat. All three modes behave consistently. Keyboard, mobile, empty/error/loading states and existing UI locales/components remain supported.",
+        "text_digest": "a9beb7d65f161d0e5f67537354d2ed2e15b6e98d7c13cc717dd72d3bdccc7660"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.15",
+        "text": "**content-factory-next-ekqe.15 — TikTok: вторая волна того же эпика.** Add TikTok packaging and capability-aware integration to the same campaign flow after the four primary platforms. Reuse the existing TikTok provider. Distinguish original owned cross-posting from copying arbitrary third-party material; preserve platform-specific consent and account audit restrictions.\n\nAcceptance: TikTok can be selected as an additional destination with correct package and account capability state, without blocking primary channels. Authenticity/rights and editorial adaptation are separate. A manual/export fallback is explicit when API permission is unavailable.",
+        "text_digest": "c87969c4d882f12fa5b1ea3718ad42a482792f8d5fbca59607ba2ea59278daab"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.16",
+        "text": "**content-factory-next-ekqe.16 — Необязательные внешние сервисы аналитики и поиска.** Provide a capability-based optional connector boundary for licensed analytics/search providers, selecting an initial adapter only where verified access fills a real gap. Keep commercial reuse conditions, provenance, quotas and cost admission visible. No subscription purchase or scraping workaround is necessary for baseline discovery.\n\nAcceptance: Campaigns work with no external analytics subscription; enabling a configured supported service adds attributable comparable evidence. Unconfigured, quota-limited and rights-unsupported services degrade explicitly. No provider marketing claim is treated as proof of AI downstream rights.",
+        "text_digest": "5e803fe958325075de59abe009e262bc8767fb1f5178e5be9a9e80deed9ddde6"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.17",
+        "text": "**content-factory-next-ekqe.17 — Общая проверка эпика и исправление найденных ошибок.** Integrate accepted streams, independently review actual code and fix failures. Run focused cross-boundary checks plus one final full repository release set on the integrated candidate. Validate real account/provider evidence separately and keep incomplete gates open. Review original request coverage, including Helixa feedback and actual visual assets.\n\nAcceptance: All three test halves, build, diff and required process checks pass on the candidate; meaningful end-to-end chat/campaign tests and account evidence cover the promised behavior. No prerequisite or original requirement is silently dropped. Root accepts child work from inspected evidence, not summaries alone.",
+        "text_digest": "8fb15ab19500f4552513598183b0f3f909dbbbfa1b26f23d1fdd7bd926c1971b"
+      },
+      {
+        "criterion_id": "content-factory-next-ekqe.18",
+        "text": "**content-factory-next-ekqe.18 — Доставка проверенного результата и закрытие эпика.** Deliver the accepted integrated candidate through the repository private-source/public-tree/image procedure, preserving unrelated changes, user data and rollback. User explicitly requested autonomous execution and completion overnight. Confirm scope-specific provider/account facts before external actions; do not send arbitrary content to real audiences as a test.\n\nAcceptance: Required delivery receipts, runtime checks, rollback and task-sync acceptance are recorded. Close the epic only when engineering, applicable real-provider/account acceptance and requested delivery are complete; report any remaining external dependency honestly. Clean only task-owned disposable resources.",
+        "text_digest": "9e7ff0401e83bdf06eee3becee7fb82f3ad7db264c79e5d5ea96212408bffd1c"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-ekqe/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "04affa3c3240ebf677efe69066b5783156d67053b819d54a17d920f9bb39be77",
+  "scope_ledger": "none",
+  "stream_artifacts": [],
+  "provenance": {
+    "recorded_at": "2026-11-05T09:51:34.511683+00:00",
+    "derivation": "Recorded now from original accepted Beads outcome mapping in the committed epic plan; not a retroactive immutable-anchor or fresh canonical status read. All18 outcome descriptions and acceptance paragraphs retained verbatim.",
+    "source_commit": "5368729610bc7965c90e2b24882637e183ede6bf",
+    "source_path": "docs/superpowers/plans/2026-11-03-social-content-factory.md",
+    "source_file_sha256": "b5e8f1338f2b779563e7d4b4952da48d221175a89f7c1aab4c6189a6a97f0abe",
+    "current_authority": "Existing Linear/Beads IDs and acceptance remain authoritative; later owner deferrals preserve original criteria."
+  },
+  "evidence_policy": "Existing private immutable A/B/C/D packets and acceptance.md remain source evidence; no synthetic retroactive stream artifacts. This formal consumer manifest is recorded now for the existing stage, not a new task or tracker.",
+  "current_acceptance": "APP34 semi-manual SOURCE+scoped runtime UI ROOTaccepted; BE62488/FE63050/worker62758; new default/human checkpoints source-controlled only/no new paid manual trial; native40 technical playback accepted/OWNER creativeREJECTED; native36gap/all8open; merge/deploy newlyauthorized/notperformed; fullrelease pending; publish/payments/newpaidgeneration deferred. ROOT-approved engineering children .19(native revision/humanapproval),.21(explicitAPI-source reuse),.20(engineeringrelease afterboth); original18criteria/digests and8statuses unchanged. Pre-freeze source: .21 ROOTaccepted12b8678c; .19 ROOTacceptedb3e5d38c/exact34files/7suites118tests/focusedtypes0. Coldcontext fixturecheckpoint corrected, prodguardintact. Candidatefullgate/runtimepending; no paidmanualtrial/releasepass; QA APP34 unchanged. Pre-release candidateC five-docfreeze; source/runtime/release separate, lateractualprivateexecutionreceipts withoutHEADchurn.",
+  "branch": "codex/social-factory-epic-20261103",
+  "source_snapshot": {
+    "head": "b3e5d38c76a27288f4861fb6136418eb03148b20",
+    "tree": "2d9a5351013681cd1389552ddb520a1818d8362b",
+    "runtime_candidate": "34f7fd454e03759e1e80410f98304c97380a2599",
+    "runtime_acceptance": "ROOT-accepted APP34 all3roles/scopedUI/autologin/soleworker;2preparedlockedpilots;66messages/pending0/7jobs17Media preserved; no new paid manual run",
+    "release_acceptance": "PRE_RELEASE_FREEZE: candidateC source .19/.21 ROOTaccepted; integrated build/fullorderedtests/process/publicCI/image/deploy/runtime pending. Later actual state stays in existing private execution/immutable receipts.",
+    "recorded_at": "2026-11-05T19:21:58.901626+00:00",
+    "build_acceptance": "Historical8a3 four-target receipt only; no complete candidateC gate/build receipt yet"
+  }
+}

@@ -13,7 +13,22 @@ export class VideoAccessController {
   @Get('/video-access')
   choices(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User) { return this.access.choices(org.id, user.id); }
   @Get('/video-v2/connections/:id/assets')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   assets(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.access.assets(org.id, user.id, id); }
+  @Get('/video-v2/connections/:id/readiness')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  readiness(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.access.personalReadiness(org.id, user.id, id); }
+  @Post('/video-v2/connections/:id/discover')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  discover(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.access.discoverPersonal(org.id, user.id, id); }
+  @Post('/video-v2/connections/:id/qualification')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async qualification(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string, @Res() res: Response) {
+    res.setHeader('Cache-Control', 'private, no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'attachment; filename="video-provider-schema.json"');
+    return res.status(200).json(await this.access.personalQualification(org.id, user.id, id));
+  }
   @Post('/video-v2/preflight')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   preflight(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Body() body: unknown) { return this.access.preflight(org.id, user.id, body); }

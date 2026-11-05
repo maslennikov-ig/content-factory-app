@@ -302,7 +302,7 @@ describe('the adaptation interview card', () => {
       // Actual run/card forwarding is exercised by the native conversation
       // flow regression; whitespace and callback layout carry no contract.
       // A pending card answered here stops winning over what the stream brings next.
-      expect(conversation).toContain('readMessageBlocks(message, openPending, removed, goneQuestions)');
+      expect(conversation).toMatch(/readMessageBlocks\(\s*message,\s*openPending,\s*removed,\s*goneQuestions,\s*draftDestinationIds\s*\)/);
     });
   });
 

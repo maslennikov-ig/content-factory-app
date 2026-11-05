@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useChat } from '@ai-sdk/react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useRefreshOnReturn, useRevalidateArtifact, useRevalidateUnder, useRevalidateWhenCountGrows } from './agent.revalidate';
+import { useRefreshOnReturn, useRevalidateArtifact, useRevalidateUnder, useRevalidateWhenCountGrows, useVerifiedDraftDestinations } from './agent.revalidate';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { CfMark } from '@contentfactory/frontend/components/ui/brand/cf-mark';
@@ -36,6 +36,8 @@ import {
   pendingCardId,
   pieceTouchesOf,
   videoTouchesOf,
+  campaignTouchesOf,
+  draftDestinationCandidatesOf,
   provisionalTitle,
   questionWaits,
   readThreadHistory,
@@ -89,6 +91,7 @@ import {
 import { SeriesCard } from './agent.series-card';
 import { groupSeriesBlocks } from './agent.series';
 import { SecretCard } from './agent.secret-card';
+import { ClipPreproductionCard } from './agent.preproduction-card';
 import { ChannelConnectCard } from './agent.channel-card';
 import { SelectionCard } from './agent.selection-card';
 import { InterviewCard } from './agent.interview-card';
@@ -240,7 +243,7 @@ export function AgentConversation({
   onTitle: (title: string | null) => void;
   /** The turn produced something, or the person asked to open it. */
   onArtifact: (artifact: AgentArtifact, how: 'produced' | 'asked') => void;
-  onArtifacts?: (artifacts: AgentArtifact[]) => void;
+  onArtifacts?: (artifacts: AgentArtifact[], draftDestinationIds?: readonly string[], verificationPending?: boolean) => void;
   workContext?: AgentWorkContextV1 | null;
   writingSelection?: AgentWritingSelection;
   prepareWritingSelection?: (selection: AgentWritingSelection | undefined) => Promise<void>;
@@ -578,7 +581,7 @@ export function AgentConversation({
         interrupt();
       }
     },
-    onFinish: ({ isAbort, isError, isDisconnect }) => {
+    onFinish: ({ isAbort, isError, isDisconnect, messages: finishedMessages }) => {
       pendingGateRead.current?.abort();
       const pausedObserver = waitingObserverStop.current === turnGeneration.current && !explicitStop.current;
       waitingObserverStop.current = null;
@@ -590,6 +593,8 @@ export function AgentConversation({
       }
       if (questionInFlight.current && (isAbort || isError || isDisconnect) && !questionError.current) questionError.current = new Error('AGENT_TASK_UNCERTAIN');
       const generation = turnGeneration.current;
+      const finishedUserId = submittedMessage.current?.userMessage?.id ??
+        [...(finishedMessages ?? [])].reverse().find((message) => message.role === 'user')?.id;
       const notStarted = refusedBeforeStart.current;
       refusedBeforeStart.current = false;
       if (notStarted) {
@@ -609,6 +614,17 @@ export function AgentConversation({
               return;
             }
             const run = history && history.execution;
+            // A failed SSE response is no longer uncertain once the owned
+            // history confirms this exact latest instruction and terminal run.
+            // Keep the error visible; only a new deliberate send may retry.
+            if (isError && !explicitStop.current && finishedUserId && history && !history.pending.length &&
+              run?.state === 'settled' && run.outcome === 'failed' &&
+              [...history.messages].reverse().find((message) => message.role === 'user')?.id === finishedUserId) {
+              interruptedNow.current = false;
+              setInterrupted(false);
+              setReconciled('failed');
+              return;
+            }
             if (!explicitStop.current && !submittedMessage.current?.userMessage && history && !history.pending.length &&
               run?.state === 'running' && run.runId && reconnectAttempt.current !== run.runId) {
               interruptedNow.current = false;
@@ -1223,10 +1239,14 @@ export function AgentConversation({
     onTitle(provisionalTitle(messages));
   }, [messages, onTitle]);
 
-  const artifacts = useMemo(() => artifactsOf(messages), [messages]);
+  const user = useUser();
+  const draftCandidates = useMemo(() => draftDestinationCandidatesOf(messages, user?.id ?? '', user?.orgId ?? ''), [messages, user?.id, user?.orgId]);
+  const draftProof = useVerifiedDraftDestinations(draftCandidates, {organizationId: user?.orgId, actorId: user?.id, threadId}, request);
+  const draftDestinationIds = draftProof.ids;
+  const artifacts = useMemo(() => artifactsOf(messages, draftDestinationIds), [messages, draftDestinationIds]);
   const announceArtifacts = useRef(onArtifacts);
   announceArtifacts.current = onArtifacts;
-  useEffect(() => { announceArtifacts.current?.(artifacts); }, [artifacts]);
+  useEffect(() => { announceArtifacts.current?.(artifacts, [...draftDestinationIds], draftProof.pending); }, [artifacts, draftDestinationIds, draftProof.pending]);
   const removed = useMemo(() => removedArtifactsOf(messages), [messages]);
   const openKey = openArtifact ? artifactKey(openArtifact) : null;
   const artifactGone = useRef(onArtifactRemoved);
@@ -1388,10 +1408,10 @@ export function AgentConversation({
   );
   const shownKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!latest || latestKey === shownKey.current) return;
+    if (draftProof.pending || !latest || latestKey === shownKey.current) return;
     shownKey.current = latestKey;
     onArtifact(latest, 'produced');
-  }, [latest, latestKey, onArtifact]);
+  }, [latest, latestKey, onArtifact, draftProof.pending]);
 
   // A tool call that touched a piece (an answer, an adaptation, a review, a
   // plan move) makes the piece screen beside the chat read it again
@@ -1429,6 +1449,17 @@ export function AgentConversation({
       revalidateArtifact(touch.artifact);
     }
   }, [videoTouches, revalidateArtifact]);
+
+  const campaignTouches = useMemo(() => campaignTouchesOf(messages), [messages]);
+  const touchedCampaigns = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!touchedCampaigns.current) { touchedCampaigns.current = new Set(campaignTouches.map(touch => touch.key)); return; }
+    for (const touch of campaignTouches) {
+      if (touchedCampaigns.current.has(touch.key)) continue;
+      touchedCampaigns.current.add(touch.key);
+      revalidateArtifact(touch.artifact);
+    }
+  }, [campaignTouches, revalidateArtifact]);
 
   // A finished action of a group re-reads the screen beside the chat
   // (`useRevalidateWhenCountGrows`); what the thread loaded with is already
@@ -1491,7 +1522,6 @@ export function AgentConversation({
 
   /* ---- Drawing ------------------------------------------------------------ */
 
-  const user = useUser();
   const onboarding = useOnboardingProgress();
   // Chosen from the workspace once it answered (spec §6.1, `kcxz.21`); an
   // error counts as an answer, and then every open step is offered.
@@ -1525,6 +1555,11 @@ export function AgentConversation({
     activityHistory?: readonly ReactNode[]
   ): ReactNode => {
     switch (block.type) {
+      case 'clip-preproduction':
+        return <ClipPreproductionCard key={block.key} preproduction={block.preproduction} threadId={thread.current}
+          busy={busy || attachedRunning || interrupted || openPending.length > 0}
+          onRequest={(text, context) => {if (!busy && !attachedRunning && !interrupted && !openPending.length) {currentContext.current = context; announceContext.current?.(context); send({text, files: []}, context);}}}
+          onOpenSource={() => onArtifact({ kind: 'piece', id: block.preproduction.pieceId, title: null, code: null, data: { id: block.preproduction.pieceId } }, 'asked')} />;
       case 'text':
         return <AgentMarkdown key={block.key} text={block.text} />;
       case 'file':
@@ -1566,6 +1601,9 @@ export function AgentConversation({
             irreversible={block.irreversible}
             toolName={block.toolName}
             videoApproval={block.videoApproval}
+            clipPilotApproval={block.clipPilotApproval}
+            subagentApproval={block.subagentApproval}
+            threadId={thread.current}
             canAnswer={block.approvalId.includes('::')}
             state={state}
             busy={busy || interrupted}
@@ -1943,7 +1981,7 @@ export function AgentConversation({
       const assistant = messages.filter((message) => message.role === 'assistant');
       const read = withoutRepeatedQuestionLines(
         assistant.map((message) =>
-          readMessageBlocks(message, openPending, removed, goneQuestions)
+          readMessageBlocks(message, openPending, removed, goneQuestions, draftDestinationIds)
         )
       );
       return assistant.map((message, index) => [message.id, read[index]] as const);

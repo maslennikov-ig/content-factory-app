@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import 'multer';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import mime from 'mime-types';
@@ -154,14 +154,36 @@ class CloudflareStorage implements IUploadProvider {
     }
   }
 
-  // Implement the removeFile method from IUploadProvider
   async removeFile(filePath: string): Promise<void> {
-    // const fileName = filePath.split('/').pop(); // Extract the filename from the path
-    // const command = new DeleteObjectCommand({
-    //   Bucket: this._bucketName,
-    //   Key: fileName,
-    // });
-    // await this._client.send(command);
+    // Inspect raw paths before URL normalisation can erase ../ or encoded dot segments.
+    const uploadLocation = (value: string) => {
+      if (typeof value !== 'string' || /[\\\u0000-\u0020\u007f]/.test(value)) {
+        throw new Error('Invalid Cloudflare upload location.');
+      }
+      const parts = /^https:\/\/([^/?#]+)(\/[^?#]*)?$/i.exec(value);
+      const path = parts?.[2] ?? '';
+      if (!parts || parts[1].includes('@') || path.includes('%') ||
+          path.split('/').some(segment => segment === '.' || segment === '..')) {
+        throw new Error('Invalid Cloudflare upload location.');
+      }
+      return { url: new URL(value), path };
+    };
+
+    if (typeof this._bucketName !== 'string' || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(this._bucketName)) {
+      throw new Error('Invalid Cloudflare storage bucket.');
+    }
+    const base = uploadLocation(this._uploadUrl);
+    const target = uploadLocation(filePath);
+    // Upload methods append "/key" verbatim, including when the configured base ends in "/".
+    const prefix = `${base.path}/`;
+    if (target.url.origin !== base.url.origin || !target.path.startsWith(prefix)) {
+      throw new Error('Cloudflare deletion target is outside the configured upload location.');
+    }
+    const key = target.path.slice(prefix.length);
+    if (!key || key.length > 1024 || !key.split('/').every(segment => /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(segment))) {
+      throw new Error('Invalid Cloudflare object key.');
+    }
+    await this._client.send(new DeleteObjectCommand({ Bucket: this._bucketName, Key: key }));
   }
 }
 

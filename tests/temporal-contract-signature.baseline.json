@@ -179,6 +179,47 @@
       "VideoSubscriptionActivityV1.expireVideoSubscriptionV1": [
         "input:VideoSubscriptionInputV1"
       ]
+    },
+    "apps/orchestrator/src/activities/post.activity.v109.ts": {
+      "PostActivityV109.getPostsListV109": [
+        "orgId:string",
+        "postId:string",
+        "repeat:boolean"
+      ],
+      "PostActivityV109.postSocialV109": [
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV109.postCommentV109": [
+        "postId:string",
+        "lastPostId:string | undefined",
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV109.startPublicationStreakV109": [
+        "key:PublicationKeyV106"
+      ],
+      "PostActivityV109.searchForMissingThreeHoursPostsV110": []
+    },
+    "apps/orchestrator/src/activities/video-production.activity.v1.ts": {
+      "VideoProductionActivityV1.stepVideoProductionV1": [
+        "input:VideoProductionInputV1"
+      ]
+    },
+    "apps/orchestrator/src/activities/hgg-pilot-stage.activity.v1.ts": {
+      "HggPilotStageActivityV1.stepHggPilotStageV1": [
+        "input:HggPilotStageInputV1"
+      ],
+      "HggPilotStageActivityV1.expireHggPilotStageV1": [
+        "input:HggPilotStageInputV1"
+      ]
+    },
+    "apps/orchestrator/src/activities/local-composition.activity.v2.ts": {
+      "LocalCompositionActivityV2.stepLocalCompositionV2": [
+        "input:LocalCompositionActivityInputV2"
+      ]
     }
   },
   "workflows": {
@@ -310,6 +351,30 @@
       "videoSubscriptionWorkflowV1": [
         "input:VideoSubscriptionInputV1",
         "deadlineAt?"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v110.ts": {
+      "missingPostWorkflowV110": []
+    },
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.0.9.ts": {
+      "postWorkflowV109": [
+        "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/video-production.workflow.v1.ts": {
+      "videoProductionWorkflowV1": [
+        "input:VideoProductionInputV1"
+      ]
+    },
+    "apps/orchestrator/src/workflows/hgg-pilot-stage.workflow.v1.ts": {
+      "hggPilotStageWorkflowV1": [
+        "input:HggPilotStageInputV1",
+        "deadlineAt?"
+      ]
+    },
+    "apps/orchestrator/src/workflows/local-composition.workflow.v2.ts": {
+      "localCompositionWorkflowV2": [
+        "input:LocalCompositionActivityInputV2"
       ]
     }
   }

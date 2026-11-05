@@ -1,0 +1,140 @@
+import { tikTokRequiredDeclarations } from '../../../integrations/social/tiktok-publication-policy';
+import { hasApproval } from '../capability.context';
+import { approvalFingerprint } from '../approval-fingerprint';
+import { approvalContentFingerprint } from '../approval-summary';
+import { SocialFactoryError } from '../../../content-intelligence/social-factory/social-factory.repository';
+import { SOCIAL_FACTORY_PRODUCTION_CAPABILITIES } from './social-factory-production.capabilities';
+import { SocialFactoryPlanningService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/planning.service';
+import { ChannelProfileServiceV1, channelEditorialProfileSchemaV1 } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/profiles/channel-profile.v1';
+import { SocialFactoryMeasurementService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/measurement/measurement.service';
+import { SocialFactoryLearningService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/learning/learning.service';
+import { EditorialDecisionService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/autonomy/editorial-decision.service';
+import { SocialFactorySourcePermissionService, type SourcePermissionSaveInput } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/source-permission.service';
+import { sourcePermissionSchema } from '../../../content-intelligence/social-factory/contracts/social-factory.production.schemas.v1';
+import type { CreateCampaignInput } from '../../../content-intelligence/social-factory/campaign/campaign.service';
+import type { GrantInput } from '../../../content-intelligence/social-factory/autonomy/autonomy.service';
+import type { DeliverInput } from '../../../content-intelligence/social-factory/publishing/publishing.service';
+import { z } from 'zod';
+import { SocialFactoryController } from '@contentfactory/backend/api/routes/social-factory.controller';
+import { SocialFactoryService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.service';
+import { SocialFactoryPublishingService } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/publishing/publishing.service';
+import { campaignCreateSchema, grantSchema, modeSchema, approvalSchema, deliverySchema, socialId } from '../../../content-intelligence/social-factory/contracts/social-factory.schemas.v1';
+import { defineCapability, door, type CapabilityRunContext } from '../capability.types';
+
+const scope=z.object({campaignId:socialId});
+const campaignCard=(output:any)=>({kind:'campaign' as const,id:output.campaign?.id??output.id});
+/** Small historical read view, never a claim that an old decision approves the current revision. */
+function decisionHistory(rows: any[]) {
+ const ordered = [...rows].sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || String(a.id ?? '').localeCompare(String(b.id ?? '')));
+ return { decisionsScope: 'saved_history' as const, decisionsTruncated: rows.length > 12, decisions: ordered.slice(0, 12).map(row => {
+  const answer = typeof row.answer === 'string' ? Array.from(row.answer) : [];
+  return { id: row.id, itemId: row.itemId, kind: row.kind, factStatus: row.factStatus, createdAt: row.createdAt,
+   hasAnswer: answer.length > 0, ...(answer.length ? { answerPreview: answer.slice(0, 500).join(''), answerTruncated: answer.length > 500 } : {}),
+   missingFactCount: row.missingFacts?.length ?? 0,
+   ...(row.model ? { model: { provider: row.model.provider, model: row.model.model, role: row.model.role,
+    selectedModel: row.model.selectedModel, attemptedModels: row.model.attemptedModels?.slice(0, 8),
+    ...(row.model.attemptedModels?.length > 8 ? {attemptedModelsTruncated: true} : {}), operationId: row.model.operationId, fallbackReason: row.model.fallbackReason } } : {}) };
+ }) };
+}
+const detailSummary=(output:any)=>({id:output.campaign?.id??output.id,mode:output.campaign?.mode??output.mode,state:output.campaign?.state??output.state,total:output.items?.length??output.itemIds?.length,...(output.items?{items:output.items.map((item:any)=>({itemId:item.id,contentRevision:item.contentRevision,approvalDigest:item.approvalDigest,scheduledAt:item.scheduledAt,operationId:item.operationId,productionId:item.productionId,...(item.localComposition?{localComposition:item.localComposition}:{}),format:item.format,platform:item.platform,channelId:item.channelId,state:item.state,sourceStatus:item.sourceStatus,blocker:item.blocker,...(item.localRender?{localRender:item.localRender}:{}),...(item.continuation?{continuation:item.continuation}:{}),sourceArtifact:item.sourceArtifact??item.material?.sourceArtifact,destination:item.destination,...(item.material?{material:{pieceId:item.material.pieceId,derivationId:item.material.derivationId,title:item.material.title,assets:item.material.assets?.map((asset:any)=>({id:asset.id,mediaId:asset.mediaId,kind:asset.kind,role:asset.role,url:asset.url,mimeType:asset.mimeType,width:asset.width,height:asset.height,durationSeconds:asset.durationSeconds}))}}:{})}))}: {}),...(output.decisions?decisionHistory(output.decisions):{})});
+const summary=(output:any)=>({id:output.campaign?.id??output.id,mode:output.campaign?.mode??output.mode,state:output.campaign?.state??output.state,total:output.items?.length??output.itemIds?.length});
+async function detail(ctx:CapabilityRunContext,id:string){return ctx.service(SocialFactoryService).detail(ctx.organizationId,id,ctx.userId);}
+export const campaignCreate=defineCapability({
+  id:'campaign.create',group:'plan',label:{ru:'Создать кампанию',en:'Create campaign'},
+  description:'Persist an exact allocated batch and calendar, e.g. 5 Reels + 10 Story frames over two weeks. Counts are total explicitly allocated per destination; carousel count is publications with slideCount. Default autonomous preparation, approval before publishing. Does not generate or publish. Resolve actual channel IDs first. Retain original author requestId on retries. Date-only ranges use named IANA timezone.',
+  input:campaignCreateSchema.omit({mode:true}),risk:'write',card:'campaign',door:door(SocialFactoryController,'create'),untrusted:['workspace-text'],
+  run:(ctx,input)=>ctx.service(SocialFactoryService).create(ctx.organizationId,{...input,actorId:ctx.userId} as CreateCampaignInput),summarize:summary,cardOf:campaignCard,
+});
+export const campaignOpen=defineCapability({id:'campaign.open',group:'plan',label:{ru:'Кампания',en:'Campaign'},description:'Read the saved campaign, exact item progress, previews, mode, server approval digests, schedule instants, bound productionId and blockers. Use the returned digest verbatim for campaign.approve; never compute or invent it. Use productionId with video.production_open after reload. Saved decision previews are bounded historical provenance, not current-revision approval. When the user asks to continue and an item has continuation.kind=local_preflight, its old rejection was proven before primary preparation: continue the saved task with continuation.nextAction and exact continuation.input/requestId; retain the frozen assignment rather than recreating a campaign or calling campaign.revise. This read does not reconcile or call a model; campaign.prepare rechecks the strict local proof and retains the frozen assignment. When continuation.kind=local_render, primary preparation is already saved: call continuation.nextAction with exact input to render the silent file; never campaign.prepare, campaign.revise or regenerate the saved primary output for that local step. Other uncertain paid results must not be replayed. Unknown publication is never success.',input:scope,risk:'read',card:'campaign',door:door(SocialFactoryController,'detail'),untrusted:['workspace-text'],run:(ctx,input)=>detail(ctx,input.campaignId),summarize:detailSummary,cardOf:campaignCard});
+export const campaignList=defineCapability({id:'campaign.list',group:'plan',label:{ru:'Кампании',en:'Campaigns'},description:'List persistent campaigns in this workspace.',input:z.object({}),risk:'read',door:door(SocialFactoryController,'list'),untrusted:['workspace-text'],run:ctx=>ctx.service(SocialFactoryService).campaigns.list(ctx.organizationId),summarize:rows=>({campaigns:rows.map(row=>({id:row.id,name:row.name,mode:row.mode,state:row.state,total:row.itemIds.length}))})});
+export const campaignStop=defineCapability({id:'campaign.stop',group:'plan',label:{ru:'Остановить кампанию',en:'Stop campaign'},description:'Stop pending campaign actions and unschedule its pending posts. Already accepted provider operations may still complete and cost money; inspect uncertain results. Does not erase the plan.',input:scope,risk:'write',card:'campaign',door:door(SocialFactoryController,'stop'),untrusted:[],run:async(ctx,input)=>{await ctx.service(SocialFactoryService).campaigns.stop(ctx.organizationId,input.campaignId,ctx.userId);await ctx.service(SocialFactoryPublishingService).cancelPending(ctx.organizationId,input.campaignId);return detail(ctx,input.campaignId);},summarize:summary,cardOf:campaignCard});
+export const campaignMode=defineCapability({id:'campaign.mode',group:'plan',label:{ru:'Режим кампании',en:'Campaign mode'},description:'Change campaign mode only within an already granted scope. Never creates or expands grants. Full autopilot requires an active scoped user grant.',input:scope.merge(modeSchema),risk:'confirm',card:'campaign',door:door(SocialFactoryController,'mode'),untrusted:[],describeApproval:async(ctx,input)=>ctx.language==='ru'?`Изменить режим кампании ${input.campaignId}: ${input.mode}`:`Change campaign ${input.campaignId} mode to ${input.mode}`,approvalContent:async(ctx,input)=>({input,campaign:(await ctx.service(SocialFactoryService).detail(ctx.organizationId,input.campaignId)).campaign}),run:(ctx,input)=>ctx.service(SocialFactoryService).campaigns.setMode(ctx.organizationId,input.campaignId,{mode:input.mode,grantId:input.grantId,actorId:ctx.userId}),summarize:summary,cardOf:campaignCard});
+const grantActionLabels = {
+  prepare: { ru: 'подготовку материалов', en: 'material preparation' },
+  editorial_decide: { ru: 'редакторские решения', en: 'editorial decisions' },
+  schedule: { ru: 'планирование публикаций', en: 'publication scheduling' },
+  publish: { ru: 'публикацию материалов', en: 'publishing materials' },
+  generate_paid: { ru: 'платное создание материалов', en: 'paid material creation' },
+} satisfies Record<z.infer<typeof grantSchema>['actions'][number], { ru: string; en: string }>;
+
+export const campaignGrant=defineCapability({id:'campaign.grant',group:'plan',label:{ru:'Разрешения автопилота',en:'Autopilot permissions'},description:'Propose an explicit scoped permission grant for user confirmation. Never claim user authority or platform consent on your own. Exact channels, formats, actions, timezone/windows, provider/payer budget, exclusions and expiry appear on the approval card. Existing grants are never silently expanded.',input:grantSchema,risk:'confirm',door:door(SocialFactoryController,'grant'),untrusted:[],describeApproval:async(ctx,input)=>{
+  const actions=input.actions.map(action=>grantActionLabels[action][ctx.language]).join(', ');
+  return ctx.language==='ru'
+    ?`Разрешить только ${actions} для выбранных каналов (${input.channelIds.length}) до ${input.expiresAt}`
+    :`Allow only ${actions} for selected channels (${input.channelIds.length}) until ${input.expiresAt}`;
+},approvalContent:async(_ctx,input)=>input,run:(ctx,input)=>ctx.service(SocialFactoryService).grant(ctx.organizationId,{...input,actorId:ctx.userId,authority:'user'} as GrantInput),summarize:output=>({grantId:output.id,mode:output.mode,expiresAt:output.expiresAt,actions:output.actions,channelIds:output.channelIds})});
+export const campaignRevoke=defineCapability({id:'campaign.revoke',group:'plan',label:{ru:'Отозвать разрешение',en:'Revoke permissions'},description:'Immediately revoke this scoped grant and cancel pending external actions. Accepted provider operations remain reconcilable.',input:z.object({grantId:socialId}),risk:'write',door:door(SocialFactoryController,'revoke'),untrusted:[],run:async(ctx,input)=>{const factory=ctx.service(SocialFactoryService);const grant=await factory.autonomy.revoke(ctx.organizationId,input.grantId,ctx.userId);for(const campaign of await factory.campaigns.list(ctx.organizationId))if(campaign.grantId===grant.id)await ctx.service(SocialFactoryPublishingService).cancelPending(ctx.organizationId,campaign.id);return grant;},summarize:output=>({grantId:output.id,revokedAt:output.revokedAt})});
+export const campaignApprove=defineCapability({id:'campaign.approve',group:'plan',label:{ru:'Согласовать материал',en:'Approve material'},description:'Approve exactly the saved item revision and digest after showing its actual material. Editing invalidates this approval. Does not send content.',input:scope.extend({itemId:socialId}).merge(approvalSchema),risk:'confirm',card:'campaign',door:door(SocialFactoryController,'approve'),untrusted:[],describeApproval:async(ctx,input)=>ctx.language==='ru'?`Согласовать материал ${input.itemId}, версия ${input.expectedContentRevision}`:`Approve item ${input.itemId}, revision ${input.expectedContentRevision}`,approvalContent:async(ctx,input)=>{const d=await ctx.service(SocialFactoryService).detail(ctx.organizationId,input.campaignId);return d.items.find(item=>item.id===input.itemId);},run:async(ctx,input)=>{await ctx.service(SocialFactoryService).campaigns.approve(ctx.organizationId,input.campaignId,input.itemId,{actorId:ctx.userId,expectedContentRevision:input.expectedContentRevision,digest:input.digest});return detail(ctx,input.campaignId);},summarize:summary,cardOf:campaignCard});
+async function deliveryApprovalContent(ctx: Pick<CapabilityRunContext, 'organizationId' | 'userId' | 'service'>, input: {campaignId?: string; itemId?: string}) {
+ const d = await ctx.service(SocialFactoryService).detail(ctx.organizationId, input.campaignId, ctx.userId);
+ const item = d.items.find(row => row.id === input.itemId);
+ return item?.platform === 'tiktok' ? { item, declarations: tikTokRequiredDeclarations(item.material?.settings ?? {}) } : item;
+}
+export const campaignDeliver=defineCapability({id:'campaign.deliver',group:'plan',label:{ru:'Публикация материала',en:'Deliver material'},description:'Schedule/publish the approved campaign item via its actual installed provider/account route. Domain grant/approval/consent checks remain mandatory. TikTok Direct Post requires the existing confirmation of the exact item revision and displayed Music Usage/conditional Branded Content declarations; a generic grant or model-supplied consent id never substitutes. Unsupported routes return explicit draft/manual continuation. A schedule is not published; success requires a provider receipt. Never retry uncertain writes; use campaign.reconcile.',input:scope.extend({itemId:socialId}).merge(deliverySchema),risk:'confirm',card:'campaign',door:door(SocialFactoryController,'deliver'),untrusted:['workspace-text'],
+ describeApproval:async(ctx,input)=>{
+  const content = await deliveryApprovalContent(ctx, input);
+  const line = ctx.language === 'ru' ? `${input.action==='schedule'?'Запланировать':'Опубликовать'} материал ${input.itemId}` : `${input.action} item ${input.itemId}`;
+  const declarations = content && 'declarations' in content ? content.declarations : [];
+  return line + (declarations.length ? (ctx.language === 'ru' ? '. Размещая этот материал, вы соглашаетесь с ' : '. By posting this item, you agree to ') + declarations.map(row => `${row.id === 'music_usage' ? 'TikTok Music Usage Confirmation' : 'TikTok Branded Content Policy'} (${row.url})`).join(ctx.language === 'ru' ? ' и ' : ' and ') : '');
+ },approvalContent:deliveryApprovalContent,
+ run:async(ctx,input)=>{
+  const publisher = ctx.service(SocialFactoryPublishingService), content = await deliveryApprovalContent(ctx, input);
+  let requiredConsentId = input.requiredConsentId;
+  if (content && 'declarations' in content && content.declarations.length) {
+   const name = 'campaign_deliver', bound = approvalFingerprint(`content:${name}`, {content});
+   if (ctx.entrance !== 'chat' || !bound || !hasApproval(ctx.requestContext, approvalFingerprint(name, input)) ||
+    !hasApproval(ctx.requestContext, approvalContentFingerprint(name, input, bound))) throw new SocialFactoryError('AUTONOMY_PLATFORM_CONSENT_REQUIRED');
+   const receipt = await publisher.confirmPublicationConsent(ctx.organizationId, {campaignId:input.campaignId,itemId:input.itemId,requestId:input.requestId,action:input.action,expectedContentRevision:input.expectedContentRevision,actorId:ctx.userId,authority:'native_approval',approvedDigest:content.item.approvalDigest});
+   requiredConsentId = receipt.id;
+  }
+  const delivery = await publisher.deliver(ctx.organizationId,{...input,requiredConsentId,actorId:ctx.userId,authority:'user'} as DeliverInput,ctx.language);
+  return {...await detail(ctx,input.campaignId),delivery};
+ },summarize:output=>({...summary(output),delivery:output.delivery}),cardOf:campaignCard});
+export const campaignReconcile=defineCapability({id:'campaign.reconcile',group:'plan',label:{ru:'Проверить публикацию',en:'Reconcile publication'},description:'Read the existing provider receipt journal for one campaign item without re-sending.',input:scope.extend({itemId:socialId}),risk:'read',door:door(SocialFactoryController,'reconcile'),untrusted:['workspace-text'],run:(ctx,input)=>ctx.service(SocialFactoryPublishingService).reconcile(ctx.organizationId,input.campaignId,input.itemId),summarize:output=>({...output})});
+
+export const channelEditorialProfile=defineCapability({id:'channel.editorial_profile',group:'channels',label:{ru:'Редакционный профиль канала',en:'Channel editorial profile'},description:'Resolve company defaults and channel editorial overrides, facts provenance and open questions. Owner assertions are separate from verified evidence. No connected sources are required for a useful starting brief.',input:z.object({channelId:socialId}),risk:'read',card:'channel',door:door(SocialFactoryController,'profile'),untrusted:['workspace-text'],run:(ctx,input)=>ctx.service(ChannelProfileServiceV1).resolve(ctx.organizationId,input.channelId),summarize:output=>({profile:output.profile,facts:output.facts,revision:output.revision,...(output.destination?{destination:output.destination}:{})}),cardOf:output=>output.destination?.kind==='draft'?null:({kind:'channel',id:output.profile.channelId})});
+// Native inputs carry editable owner context, never the derived snapshot's
+// identities/evidence or recursive JSON. These values cover the profile fields.
+const ownerFact = channelEditorialProfileSchemaV1.shape.facts.unwrap().element
+  .omit({ value: true, provenance: true, verifiedFactId: true })
+  .extend({ value: z.union([z.string(), z.number().finite(), z.boolean(), z.null(), z.array(z.string())]), provenance: z.enum(['owner_asserted', 'open']) });
+const ownerProfile = channelEditorialProfileSchemaV1.omit({ facts: true, evidence: true, fieldEvidence: true }).extend({
+  facts: z.array(ownerFact).max(100).optional(), evidence: z.array(z.never()).max(0), fieldEvidence: z.object({}).strict().optional(),
+});
+/** Save only person-supplied editorial context; derived verification stays in the domain service. */
+export const channelEditorialProfileSave = defineCapability({
+  id: 'channel.editorial_profile_save', group: 'channels', label: { ru: 'Сохранить редакционный профиль', en: 'Save editorial profile' },
+  description: 'Save the person-supplied editorial profile for an existing destination using its current revision. Ask for missing company facts; never invent audience, expertise, geography or rights. Owner assertions remain distinct from verified facts. This does not connect an account or authorize publishing.',
+  input: z.object({ channelId: socialId, expectedRevision: z.number().int().nonnegative(), profile: ownerProfile }).strict(),
+  risk: 'write', card: 'channel', door: door(SocialFactoryController, 'saveProfile'), untrusted: ['workspace-text'],
+  run: (ctx, input) => ctx.service(ChannelProfileServiceV1).save(ctx.organizationId, channelEditorialProfileSchemaV1.extend({ channelId: z.literal(input.channelId) }).parse(input.profile), input.expectedRevision),
+  summarize: output => ({ channelId: output.id, revision: output.revision, profile: output.payload.profile,...(output.destination?{destination:output.destination}:{}) }),
+  cardOf: output => output.destination?.kind==='draft'?null:({ kind: 'channel', id: output.id }),
+});
+export const sourcePermissionSave = defineCapability({
+  id: 'source.permission_save', group: 'ideas', label: { ru: 'Подтвердить права на источник', en: 'Confirm source permission' },
+  description: 'Record only explicit permission facts supplied and confirmed by the person: registered source, purposes, basis, channels, provenance and expiry. Never infer permission from public access, unknown rights or an expert/model answer. Requires administrator access and confirmation of the exact scope. The service still checks registered evidence and any required Telegram consent; a card cannot establish missing rights.',
+  input: sourcePermissionSchema.extend({ origin: sourcePermissionSchema.shape.origin.removeDefault() }), risk: 'confirm', door: door(SocialFactoryController, 'sourcePermission'), untrusted: ['workspace-text'],
+  describeApproval: async (ctx, input) => ctx.language === 'ru'
+    ? `Подтвердить сообщённые вами права на источник ${input.sourceId}: основание ${input.basis}, цели ${input.purposes.join(', ')}, каналы ${input.channelIds.join(', ')}, до ${input.expiresAt}. Публичный доступ не подтверждает права.`
+    : `Confirm your supplied permission facts for source ${input.sourceId}: basis ${input.basis}, purposes ${input.purposes.join(', ')}, channels ${input.channelIds.join(', ')}, until ${input.expiresAt}. Public access does not establish rights.`,
+  approvalContent: async (_ctx, input) => input,
+  run: async (ctx, input) => {
+    for (const channelId of input.channelIds) await ctx.service(SocialFactoryService).assertChannel(ctx.organizationId, channelId);
+    return ctx.service(SocialFactorySourcePermissionService).save(ctx.organizationId, ctx.userId, input as SourcePermissionSaveInput);
+  },
+  summarize: output => ({ sourceId: output.id, revision: output.revision, permission: output.payload }),
+});
+export const sourcePermissionRevoke = defineCapability({
+  id: 'source.permission_revoke', group: 'ideas', label: { ru: 'Отозвать права на источник', en: 'Revoke source permission' },
+  description: 'Revoke the current registered source permission by exact revision in this workspace. Invalidates dependent source-derived content through the existing service. Does not erase accepted external actions or fabricate a new permission.',
+  input: z.object({ sourceId: socialId, expectedRevision: z.number().int().positive() }).strict(), risk: 'write', door: door(SocialFactoryController, 'revokeSourcePermission'), untrusted: [],
+  run: (ctx, input) => ctx.service(SocialFactorySourcePermissionService).revoke(ctx.organizationId, input.sourceId, input.expectedRevision),
+  summarize: output => ({ redacted: output.redacted }),
+});
+export const channelDiscover=defineCapability({id:'channel.discover',group:'ideas',label:{ru:'Темы для канала',en:'Discover channel topics'},description:'Discover topics from actual company/channel brief, server-permitted registered sources and optional paid web research; consumes accepted outcome findings. Relevance and measured comparable performance remain separate; unavailable metrics are unknown. No RSS is required. Never pass claimed source rights or findings: the server resolves them.',input:z.object({channelId:socialId,sourceIds:z.array(socialId).max(20).optional(),allowWebSearch:z.boolean().optional()}),risk:'paid',door:door(SocialFactoryController,'discover'),untrusted:['workspace-text','search-result','fetched-page'],run:(ctx,input)=>ctx.service(SocialFactoryPlanningService).discover(ctx.organizationId,input.channelId,{sourceIds:input.sourceIds,allowWebSearch:input.allowWebSearch}),summarize:output=>({discoveryId:output.id,candidates:output.candidates,planningPrompts:output.planningPrompts,gaps:output.gaps,recommendSources:output.recommendSources,findingIds:output.findingIds})});
+export const campaignDecide=defineCapability({id:'campaign.decide_editorial',group:'plan',label:{ru:'Редакторское решение',en:'Editorial decision'},description:'Ask the configured advanced product model to decide an editorial question within an active user grant. Actually invokes that model and persists its reason/evidence; cannot fabricate company facts, permission, source rights or budget. Input carries the question, never a ready answer or authority.',input:scope.extend({itemId:socialId.optional(),grantId:socialId.optional(),requestId:socialId,question:z.string().min(1).max(5000)}),risk:'paid',card:'campaign',door:door(SocialFactoryController,'decide'),untrusted:['workspace-text'],run:async(ctx,input)=>{const decision=await ctx.service(EditorialDecisionService).answer(ctx.organizationId,ctx.userId,input as Parameters<EditorialDecisionService['answer']>[2]);return {...await detail(ctx,input.campaignId),decision};},summarize:output=>({...summary(output),decision:output.decision}),cardOf:campaignCard});
+export const campaignMeasure=defineCapability({id:'campaign.measure',group:'analytics',label:{ru:'Показатели публикации',en:'Publication measurements'},description:'Read actual provider metrics for a confirmed campaign publication/revision and retain sourced observations. Unknown is not zero, Telegram per-post Bot API metrics are unavailable. Does not invent per-slide Instagram metrics or YouTube derived permissions.',input:z.object({itemId:socialId,requestId:socialId}),risk:'write',door:door(SocialFactoryController,'measure'),untrusted:['workspace-text'],run:(ctx,input)=>ctx.service(SocialFactoryMeasurementService).capture(ctx.organizationId,input.itemId,input.requestId),summarize:output=>({observations:output})});
+export const campaignFindings=defineCapability({id:'campaign.findings',group:'analytics',label:{ru:'Выводы по каналу',en:'Channel findings'},description:'Read currently accepted, unexpired findings after rechecking their source evidence and authorization. Associations include uncertainty, sample size and exploration share. Future campaigns and discovery actually consume these findings.',input:z.object({channelId:socialId}),risk:'read',door:door(SocialFactoryController,'findings'),untrusted:['workspace-text'],run:(ctx,input)=>ctx.service(SocialFactoryLearningService).forPlanning(ctx.organizationId,input.channelId),summarize:output=>({...output})});
+export const campaignFindingReview=defineCapability({id:'campaign.finding_review',group:'analytics',label:{ru:'Принять или отозвать вывод',en:'Review finding'},description:'Accept a proposed finding for future planning or withdraw it. Revision is compare-and-swap; accepting rechecks evidence, expiry and scope. Does not promise causal uplift.',input:z.object({findingId:socialId,expectedRevision:z.number().int().min(1),action:z.enum(['accept','withdraw'])}),risk:'write',door:door(SocialFactoryController,'reviewFinding'),untrusted:['workspace-text'],run:(ctx,input)=>ctx.service(SocialFactoryLearningService).review(ctx.organizationId,input.findingId,input.expectedRevision,input.action),summarize:output=>({id:output.id,revision:output.revision,finding:output.payload})});
+export const SOCIAL_FACTORY_CAPABILITIES=[campaignCreate,campaignOpen,campaignList,campaignStop,campaignMode,campaignGrant,campaignRevoke,campaignApprove,campaignDeliver,campaignReconcile,channelEditorialProfile,channelEditorialProfileSave,sourcePermissionSave,sourcePermissionRevoke,channelDiscover,campaignDecide,campaignMeasure,campaignFindings,campaignFindingReview,...SOCIAL_FACTORY_PRODUCTION_CAPABILITIES] as const;

@@ -1,3 +1,4 @@
+import { SocialFactoryController } from './routes/social-factory.controller';
 import { VideoConnectionsController } from './routes/video-connections.controller';
 import { VideoAccessController } from './routes/video-access.controller';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
@@ -86,6 +87,7 @@ import { ContentTextQualityController } from '@contentfactory/backend/api/routes
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 
 const authenticatedController = [
+  SocialFactoryController,
   UsersController,
   AnalyticsController,
   IntegrationsController,

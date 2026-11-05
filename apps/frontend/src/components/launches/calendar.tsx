@@ -11,6 +11,7 @@ import React, {
   useState,
 } from 'react';
 import { postSaveErrorMessage } from '@contentfactory/frontend/components/new-launch/post-save-error';
+import { isKnownTikTokValidationMessage, translateValidationMessage } from '../new-launch/validation-message.text';
 import {
   CalendarContext,
   Integrations,
@@ -146,14 +147,13 @@ export function calendarErrorMessage(
     'publishing_error_generic',
     'An error occurred while publishing this post'
   );
-  // The two classifications the error ledger writes. They are stored in
-  // English, so they are translated here rather than rendered as stored.
-  const translateClassification = (text: string) =>
-    text === 'Unknown Error'
-      ? t('publishing_error_unknown', 'Unknown Error')
-      : text === 'Publishing failed'
-        ? t('publishing_error_failed', 'Publishing failed')
-        : undefined;
+  // Known classifications and our TikTok validation messages are translated;
+  // arbitrary serialized provider payloads remain hidden.
+  const translateClassification = (text: string) => {
+    if (text === 'Unknown Error') return t('publishing_error_unknown', 'Unknown Error');
+    if (text === 'Publishing failed') return t('publishing_error_failed', 'Publishing failed');
+    return isKnownTikTokValidationMessage(text) ? translateValidationMessage(text, t) : undefined;
+  };
 
   if (typeof value !== 'string' || !value.trim()) {
     return generic;

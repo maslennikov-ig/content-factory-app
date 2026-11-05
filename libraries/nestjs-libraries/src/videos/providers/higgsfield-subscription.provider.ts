@@ -10,7 +10,7 @@ import type { VideoSettingsV1 } from '../video-provider.v1';
 @Injectable()
 export class HiggsfieldSubscriptionProvider {
   constructor(readonly mcp: VideoMcpClient, readonly runtime: VideoSubscriptionRuntime) {}
-  async prepare(def: SubscriptionEndpoint, token: string, settings: VideoSettingsV1, brief: any, references: Array<{id: string; url: string}>, assertUsable?: VideoTokenGuard) {
+  async prepare(def: SubscriptionEndpoint, token: string, settings: VideoSettingsV1, brief: any, references: Array<{id: string; url: string}>, assertUsable?: VideoTokenGuard, _walletDigest?: string) {
     const capability = await this.mcp.capabilities(def, token, assertUsable);
     if (settings.mode !== 'clip' || !['wan-3.0', 'kling-3.0'].includes(settings.model) || settings.audio || settings.captions ||
       !['720p', '1080p'].includes(settings.resolution || '') || ![5, 10].includes(settings.duration) || !['9:16', '16:9'].includes(settings.aspectRatio) || references.length > 1) return videoErrorV1('VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE', 409);
@@ -32,12 +32,15 @@ export class HiggsfieldSubscriptionProvider {
     return {id: result.job_id};
   }
   async poll(def: SubscriptionEndpoint, token: string, receipt: any, assertUsable?: VideoTokenGuard) {
-    return normalizeSubscriptionStatus(await this.mcp.call(def, token, 'jobs_wait', {job_id: receipt.id, timeout_seconds: 1}, assertUsable), 'higgsfield_credit');
+    return normalizeSubscriptionStatus(await this.mcp.call(def, token, 'jobs_wait', {job_id: receipt.id, timeout_seconds: 1}, assertUsable), 'higgsfield_credit', receipt.id);
   }
 }
 
-export function normalizeSubscriptionStatus(result: any, unit: string) {
-  const value = result.data ?? result;
+export function normalizeSubscriptionStatus(result: any, unit: string, expectedJobId: string) {
+  const value = result?.data ?? result;
+  // A self-consistent result/charge for a different job is not this receipt's evidence.
+  if (!value || value.job_id !== expectedJobId || typeof expectedJobId !== 'string' ||
+    !/^[A-Za-z0-9_-]{1,200}$/.test(expectedJobId)) return videoErrorV1('VIDEO_PROVIDER_RECEIPT_MISMATCH');
   if (!['queued', 'running', 'completed', 'failed', 'canceled'].includes(value.status)) return videoErrorV1('VIDEO_PROVIDER_STATUS_INVALID');
   if (value.status === 'completed' && typeof value.video_url !== 'string') return videoErrorV1('VIDEO_PROVIDER_RESULT_MISSING');
   let cost: string | null = null;

@@ -26,6 +26,7 @@ import {
   type AgentNativeBatchAnswer,
   type AgentSourceReadIssue,
   type AgentSubagentView,
+  type AgentSubagentApproval,
   type AgentTaskItem,
   type BrandVoiceFactScoreSummary,
 } from './agent.contract';
@@ -48,6 +49,8 @@ import {
   type ManualQuestionAnswer,
 } from '../content-intelligence/intake/questions.card';
 import { useQuestionDraft } from './agent.question-draft';
+import { SavedClipPilotApproval } from './agent.clip-pilot-approval';
+import { clipPilotApprovalReadKey, type AgentClipPilotApprovalScope } from './agent.clip-production.contract';
 
 /**
  * The chat's cards (`content-factory-next-kcxz.10`, spec §6.2, canvas
@@ -214,6 +217,7 @@ const ARTIFACT_GLYPH: Record<AgentArtifactKind, AgentGlyphName> = {
   channels: 'channels',
   channel: 'channels',
   plan: 'calendar',
+  campaign: 'calendar',
   ideas: 'spark',
   facts: 'list',
   media: 'image',
@@ -549,9 +553,11 @@ type LeadNote = (typeof LEAD_NOTES)[keyof typeof LEAD_NOTES];
 export const approvalNoteOf = (
   toolName: string | null | undefined,
   irreversible: boolean
-): 'delete' | 'publish' | 'schedule' | 'none' | 'video' | LeadNote =>
+): 'delete' | 'publish' | 'schedule' | 'none' | 'video' | 'clip-pilot' | LeadNote =>
   irreversible
     ? 'delete'
+    : toolName === 'video_pilot_launch' || toolName === 'video_pilot_launch_reviewed_clip_v2'
+    ? 'clip-pilot'
     : toolName === 'video_launch' || toolName === 'video_launch_v2'
     ? 'video'
     : toolName === 'plan_publish_now'
@@ -571,6 +577,9 @@ export function ApprovalCard({
   onAnswer,
   words,
   videoApproval,
+  clipPilotApproval,
+  subagentApproval,
+  threadId,
   onRefresh,
   canAnswer = true,
 }: {
@@ -590,11 +599,15 @@ export function ApprovalCard({
   onAnswer: (approved: boolean) => void;
   words: AgentWords;
   videoApproval?: VideoApprovalScopeV1;
+  clipPilotApproval?: AgentClipPilotApprovalScope;
+  subagentApproval?: AgentSubagentApproval;
+  threadId?: string | null;
   onRefresh?: () => void;
   canAnswer?: boolean;
 }) {
   const w = words.approval;
-  const summary = reason?.trim();
+  const delegation = toolName === 'subagent' ? subagentApproval : undefined;
+  const summary = reason?.trim() || delegation?.task;
   const specific = (value: string | null | undefined) =>
     !!value &&
     !/^(сделать это|do this|perform this action)[?.!\s]*$/iu.test(value);
@@ -606,10 +619,14 @@ export function ApprovalCard({
   const answer = sending ?? picked;
   const settled = state !== 'asked';
   const [reviewedVideo, setReviewedVideo] = useState<string | null>(null);
+  const [reviewedPilot, setReviewedPilot] = useState<string | null>(null);
+  const user = useUser();
+  const pilotScope = clipPilotApprovalReadKey(clipPilotApproval, threadId, user?.orgId, user?.id);
   const videoScope = videoApproval ? JSON.stringify(videoApproval) : null;
   const videoReady =
-    !['video_launch', 'video_launch_v2'].includes(toolName ?? '') ||
-    (videoScope !== null && reviewedVideo === videoScope);
+    toolName === 'video_pilot_launch' || toolName === 'video_pilot_launch_reviewed_clip_v2' ? pilotScope !== null && reviewedPilot === pilotScope :
+      !['video_launch', 'video_launch_v2'].includes(toolName ?? '') ||
+      (videoScope !== null && reviewedVideo === videoScope);
 
   if (settled) {
     const word =
@@ -640,7 +657,7 @@ export function ApprovalCard({
   }
 
   const answerWith = (approved: boolean) => {
-    if (busy || pickedRef.current !== null || (approved && !detailsReady))
+    if (busy || pickedRef.current !== null || (approved && (!detailsReady || !videoReady)))
       return;
     pickedRef.current = approved;
     setAnswer(approved);
@@ -696,7 +713,11 @@ export function ApprovalCard({
       }
     >
       {detailsReady ? (
-        <Facts rows={[[w.what, reason]]} />
+        <Facts rows={delegation ? [
+          [words.subagent.role, words.subagent.agents[delegation.agentType]],
+          [words.subagent.model, delegation.modelId ?? words.subagent.modelUnspecified],
+          [w.what, delegation.task],
+        ] : [[w.what, reason]]} />
       ) : (
         <p role="status" className="cf-body-sm text-cf-warning">
           {w.missingDetails}
@@ -714,6 +735,7 @@ export function ApprovalCard({
             onReady={setReviewedVideo}
           />
         ))}
+      {note === 'clip-pilot' ? <SavedClipPilotApproval scope={clipPilotApproval} threadId={threadId} onReady={setReviewedPilot} /> : null}
       {note === 'delete' ? (
         <Note tone="warning">
           <strong>{w.irreversible}:</strong> {w.irreversibleNote}
@@ -722,7 +744,7 @@ export function ApprovalCard({
         <Note tone="warning">
           <strong>{w.publishHeading}:</strong> {w.publishNote}
         </Note>
-      ) : note === 'video' || note === 'none' || !detailsReady ? null : (
+      ) : note === 'video' || note === 'clip-pilot' || note === 'none' || !detailsReady ? null : (
         <Note tone="neutral">
           {note === 'schedule'
             ? w.scheduleNote

@@ -18,6 +18,23 @@
 const { loadTypeScriptModule } = require('../../helpers/load-ts-module.cjs');
 const { HttpException } = require('@nestjs/common');
 const { videoServices } = require('./video-world.cjs');
+const { socialFactoryServices } = require('./social-factory-world.cjs');
+const { socialFactoryEditorialAuthorityServices } = require('./social-factory-editorial-authority-world.cjs');
+const { socialFactoryVideoServices } = require('./social-factory-video-world.cjs');
+const { socialFactoryMeasurementServices } = require('./social-factory-measurement-world.cjs');
+const { nativeJourneyServices } = require('./native-journey-world.cjs');
+
+// Each bounded world owns distinct methods. Merge by token so video binding
+// cannot replace campaign preparation on the same production service port.
+const socialFactoryPorts = (context) => {
+  const ports = {};
+  for (const create of [socialFactoryServices, socialFactoryVideoServices, socialFactoryMeasurementServices, socialFactoryEditorialAuthorityServices, nativeJourneyServices]) {
+    for (const [token, methods] of Object.entries(create(context))) {
+      ports[token] = { ...ports[token], ...methods };
+    }
+  }
+  return ports;
+};
 
 /**
  * The real count behind «С чего начать» and the agent's snapshot
@@ -1272,6 +1289,7 @@ const createWorld = (overrides = {}) => {
 
   const servicesFor = ({ usage, outsideTurn }) => ({
     ...videoServices({ rows, requests, writes, scoped }),
+    ...socialFactoryPorts({ rows, requests, writes, scoped }),
     ContentLeadService: leadService(usage, outsideTurn),
     WebResearchService: {
       research: async (organizationId, query, options) => {

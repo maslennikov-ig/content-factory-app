@@ -27,3 +27,10 @@ export * from './content-lead-check.workflow';
 export * from './video-generation.workflow.v1';
 
 export * from './video-subscription.workflow.v1';
+
+export * from './video-production.workflow.v1';
+export * from './post-workflows/post.workflow.v1.0.9';
+export * from './missing.post.workflow.v110';
+
+export * from './hgg-pilot-stage.workflow.v1';
+export * from './local-composition.workflow.v2';

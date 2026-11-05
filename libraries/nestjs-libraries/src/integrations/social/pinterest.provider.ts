@@ -1,3 +1,4 @@
+import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -411,45 +412,21 @@ export class PinterestProvider
       )
     ).json();
 
-    return daily_metrics.reduce(
-      (acc: any, item: any) => {
-        if (typeof item.metrics.PIN_CLICK_RATE !== 'undefined') {
-          acc[0].data.push({
-            date: item.date,
-            total: item.metrics.PIN_CLICK_RATE,
-          });
-
-          acc[1].data.push({
-            date: item.date,
-            total: item.metrics.IMPRESSION,
-          });
-
-          acc[2].data.push({
-            date: item.date,
-            total: item.metrics.PIN_CLICK,
-          });
-
-          acc[3].data.push({
-            date: item.date,
-            total: item.metrics.ENGAGEMENT,
-          });
-
-          acc[4].data.push({
-            date: item.date,
-            total: item.metrics.SAVE,
-          });
-        }
-
-        return acc;
-      },
-      [
-        { label: 'Pin click rate', data: [] as any[] },
-        { label: 'Impressions', data: [] as any[] },
-        { label: 'Pin Clicks', data: [] as any[] },
-        { label: 'Engagement', data: [] as any[] },
-        { label: 'Saves', data: [] as any[] },
-      ]
-    );
+    const metrics = [
+      ['Pin click rate', 'PIN_CLICK_RATE'],
+      ['Impressions', 'IMPRESSION'],
+      ['Pin Clicks', 'PIN_CLICK'],
+      ['Engagement', 'ENGAGEMENT'],
+      ['Saves', 'SAVE'],
+    ];
+    return normalizeAnalytics(metrics.map(([label, field]) => ({
+      label,
+      percentageChange: null,
+      data: (daily_metrics || []).map((item: any) => ({
+        date: item.date,
+        total: item.metrics?.[field],
+      })),
+    })));
   }
 
   async postAnalytics(
@@ -490,7 +467,7 @@ export class PinterestProvider
         if (lifetimeMetrics.IMPRESSION !== undefined) {
           result.push({
             label: 'Impressions',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(lifetimeMetrics.IMPRESSION), date: today }],
           });
         }
@@ -498,7 +475,7 @@ export class PinterestProvider
         if (lifetimeMetrics.PIN_CLICK !== undefined) {
           result.push({
             label: 'Pin Clicks',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(lifetimeMetrics.PIN_CLICK), date: today }],
           });
         }
@@ -506,7 +483,7 @@ export class PinterestProvider
         if (lifetimeMetrics.OUTBOUND_CLICK !== undefined) {
           result.push({
             label: 'Outbound Clicks',
-            percentageChange: 0,
+            percentageChange: null,
             data: [
               { total: String(lifetimeMetrics.OUTBOUND_CLICK), date: today },
             ],
@@ -516,13 +493,13 @@ export class PinterestProvider
         if (lifetimeMetrics.SAVE !== undefined) {
           result.push({
             label: 'Saves',
-            percentageChange: 0,
+            percentageChange: null,
             data: [{ total: String(lifetimeMetrics.SAVE), date: today }],
           });
         }
       }
 
-      return result;
+      return normalizeAnalytics(result);
     } catch (err) {
       console.error('Error fetching Pinterest post analytics:', err);
       return [];

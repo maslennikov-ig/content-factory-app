@@ -231,11 +231,11 @@ const ru: Words = {
       'В поле стоит значение из переменной окружения на сервере — инстанс работает на нём. Сохраните его, чтобы закрепить здесь, или замените своим.',
     providerHint:
       'Идентификаторы моделей принадлежат своему провайдеру: «gpt-4.1» ничего не значит для OpenRouter, «openai/gpt-4.1» — для OpenAI. После смены провайдера поля моделей стоит перебрать заново.',
-    flexLabel: 'Сначала дешёвый уровень flex',
+    flexLabel: 'Сначала Flex',
     flexWhat:
-      'Только OpenRouter. Текстовый вызов один раз пробует уровень flex — он вдвое дешевле, но может ответить «нет мощности», — и ждёт его не дольше 60 секунд (потоковый ответ — до первого слова), потом обычный уровень той же модели, потом запасную модель. Выключено — сразу обычный уровень.',
+      'Запрашивать Flex в OpenRouter. При подтверждённой недоступности возможен один повтор той же модели на Default, если повторы разрешены. Доступность и фактический тариф определяет провайдер; запасные модели настраиваются отдельно. Выключено — запрашивать Default.',
     fallbackLabel: 'Запасная модель',
-    textHint: 'Какой ИИ пишет тексты у пространств на «Ключах системы».',
+    textHint: 'Модель для текстов и основного чата; роли можно выбрать отдельно. Новая конфигурация OpenRouter: Argon — автор и ассистент, Flash — независимая проверка.',
     imageHint: 'Какой ИИ рисует картинки у пространств на «Ключах системы».',
     fallbackWhat:
       'Последняя попытка, когда текстовая модель не ответила. Пустое поле — модель по умолчанию, указанная в подсказке.',
@@ -352,11 +352,11 @@ const en: Words = {
       'The field holds the value from an environment variable on the server — the instance runs on it. Save it to pin it here, or replace it with your own.',
     providerHint:
       'Model ids belong to their provider: «gpt-4.1» means nothing to OpenRouter, «openai/gpt-4.1» nothing to OpenAI. After switching the provider, go through the model fields again.',
-    flexLabel: 'Try the cheaper flex tier first',
+    flexLabel: 'Try Flex first',
     flexWhat:
-      'OpenRouter only. A text call tries the flex tier once — half the price, but it may answer «no capacity» — and waits for it at most 60 seconds (a streamed answer, until its first word), then the standard tier of the same model, then the fallback model. Off goes straight to the standard tier.',
+      'Request Flex through OpenRouter. Confirmed unavailability may allow one same-model Default retry when retries are enabled. The provider determines availability and the actual tier; fallback models are configured separately. Off requests Default.',
     fallbackLabel: 'Fallback model',
-    textHint: 'Which AI writes the texts of workspaces on «System keys».',
+    textHint: 'The text and main chat model; roles can be selected separately. A new OpenRouter profile uses Argon for author/chat and Flash for independent review.',
     imageHint: 'Which AI draws the images of workspaces on «System keys».',
     fallbackWhat:
       'The last attempt, when the text model did not answer. An empty field uses the default shown as the placeholder.',

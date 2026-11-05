@@ -470,16 +470,24 @@ describe('task execution uses real accounting and technical fuses', () => {
   test('an uncertain sent provider attempt is accounted once and does not start the chain fallback', async () => {
     const scope = task();
     const ledger = new chain.TextUsageLedger();
-    const fetch = jest.fn(async () => { throw new TypeError('connection lost after sending'); });
+    const failure = new TypeError('connection lost after sending');
+    const fetch = jest.fn(async () => { throw failure; });
     const transport = chain.createTextChainFetch({
       usageMode: 'included', provider: 'openrouter', textChain: chain.defaultTextChainSettings(),
     }, fetch);
     await expect(scope.run(() => chain.runWithUsageLedger(ledger, () => transport('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST', body: JSON.stringify({ model: 'openai/gpt-6-luna', messages: [{ role: 'user', content: 'test' }] }),
-    })))).rejects.toMatchObject({ code: 'AGENT_TASK_UNCERTAIN' });
+    })))).rejects.toMatchObject({
+      name: 'NonReplayableTextAttempt', textAttemptNonReplayable: true, message: failure.message, cause: failure,
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(ledger.calls).toEqual([expect.objectContaining({ failed: true, possiblyBilled: true })]);
-    expect(scope.snapshot()).toMatchObject({ providerCalls: 1, possiblyBilled: true, unknownCostCalls: 1 });
+    expect(ledger.columns().costUsd).toBeNull();
+    expect(scope.snapshot()).toMatchObject({ providerCalls: 1, possiblyBilled: true, unknownCostCalls: 1, stopCode: 'AGENT_TASK_UNCERTAIN' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(() => scope.assertCanSpend()).toThrow(expect.objectContaining({ code: 'AGENT_TASK_UNCERTAIN' }));
+    }
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   test('BYOK headroom refusal and retry are both metered without inventing a charge for refusal', async () => {

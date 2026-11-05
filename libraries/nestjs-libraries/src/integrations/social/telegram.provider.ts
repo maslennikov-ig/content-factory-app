@@ -213,7 +213,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
       return [
         {
           label: 'Subscribers',
-          percentageChange: 0,
+          percentageChange: null,
           data: [{ total: String(total), date: dayjs().format('YYYY-MM-DD') }],
         },
       ];
@@ -307,7 +307,6 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     const mediaFiles = message.media || [];
     const text = telegramHtml(message.message || '');
 
-    console.log(text);
     const processedMedia = this.processMedia(mediaFiles);
 
     // if there's no media, bot sends a text message only

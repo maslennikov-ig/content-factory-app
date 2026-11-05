@@ -30,6 +30,11 @@ import { assistantContextKey } from './assistant.route-context';
  */
 
 type ProductFetch = (url: string, init: RequestInit) => Promise<Response>;
+const headerValues = (headers?: HeadersInit): Record<string, string> => {
+  const values: Record<string, string> = {};
+  new Headers(headers).forEach((value, key) => {values[key] = value;});
+  return values;
+};
 
 /** Explicit server refusal, or local preparation that never attempted the chat POST. */
 export class AgentRequestNotStartedError extends Error {
@@ -147,7 +152,7 @@ export const createAgentTransport = ({
     // `tests/agent-transport.test.cjs`); only the zone is added.
     prepareSendMessagesRequest: ({ messages, messageId, body, headers }) => ({
       headers: {
-        ...Object.fromEntries(new Headers(headers as HeadersInit | undefined).entries()),
+        ...headerValues(headers as HeadersInit | undefined),
         ...(screenTimeZone() ? { [AGENT_TIMEZONE_HEADER]: screenTimeZone() } : {}),
       },
       body: buildChatBody({

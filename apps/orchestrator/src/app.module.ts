@@ -1,3 +1,8 @@
+import { HggPilotStageActivityV1 } from './activities/hgg-pilot-stage.activity.v1';
+import {LocalCompositionActivityV2} from './activities/local-composition.activity.v2';
+import { VideoProductionActivityV1 } from './activities/video-production.activity.v1';
+import { PostActivityV109 } from './activities/post.activity.v109';
+import { SocialFactoryModule } from '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.module';
 import { VideoSubscriptionActivityV1 } from './activities/video-subscription.activity.v1';
 import { Module } from '@nestjs/common';
 import { PostActivity } from '@contentfactory/orchestrator/activities/post.activity';
@@ -21,6 +26,10 @@ import { VideoModule } from '@contentfactory/nestjs-libraries/videos/video.modul
 import { VideoGenerationActivityV1 } from './activities/video-generation.activity.v1';
 
 const activities = [
+  LocalCompositionActivityV2,
+  HggPilotStageActivityV1,
+  VideoProductionActivityV1,
+  PostActivityV109,
   VideoSubscriptionActivityV1,
   VideoGenerationActivityV1,
   PostActivity,
@@ -39,6 +48,7 @@ const activities = [
 @Module({
   imports: [
     DatabaseModule,
+    SocialFactoryModule,
     VideoModule,
     getTemporalModule(true, require.resolve('./workflows'), activities),
   ],

@@ -88,7 +88,7 @@ describe('the instruction (spec §1.9, §4.6; premortem A4, A5)', () => {
     expect(text).toContain('only their selection or edit makes it their view');
     expect(text).toContain('never invent personal experience');
     expect(text).toContain('must not replace all substantive choices');
-    expect(text).toContain('do not duplicate those controls as options');
+    expect(text).toMatch(/do not duplicate (?:those|interface) controls as options/i);
     expect(text).toContain('state a short public first-person decision before the next tool or question');
     expect(text).toContain('never private reasoning or an invented author opinion');
   });

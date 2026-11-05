@@ -38,7 +38,7 @@ export function AgentContextChip({ context, artifact, onRemove, writingSelection
   const labels = {
     workspace: t('assistant_workspace', 'Workspace'), piece: t('assistant_pieces', 'Pieces'),
     avatar: t('assistant_avatars', 'Avatars'), channel: t('channels', 'Channels'),
-    adaptation: t('assistant_material', 'Material'), plan: t('calendar', 'Calendar'), calendar: t('calendar', 'Calendar'),
+    campaign: language.startsWith('ru') ? 'Кампания' : 'Campaign', adaptation: t('assistant_material', 'Material'), plan: t('calendar', 'Calendar'), calendar: t('calendar', 'Calendar'),
     ideas: t('assistant_ideas', 'Ideas'), facts: t('assistant_facts', 'Facts'), media: t('media', 'Media'),
   };
   const unavailable = selected && metadata.known(selected) && !metadata.get(selected);

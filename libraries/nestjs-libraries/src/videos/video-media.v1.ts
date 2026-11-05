@@ -6,15 +6,18 @@ import { ssrfSafeDispatcher } from '../dtos/webhooks/ssrf.safe.dispatcher';
 import { UploadFactory } from '../upload/upload.factory';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
+import { authoredCaptionFileV1, CaptionCueV1, measureMp4VideoV1, StoredSubtitleV1 } from './production/video-production-result.v1';
+import { storeOwnedVideoSubtitleV1 } from './production/video-subtitle.storage.v1';
 import { videoErrorV1 } from './video-brief.v1';
 
 const VIDEO_BYTES = 100 * 1024 * 1024;
 const IMAGE_BYTES = 20 * 1024 * 1024;
 
 /** Each redirect and the actual DNS connection are checked, including rebinding. */
-export async function downloadVideoAssetV1(url: string, limit = VIDEO_BYTES): Promise<Buffer> {
+export async function downloadVideoAssetV1(url: string, limit = VIDEO_BYTES, timeoutMs = 60_000): Promise<Buffer> {
   let current = url;
-  const signal = AbortSignal.timeout(60_000);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 512 * 1024 * 1024 || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) return videoErrorV1('VIDEO_DOWNLOAD_POLICY_INVALID');
+  const signal = AbortSignal.timeout(timeoutMs);
   for (let redirects = 0; redirects <= 4; redirects++) {
     let parsed: URL;
     try { parsed = new URL(current); } catch { return videoErrorV1('VIDEO_RESULT_URL_UNSAFE'); }
@@ -86,16 +89,30 @@ export class VideoMediaV1 {
     return {width, height};
   }
 
-  async importVideo(url: string) {
-    const bytes = await downloadVideoAssetV1(url);
+  async importVideo(url: string, limit = VIDEO_BYTES) {
+    // Leave time for upload/CAS within the existing three-minute job lease.
+    const bytes = await downloadVideoAssetV1(url, limit, limit > VIDEO_BYTES ? 120_000 : 60_000);
     await assertMp4VideoV1(bytes);
     const file = await this.storage.uploadFile({buffer: bytes, originalname: 'video.mp4', mimetype: 'video/mp4', size: bytes.length} as Express.Multer.File);
-    return {name: String(file.originalname), path: String(file.path), size: bytes.length};
+    let metadata;try{metadata=measureMp4VideoV1(bytes);}catch{/* Valid but unsupported metadata remains unknown. */}
+    return {name: String(file.originalname), path: String(file.path), size: bytes.length, ...(metadata?{metadata}:{})};
+  }
+
+  async inspectOwnedVideo(path:string,limit=512*1024*1024){return measureMp4VideoV1(await this.readOwned(path,limit));}
+
+  async importSubtitle(url:string,durationSeconds:number):Promise<StoredSubtitleV1>{
+    const bytes=await downloadVideoAssetV1(url,2*1024*1024,15000);
+    return storeOwnedVideoSubtitleV1(bytes,durationSeconds,'provider_subtitle_file');
+  }
+  async storeAuthoredCaptions(cues:CaptionCueV1[],durationSeconds:number):Promise<StoredSubtitleV1>{
+    const {bytes}=authoredCaptionFileV1(cues,durationSeconds);
+    return storeOwnedVideoSubtitleV1(bytes,durationSeconds,'authored_timed_cues');
   }
 
   /** Read only a persisted owned storage path, never a provider/model-supplied URL. */
-  async readOwned(path: string) {
-    if ((process.env.STORAGE_PROVIDER || 'local') !== 'local') return downloadVideoAssetV1(path);
+  async readOwned(path: string, limit = VIDEO_BYTES) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 512 * 1024 * 1024) return videoErrorV1('VIDEO_DOWNLOAD_POLICY_INVALID');
+    if ((process.env.STORAGE_PROVIDER || 'local') !== 'local') return downloadVideoAssetV1(path, limit, limit > VIDEO_BYTES ? 300_000 : 60_000);
     const base = new URL(process.env.FRONTEND_URL!);
     const url = new URL(path);
     if (url.origin !== base.origin || !/^\/uploads\/\d{4}\/\d{2}\/\d{2}\/[a-f0-9]+\.mp4$/.test(url.pathname)) return videoErrorV1('VIDEO_OWNED_FILE_UNAVAILABLE', 404);
@@ -103,9 +120,9 @@ export class VideoMediaV1 {
     const file = resolve(root, url.pathname.slice('/uploads/'.length));
     if (!file.startsWith(root + sep)) return videoErrorV1('VIDEO_OWNED_FILE_UNAVAILABLE', 404);
     // Manual uploads can be larger than imported provider results. Bound allocation before reading.
-    if ((await stat(file)).size > VIDEO_BYTES) return videoErrorV1('VIDEO_RESULT_TOO_LARGE');
+    if ((await stat(file)).size > limit) return videoErrorV1('VIDEO_RESULT_TOO_LARGE');
     const bytes = await readFile(file);
-    if (bytes.length > VIDEO_BYTES) return videoErrorV1('VIDEO_RESULT_TOO_LARGE');
+    if (bytes.length > limit) return videoErrorV1('VIDEO_RESULT_TOO_LARGE');
     return bytes;
   }
 }

@@ -12,6 +12,8 @@
   "delete": "Delete",
   "add_a_webhook": "Add a webhook",
   "save": "Save",
+  "refresh": "Refresh",
+  "saving": "Saving…",
   "send_test": "Send Test",
   "select_role": "Select Role",
   "video_made_with_ai": "Video made with AI",
@@ -2196,5 +2198,10 @@
   "video_v1_reloadDraft": "Load saved version",
   "video_v1_reviewSnapshot": "Review text and settings before launching",
   "video_v1_paymentNote": "Provider charges may exceed the estimate or reservation. Cancellation and refunds are not guaranteed; HeyGen does not support cancellation.",
-  "video_v1_approvalChanged": "The saved draft changed. Review a new preflight before launching."
+  "video_v1_approvalChanged": "The saved draft changed. Review a new preflight before launching.",
+  "validation_tiktok_privacy_required": "TikTok privacy must be selected from the current account options before publishing.",
+  "validation_tiktok_account_unavailable": "TikTok account settings are unavailable. Try again or reconnect the channel.",
+  "validation_tiktok_interactions_changed": "TikTok interaction settings changed. Review comments, Duet and Stitch before publishing.",
+  "validation_tiktok_disclosure_invalid": "TikTok commercial disclosure must match the selected brands and privacy before publishing.",
+  "validation_tiktok_duration_invalid": "TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing."
 }

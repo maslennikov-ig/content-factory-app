@@ -633,3 +633,31 @@ describe('D1, D11 — the refusal words', () => {
     expect(copy.agentCopy.en.error.codes.PAID_CAP_REACHED.what).toContain('older assistant limit');
   });
 });
+
+describe('native campaign results refresh retained saved assets',()=>{
+  const rendered=(call='render-1',extra={})=>({id:'render-message',role:'assistant',parts:[{type:'tool-campaign_render_local_reel',title:'Собрать локальный Reel',toolCallId:call,state:'output-available',input:{operationId:'op',expectedContentRevision:2},output:{ok:true,card:{kind:'campaign',id:'campaign-1'}},...extra}]});
+  test('the persisted native campaign card remains openable after history reload; failures and pending calls do not touch it',()=>{
+    const history=JSON.parse(JSON.stringify([rendered()]));
+    expect(contract.artifactsOf(history)).toEqual([expect.objectContaining({kind:'campaign',id:'campaign-1'})]);
+    expect(contract.campaignTouchesOf(history)).toHaveLength(1);
+    expect(contract.campaignTouchesOf([rendered('failed',{output:{ok:false,code:'CAPABILITY_RESULT_UNAVAILABLE'}}),rendered('pending',{state:'input-available'})])).toEqual([]);
+  });
+  test('a second result for the same campaign revalidates its exact reader once without clearing it or refreshing neighbours',async()=>{
+    const keys=[];
+    const {chat,view,props,AgentConversation}=await drawConversation({messages:[rendered()],pending:[],request:async()=>({ok:false}),mutate:(...args)=>keys.push(args)});
+    expect(keys.some(([key])=>typeof key==='function'&&key('/social-factory/campaigns/campaign-1'))).toBe(false);
+    chat.messages=[rendered(),person,{...rendered('render-2'),id:'next-render'}];
+    await act(async()=>view.rerender(h(AgentConversation,props)));
+    const refresh=keys.filter(([key])=>typeof key==='function'&&key('/social-factory/campaigns/campaign-1'));
+    expect(refresh).toHaveLength(1);expect(refresh[0]).toHaveLength(1);
+    expect(refresh[0][0]('/social-factory/campaigns/campaign-10')).toBe(false);
+    expect(refresh[0][0]('/social-factory/campaigns')).toBe(false);
+    await act(async()=>view.rerender(h(AgentConversation,props)));
+    expect(keys.filter(([key])=>typeof key==='function'&&key('/social-factory/campaigns/campaign-1'))).toHaveLength(1);
+  });
+  test('a standalone source edit refreshes the exact existing source piece readers without fabricating a new card',()=>{
+    const edit={id:'source-edit',role:'assistant',parts:[{type:'tool-source_edit_draft_artifact',toolCallId:'source-call',state:'output-available',input:{sourceArtifact:{version:1,kind:'adaptation',pieceId:'source-piece',adaptationId:'source-draft',revision:'a'.repeat(64)}},output:{ok:true,summary:{untrustedData:{value:{ref:{pieceId:'source-piece',adaptationId:'source-draft'}}}}}}]};
+    expect(contract.pieceTouchesOf([edit])).toEqual([{key:'source-edit:source-call',pieceId:'source-piece'}]);
+    expect(contract.artifactsOf([edit])).toEqual([]);
+  });
+});

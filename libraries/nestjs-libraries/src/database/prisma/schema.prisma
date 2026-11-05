@@ -9,6 +9,8 @@ datasource db {
 }
 
 model Organization {
+  socialFactoryRecords SocialFactoryRecord[]
+  videoProductionRevisions VideoProductionRevision[]
   id                         String                       @id @default(uuid())
   name                       String
   description                String?
@@ -2181,6 +2183,9 @@ model VideoGenerationJob {
   @@index([organizationId, pieceId, createdAt])
   @@index([organizationId, provider, payer, createdAt])
   @@index([state, leaseUntil])
+  /// Optional production manifest scope; legacy draftId semantics remain intact.
+  productionRevisionId String?
+
 }
 
 /// Privacy-safe admission ledger. It records only which bounded product
@@ -2526,4 +2531,46 @@ model VideoManualAttachment {
   snapshot Json
   createdAt DateTime @default(now())
   @@unique([organizationId, draftId, draftVersion, mediaId])
+}
+
+/// Versioned social-factory domain resources. Tenant and kind are part of identity.
+/// JSON contracts live in content-intelligence/social-factory/contracts.
+model SocialFactoryRecord {
+  organizationId String
+  kind String
+  id String
+  parentId String?
+  revision Int @default(1)
+  payload Json
+  sourceIds String[] @default([])
+  expiresAt DateTime?
+  invalidatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@id([organizationId, kind, id])
+  @@index([organizationId, kind, parentId, deletedAt])
+}
+
+/// Immutable production manifests reference existing leased VideoGenerationJob operations.
+model VideoProductionRevision {
+  id String @id @default(uuid())
+  organizationId String
+  userId String
+  productionId String
+  revision Int
+  parentId String?
+  intentId String
+  manifest Json
+  digest String
+  approval Json?
+  state String @default("draft")
+  stoppedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, productionId, revision])
+  @@unique([organizationId, intentId])
+  @@index([organizationId, productionId, createdAt])
 }

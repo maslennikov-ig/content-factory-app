@@ -1,6 +1,7 @@
 import { writingSettingsSchema, writingSettingsAnswerSchema, writingLengthOptionsSchema, type WritingSettings, type WritingLengthOption } from '@contentfactory/helpers/utils/writing-settings';
 import type { UIMessage } from 'ai';
 import { videoApprovalScopeV1, videoWorkspacePath, type VideoApprovalScopeV1 } from '../videos/video-ui.v1';
+import { readClipProduction, readClipPilotApprovalScope, type AgentClipProduction, type AgentClipPilotApprovalScope } from './agent.clip-production.contract';
 
 /**
  * The agent screen's contract with `POST /agent/chat` and `/agent/threads`,
@@ -36,9 +37,11 @@ export const CARD_KINDS = [
   'avatar',
   'adaptation',
   'plan',
+  'campaign',
   'channel',
   'channel-connect',
   'secret',
+  'clip-preproduction',
   'ideas',
   'facts',
   'media',
@@ -388,6 +391,7 @@ export const AGENT_DOORS = {
   thread: (id: string) => `/agent/threads/${encodeURIComponent(id)}`,
   forkThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/fork`,
   threadWorkspace: (id: string) => `/agent/threads/${encodeURIComponent(id)}/workspace`,
+  threadVideoBinding: (id: string) => `/agent/threads/${encodeURIComponent(id)}/video-binding`,
   stopThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/stop`,
   observeThread: (id: string) => `/agent/threads/${encodeURIComponent(id)}/observe`,
   threadSignals: (id: string) => `/agent/threads/${encodeURIComponent(id)}/signals`,
@@ -410,7 +414,80 @@ export type AgentMessage = UIMessage;
  * — the Telegram steps or the platform's button — not a thing to look at; so
  * is typing a key into the key card (`kcxz.20`).
  */
-export const INLINE_CARD_KINDS = ['channel-connect', 'secret'] as const;
+export const INLINE_CARD_KINDS = ['channel-connect', 'secret', 'clip-preproduction'] as const;
+
+export type AgentClipPreproductionRef = { id: string; pieceId: string; threadId: string };
+export type AgentClipPreproductionView = {
+  revisionV2?: {version: 2; parentPilotId: string; scope: 'scenario' | 'references'; newImagePair: true};
+  executionModeV2?: {version: 2; mode: 'review' | 'autopilot'; canChange: boolean};
+  state: 'preparing' | 'reviewed' | 'needs_input' | 'uncertain';
+  sourceCurrent: boolean; independentReviewAccepted: boolean; outputLocale: string;
+  blocker?: string;
+  scenario?: { firstFrameDirections: string; lastFrameDirections: string; motionDirections: string; screenText: string; spokenText: string; captions: string[]; unknownFacts: string[]; rightsConflicts: string[] };
+  review?: { verdict: 'accept' | 'revise' | 'blocked'; findings: { category: 'facts' | 'rights' | 'language' | 'duration' | 'creative'; detail: string }[] };
+  models: { role: 'author' | 'critic'; selected: string | null; actual: string | null; state: string }[];
+  production?: AgentClipProduction;
+};
+export const readClipPreproductionRef = (value: unknown): AgentClipPreproductionRef | null => {
+  const row = recordOf(value);
+  if (![row.id, row.pieceId, row.threadId].every(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id))) return null;
+  return { id: row.id as string, pieceId: row.pieceId as string, threadId: row.threadId as string };
+};
+/** Only the current owned read is presentation authority; embedded tool summaries are not. */
+export const readClipPreproduction = (value: unknown, ref: AgentClipPreproductionRef): AgentClipPreproductionView | null => {
+  const row = recordOf(value);
+  if (row.pilotId !== ref.id || row.pieceId !== ref.pieceId || row.threadId !== ref.threadId ||
+    !['preparing', 'reviewed', 'needs_input', 'uncertain'].includes(String(row.state)) || typeof row.sourceCurrent !== 'boolean' ||
+    typeof row.outputLocale !== 'string' || row.outputLocale.length > 60 || !Array.isArray(row.models) || row.models.length > 4) return null;
+  try { new Intl.Locale(row.outputLocale); } catch { return null; }
+  const bounded = (text: unknown, max = 5000): text is string => typeof text === 'string' && text.length <= max;
+  const result: AgentClipPreproductionView = { state: row.state as AgentClipPreproductionView['state'], sourceCurrent: row.sourceCurrent,
+    independentReviewAccepted: row.independentReviewAccepted === true, outputLocale: row.outputLocale, models: [] };
+  if (typeof row.blocker === 'string') result.blocker = row.blocker.slice(0, 128);
+  if (row.revisionV2 !== undefined) {
+    const revision = recordOf(row.revisionV2);
+    if (revision.version !== 2 || typeof revision.parentPilotId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(revision.parentPilotId) || !['scenario', 'references'].includes(String(revision.scope)) || revision.newImagePair !== true) return null;
+    result.revisionV2 = {version: 2, parentPilotId: revision.parentPilotId, scope: revision.scope as 'scenario' | 'references', newImagePair: true};
+  }
+  if (row.executionModeV2 !== undefined) {
+    const mode = recordOf(row.executionModeV2);
+    if (mode.version !== 2 || !['review', 'autopilot'].includes(String(mode.mode)) || typeof mode.canChange !== 'boolean') return null;
+    result.executionModeV2 = {version: 2, mode: mode.mode as 'review' | 'autopilot', canChange: mode.canChange};
+  }
+  if (row.scenario !== undefined) {
+    const scenario = recordOf(row.scenario);
+    if (scenario.directionsLanguage !== 'en' || scenario.outputLocale !== row.outputLocale || scenario.targetSeconds !== 5 || scenario.aspectRatio !== '9:16' ||
+      ![scenario.firstFrameDirections, scenario.lastFrameDirections, scenario.motionDirections].every(text => bounded(text) && text.length > 0) ||
+      !bounded(scenario.screenText, 2000) || !bounded(scenario.spokenText, 2000) || !Array.isArray(scenario.captions) || scenario.captions.length > 10 || !scenario.captions.every(text => bounded(text, 1000)) ||
+      ![scenario.unknownFacts, scenario.rightsConflicts].every(values => Array.isArray(values) && values.length <= 10 && values.every(text => bounded(text)))) return null;
+    result.scenario = { firstFrameDirections: scenario.firstFrameDirections as string, lastFrameDirections: scenario.lastFrameDirections as string,
+      motionDirections: scenario.motionDirections as string, screenText: scenario.screenText, spokenText: scenario.spokenText, captions: scenario.captions as string[],
+      unknownFacts: scenario.unknownFacts as string[], rightsConflicts: scenario.rightsConflicts as string[] };
+  }
+  if (row.review !== undefined) {
+    const review = recordOf(row.review);
+    if (!['accept', 'revise', 'blocked'].includes(String(review.verdict)) || !Array.isArray(review.findings) || review.findings.length > 20) return null;
+    const findings: NonNullable<AgentClipPreproductionView['review']>['findings'] = [];
+    for (const value of review.findings) {
+      const finding = recordOf(value);
+      if (!['facts', 'rights', 'language', 'duration', 'creative'].includes(String(finding.category)) || !bounded(finding.detail)) return null;
+      findings.push({ category: finding.category as typeof findings[number]['category'], detail: finding.detail });
+    }
+    result.review = { verdict: review.verdict as NonNullable<AgentClipPreproductionView['review']>['verdict'], findings };
+  }
+  for (const value of row.models) {
+    const model = recordOf(value);
+    if (!['author', 'critic'].includes(String(model.role))) return null;
+    const modelName = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/.test(value) ? value : null;
+    result.models.push({ role: model.role as 'author' | 'critic', selected: modelName(model.selected), actual: modelName(model.actual), state: String(model.state) });
+  }
+  if (row.production !== undefined) {
+    const production = readClipProduction(row.production, ref.id, result.outputLocale);
+    if (!production) return null;
+    result.production = production;
+  }
+  return result;
+};
 
 export type AgentArtifactKind = Exclude<CardKind, (typeof INLINE_CARD_KINDS)[number]>;
 
@@ -431,8 +508,9 @@ export type AgentArtifact = {
 };
 
 export type AgentWorkContextV1 = {
+  clipPilotId?: string;
   version: 'assistant-work-context/v1';
-  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'calendar' | 'ideas' | 'facts' | 'media';
+  kind: 'workspace' | 'piece' | 'avatar' | 'channel' | 'adaptation' | 'plan' | 'campaign' | 'calendar' | 'ideas' | 'facts' | 'media';
   id?: string;
   pieceId?: string;
   channelId?: string;
@@ -464,14 +542,14 @@ export type AgentWorkspaceV1 = {
   activeArtifact: AgentArtifactRef | null;
 };
 
-const WORK_CONTEXT_KINDS: readonly string[] = ['workspace', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'calendar', 'ideas', 'facts', 'media'];
+const WORK_CONTEXT_KINDS: readonly string[] = ['workspace', 'piece', 'avatar', 'channel', 'adaptation', 'plan', 'campaign', 'calendar', 'ideas', 'facts', 'media'];
 const WORK_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null => {
   const row = recordOf(value);
   if (row.version !== 'assistant-work-context/v1' || typeof row.kind !== 'string' || !WORK_CONTEXT_KINDS.includes(row.kind)) return null;
   const result: AgentWorkContextV1 = { version: 'assistant-work-context/v1', kind: row.kind as AgentWorkContextV1['kind'] };
-  for (const key of ['id', 'pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId'] as const) {
+  for (const key of ['id', 'pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId', 'clipPilotId'] as const) {
     if (row[key] !== undefined) {
       if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
       result[key] = row[key] as string;
@@ -484,6 +562,7 @@ export const readAgentWorkContext = (value: unknown): AgentWorkContextV1 | null 
     }
   }
   if ((result.videoDraftId || result.videoJobId) && (result.kind !== 'media' || result.id && result.id !== 'library')) return null;
+  if (result.clipPilotId && (result.kind !== 'piece' || !(result.id || result.pieceId))) return null;
   return result;
 };
 
@@ -571,6 +650,8 @@ export const artifactHref = (artifact: {
 }): string => {
   const id = encodeURIComponent(artifact.id);
   switch (artifact.kind) {
+    case 'campaign':
+      return `/campaigns/${id}`;
     case 'piece':
       return `/content/pieces/${id}`;
     case 'adaptation':
@@ -1738,7 +1819,7 @@ const readQuestionShape = (
     ...(['multiple', 'multi_select'].includes(String(record.selectionMode))
       ? { selectionMode: 'multiple' as const }
       : {}),
-    canDecideForPerson: record.canDecideForPerson !== false,
+    canDecideForPerson: toolName === 'ask_user' ? record.questionPurpose === 'creative' && record.canDecideForPerson !== false : record.canDecideForPerson !== false,
   };
 };
 
@@ -1940,6 +2021,11 @@ export type AgentSubagentView = {
   status: 'working' | 'done' | 'error';
   content: string | null;
 };
+export type AgentSubagentApproval = {
+  agentType: AgentSubagentView['agentType'];
+  task: string;
+  modelId: string | null;
+};
 
 /** One unavailable source does not determine the task's terminal state. */
 export type AgentSourceReadIssue = {
@@ -1951,6 +2037,7 @@ export type AgentSourceReadIssue = {
 
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
+  | { type: 'clip-preproduction'; key: string; preproduction: AgentClipPreproductionRef }
   | ({ type: 'file'; key: string } & AttachedLine)
   | {
       type: 'approval';
@@ -1965,6 +2052,8 @@ export type AgentBlock =
       irreversible: boolean;
       state: AgentApprovalState;
       videoApproval?: VideoApprovalScopeV1;
+      clipPilotApproval?: AgentClipPilotApprovalScope;
+      subagentApproval?: AgentSubagentApproval;
     }
   | {
       type: 'question';
@@ -2211,7 +2300,7 @@ export const pieceTouchesOf = (
           ? stringOf(card.id)
           : card.kind === 'adaptation' || card.kind === 'plan'
             ? stringOf(card.pieceId)
-            : stringOf(output.pieceId);
+            : stringOf(output.pieceId) ?? (toolNameOfPart(part) === 'source_edit_draft_artifact' ? stringOf(recordOf(recordOf(part.input).sourceArtifact).pieceId) : null);
       if (!pieceId) return;
       const call = stringOf(part.toolCallId) ?? String(index);
       touches.push({ key: `${message.id}:${call}`, pieceId });
@@ -2240,6 +2329,23 @@ export const videoTouchesOf = (messages: readonly AgentMessage[]): Array<{key: s
   return touches;
 };
 
+/** Refresh the saved campaign after each successful native result, including a new version of the same card. */
+export const campaignTouchesOf = (messages: readonly AgentMessage[]): Array<{key: string; artifact: AgentArtifact}> => {
+  const touches: Array<{key: string; artifact: AgentArtifact}> = [];
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    (message.parts as unknown as Part[]).forEach((part, index) => {
+      if (!toolNameOfPart(part)?.startsWith('campaign_') || part.state !== 'output-available' || refusalCode(part.output)) return;
+      const output = recordOf(part.output);
+      const card = recordOf(output.card);
+      const id = card.kind === 'campaign' ? stringOf(card.id) : null;
+      if (!id || output.ok === false) return;
+      touches.push({key: `${message.id}:${stringOf(part.toolCallId) ?? index}`, artifact: {kind: 'campaign', id, title: null, code: null, data: {id}}});
+    });
+  }
+  return touches;
+};
+
 /**
  * Finished channel actions of the conversation (`kcxz.19`), counted: when the
  * count grows, the channel screen beside the chat and a connect card read the
@@ -2249,7 +2355,7 @@ export const channelCallsOf = (messages: readonly AgentMessage[]): number =>
   changingCallsOf(messages, 'channel_');
 
 /**
- * The reads of the avatar, channel, ideas, facts and media groups (`risk: 'read'` in the
+ * The reads of the avatar, channel, ideas, facts, media, campaign, video and Helixa groups (`risk: 'read'` in the
  * registry; `agent-w3-review-fixes` holds the two lists together). They
  * change nothing, so the `…CallsOf` counts leave them out (correctness review
  * F2). They do open the panel beside the chat, which then re-reads its
@@ -2273,6 +2379,28 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'ideas_queue',
   'facts_list',
   'media_library',
+  'channel_editorial_profile',
+  'campaign_open',
+  'campaign_local_video_open',
+  'campaign_list',
+  'campaign_reconcile',
+  'campaign_findings',
+  'campaign_optional_evidence',
+  'campaign_tracking_clicks',
+  'campaign_finding_feedback',
+  'video_catalog',
+  'video_drafts',
+  'video_draft',
+  'video_jobs',
+  'video_status',
+  'video_access_v2',
+  'video_personal_assets',
+  'video_personal_readiness',
+  'video_jobs_v2',
+  'video_status_v2',
+  'video_production_open',
+  'video_preproduction_open',
+  'helixa_read',
 ]);
 
 /**
@@ -2487,6 +2615,16 @@ const readSubagentView = (
   };
 };
 
+/** Requested tool input is a reviewable scope, never proof that a model ran or permission was granted. */
+const readSubagentApproval = (input: unknown): AgentSubagentApproval | null => {
+  const row = recordOf(input);
+  if (!['research', 'writing', 'review'].includes(String(row.agentType)) || typeof row.task !== 'string' ||
+    !row.task.trim() || row.task.length > 20000 || row.forked !== undefined && row.forked !== false) return null;
+  if (row.modelId !== undefined && row.modelId !== null &&
+    (typeof row.modelId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/.test(row.modelId))) return null;
+  return {agentType: row.agentType as AgentSubagentApproval['agentType'], task: row.task, modelId: typeof row.modelId === 'string' ? row.modelId : null};
+};
+
 const NATIVE_AUTONOMY_TOOLS: ReadonlySet<string> = new Set([
   'ask_user',
   'submit_plan',
@@ -2601,10 +2739,18 @@ export const readMessageBlocks = (
    * vanish; with its old entry it stays a card the screen can fold into
    * «больше не ждёт ответа». Only a call still without an output uses it.
    */
-  gone: readonly AgentPendingRun[] = []
+  gone: readonly AgentPendingRun[] = [],
+  draftDestinationIds: ReadonlySet<string> = NOTHING_REMOVED
 ): AgentBlock[] => {
   const parts = message.parts as unknown as Part[];
   const blocks: AgentBlock[] = [];
+  const clipCards = new Set<string>();
+  const pushClipCard = (value: unknown, key: string) => {
+    const ref = readClipPreproductionRef(value);
+    if (!ref || clipCards.has(ref.id)) return;
+    clipCards.add(ref.id);
+    blocks.push({ type: 'clip-preproduction', key, preproduction: ref });
+  };
 
   // This native diagnostic has no toolCallId. Attach it only when the same
   // saved message contains one diagnostic and one matching refusal, so two
@@ -2676,6 +2822,7 @@ export const readMessageBlocks = (
   const seenArtifacts = new Map<string, AgentArtifact>();
   const pushArtifact = (artifact: AgentArtifact | null, key: string) => {
     if (!artifact) return false;
+    if (artifact.kind === 'channel' && draftDestinationIds.has(artifact.id)) return false;
     const identity = `${artifact.kind}:${artifact.id}`;
     const seen = seenArtifacts.get(identity);
     if (seen) {
@@ -2783,6 +2930,11 @@ export const readMessageBlocks = (
       return;
     }
 
+    if (part.type === 'data-clip-preproduction') {
+      pushClipCard(part.data, key);
+      return;
+    }
+
     if (part.type === SECRET_PART_TYPE) {
       const secret = readSecret(part.data);
       if (secret) blocks.push({ type: 'secret', key, secret });
@@ -2837,6 +2989,61 @@ export const readMessageBlocks = (
     const toolCallId = stringOf(part.toolCallId) ?? key;
     const title = stringOf(part.title);
     const state = part.state;
+
+    // A pending native permission/question must render before any builtin progress/result card.
+    const approval = recordOf(part.approval);
+    const pendingApproval = pending.find((run) => run.kind === 'approval' && run.toolCallId === toolCallId);
+    const reason =
+      stringOf(approval.requestReason) ??
+      pendingApproval?.summary ??
+      null;
+    const approvalBlock = (approvalState: AgentApprovalState): AgentBlock => ({
+      type: 'approval',
+      key: `${key}:approval`,
+      approvalId: stringOf(approval.id) ?? (pendingApproval ? `${pendingApproval.runId}::${toolCallId}` : toolCallId),
+      toolName,
+      // The label, as a reloaded card has it; the server's «what and where»
+      // when a stream carried no label (kcxz.29, D5).
+      title: title ?? reason,
+      reason,
+      irreversible: irreversibleTool(toolName),
+      state: approvalState,
+      ...(toolName === 'subagent' && readSubagentApproval(part.input) ? {subagentApproval: readSubagentApproval(part.input)!} : {}),
+      ...(['video_launch', 'video_launch_v2'].includes(toolName) && videoApprovalScopeV1(part.input) ? {videoApproval: {...videoApprovalScopeV1(part.input)!, ...(toolName === 'video_launch_v2' ? {accessVersion: 2 as const} : {})}} : {}),
+      ...(['video_pilot_launch', 'video_pilot_launch_reviewed_clip_v2'].includes(toolName ?? '') && readClipPilotApprovalScope(part.input) ? {clipPilotApproval: readClipPilotApprovalScope(part.input)!} : {}),
+    });
+
+    // Native built-ins can first request tool permission and then suspend
+    // with a question. The SDK tool part may retain its earlier approval
+    // state, including `output-denied`; the saved question is the gate that
+    // is actually waiting.
+    const question = questions.get(toolCallId);
+    if (
+      question &&
+      (state === 'approval-requested' ||
+        state === 'approval-responded' ||
+        state === 'output-denied')
+    ) {
+      blocks.push({
+        type: 'question', key, toolName, title, runId: question.runId,
+        toolCallId: stringOf(part.toolCallId),
+        question: readQuestion(toolName, question.payload, question.resumeSchema),
+      });
+      return;
+    }
+
+    if (state === 'approval-requested') {
+      blocks.push(approvalBlock(approval.closed === true ? 'closed' : 'asked'));
+      return;
+    }
+    if (state === 'approval-responded') {
+      blocks.push(approvalBlock('sent'));
+      return;
+    }
+    if (state === 'output-denied') {
+      blocks.push(approvalBlock('declined'));
+      return;
+    }
 
     if (
       toolName === 'task_write' ||
@@ -2896,57 +3103,6 @@ export const readMessageBlocks = (
       state !== 'approval-responded' &&
       state !== 'output-denied'
     ) {
-      return;
-    }
-    const approval = recordOf(part.approval);
-    const pendingApproval = pending.find((run) => run.kind === 'approval' && run.toolCallId === toolCallId);
-    const reason =
-      stringOf(approval.requestReason) ??
-      pendingApproval?.summary ??
-      null;
-    const approvalBlock = (approvalState: AgentApprovalState): AgentBlock => ({
-      type: 'approval',
-      key: `${key}:approval`,
-      approvalId: stringOf(approval.id) ?? (pendingApproval ? `${pendingApproval.runId}::${toolCallId}` : toolCallId),
-      toolName,
-      // The label, as a reloaded card has it; the server's «what and where»
-      // when a stream carried no label (kcxz.29, D5).
-      title: title ?? reason,
-      reason,
-      irreversible: irreversibleTool(toolName),
-      state: approvalState,
-      ...(['video_launch', 'video_launch_v2'].includes(toolName) && videoApprovalScopeV1(part.input) ? {videoApproval: {...videoApprovalScopeV1(part.input)!, ...(toolName === 'video_launch_v2' ? {accessVersion: 2 as const} : {})}} : {}),
-    });
-
-    // Native built-ins can first request tool permission and then suspend
-    // with a question. The SDK tool part may retain its earlier approval
-    // state, including `output-denied`; the saved question is the gate that
-    // is actually waiting.
-    const question = questions.get(toolCallId);
-    if (
-      question &&
-      (state === 'approval-requested' ||
-        state === 'approval-responded' ||
-        state === 'output-denied')
-    ) {
-      blocks.push({
-        type: 'question', key, toolName, title, runId: question.runId,
-        toolCallId: stringOf(part.toolCallId),
-        question: readQuestion(toolName, question.payload, question.resumeSchema),
-      });
-      return;
-    }
-
-    if (state === 'approval-requested') {
-      blocks.push(approvalBlock(approval.closed === true ? 'closed' : 'asked'));
-      return;
-    }
-    if (state === 'approval-responded') {
-      blocks.push(approvalBlock('sent'));
-      return;
-    }
-    if (state === 'output-denied') {
-      blocks.push(approvalBlock('declined'));
       return;
     }
     if (state === 'output-error') {
@@ -3054,6 +3210,14 @@ export const readMessageBlocks = (
         });
       }
       const card = recordOf(recordOf(part.output).card);
+      if (card.kind === 'clip-preproduction') {
+        // The generic adapter's stored card retains only kind/id; recover opaque
+        // read context from its owned public summary when the data-part is absent.
+        const summary = recordOf(recordOf(recordOf(recordOf(part.output).summary).untrustedData).value);
+        const context = summary.pilotId === card.id ? { id: card.id, pieceId: summary.pieceId, threadId: summary.threadId } : card;
+        pushClipCard(context, key);
+        return;
+      }
       // The connect card itself rides in its `data-channel-connect` part; the
       // output names only its platform, so it adds nothing (`kcxz.19`).
       if (card.kind === 'channel-connect') {
@@ -3129,15 +3293,48 @@ export const withoutRepeatedQuestionLines = (
 
 /** The artifacts of a whole conversation, latest last. */
 export const artifactsOf = (
-  messages: readonly AgentMessage[]
+  messages: readonly AgentMessage[],
+  draftDestinationIds: ReadonlySet<string> = NOTHING_REMOVED
 ): AgentArtifact[] =>
   messages.flatMap((message) =>
     message.role === 'assistant'
-      ? readMessageBlocks(message).flatMap((block) =>
+      ? readMessageBlocks(message, [], NOTHING_REMOVED, [], draftDestinationIds).flatMap((block) =>
           block.type === 'artifact' ? [block.artifact] : []
         )
       : []
   );
+
+/** Historical native output nominates candidates; a current org-scoped profile read must still verify their type. */
+export const draftDestinationCandidatesOf = (messages: readonly AgentMessage[], actorId: string, organizationId: string): string[] => {
+  if (!actorId || !organizationId) return [];
+  const ids = new Set<string>();
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    for (const part of message.parts as unknown as Part[]) {
+      if (toolNameOfPart(part) !== 'campaign_draft_destination_create' || part.state !== 'output-available') continue;
+      const output = recordOf(part.output);
+      if (output.ok !== true || output.capability !== 'campaign.draft_destination_create') continue;
+      const summary = recordOf(output.summary);
+      const value = recordOf(recordOf(summary.untrustedData).value ?? summary);
+      const destination = recordOf(value.destination);
+      const id = stringOf(destination.id);
+      if (id && WORK_ID.test(id) && destination.version === 1 && destination.kind === 'draft' && destination.publishable === false &&
+        destination.actorId === actorId && (destination.organizationId === undefined || destination.organizationId === organizationId)) ids.add(id);
+    }
+  }
+  return [...ids].sort().slice(-24);
+};
+
+/** Remove only references independently verified as non-channel destinations, preserving saved content and all other choices. */
+export const withoutDraftChannelRefs = (workspace: AgentWorkspaceV1 | null, ids: ReadonlySet<string>): AgentWorkspaceV1 | null => {
+  if (!workspace || !ids.size) return workspace;
+  const unsupported = (ref: {kind: string; id?: string} | null) => ref?.kind === 'channel' && !!ref.id && ids.has(ref.id);
+  const artifacts = workspace.artifacts.filter(ref => !unsupported(ref));
+  const activeArtifact = unsupported(workspace.activeArtifact) ? null : workspace.activeArtifact;
+  const workContext = unsupported(workspace.workContext) ? null : workspace.workContext;
+  return artifacts.length === workspace.artifacts.length && activeArtifact === workspace.activeArtifact && workContext === workspace.workContext
+    ? workspace : {...workspace, artifacts, activeArtifact, workContext};
+};
 
 const NOTHING_REMOVED: ReadonlySet<string> = new Set();
 

@@ -73,7 +73,8 @@ describe('native harness UI contract and cards (on0i.6)', () => {
         { id: 'Инженеры', label: 'Инженеры', description: 'Фокус на архитектуре' },
       ],
       answerKey: 'answer',
-      canDecideForPerson: true,
+      // An unclassified native question keeps the factual/manual boundary.
+      canDecideForPerson: false,
       cardId: ASK_CARD_ID,
     });
 
@@ -94,6 +95,7 @@ describe('native harness UI contract and cards (on0i.6)', () => {
       expect(document.querySelector('[data-agent-card="question"]')).not.toBeNull()
     );
     const askCard = document.querySelector('[data-agent-card="question"]');
+    expect(within(askCard).queryByRole('button', { name: ru.question.decide, exact: true })).toBeNull();
     expect(within(askCard).getByRole('button', { name: 'Руководители', exact: true }).getAttribute('aria-description')).toBe('Фокус на ROI и процессе');
     expect(within(askCard).getByRole('button', { name: 'Инженеры', exact: true }).getAttribute('aria-description')).toBe('Фокус на архитектуре');
     await act(async () => fireEvent.click(within(askCard).getByRole('button', { name: 'Руководители: Фокус на ROI и процессе', exact: true })));
@@ -438,17 +440,25 @@ describe('compact native clarification choices', () => {
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: words.question.decide, exact: true })));
     expect(answers).toEqual([{ answer: words.question.decide }]);
   });
-  test('host delegate remains available alongside choices and a custom answer', async () => {
+  test('host delegate remains available alongside choices and a custom answer for an explicit creative question', async () => {
     const answers = [];
-    const question = contract.readQuestion('ask_user', { question: 'Which angle?', options: [{ label: 'A' }, { label: 'B' }] }, null);
-    await act(async () => render(h(cards.QuestionCard, { question, answered: false, busy: false,
-      onAnswer: answer => answers.push(answer), words: ru })));
-    const card = document.querySelector('[data-agent-card="question"]');
+    const question = contract.readQuestion('ask_user', { question: 'Which angle?', questionPurpose: 'creative', options: [{ label: 'A' }, { label: 'B' }] }, null);
+    expect(question.canDecideForPerson).toBe(true);
+    let view;
+    await act(async () => { view = render(h(cards.QuestionCard, { question, answered: false, busy: false,
+      onAnswer: answer => answers.push(answer), words: ru })); });
+    await waitFor(() => expect(view.container.querySelector('[data-agent-card="question"]')).not.toBeNull());
+    const card = view.container.querySelector('[data-agent-card="question"]');
     expect(within(card).getAllByRole('button', { name: ru.question.decide, exact: true })).toHaveLength(1);
     expect(card.querySelector('[data-agent-question-choices]').contains(within(card).getByRole('button', { name: ru.question.decide, exact: true }))).toBe(true);
     fireEvent.change(within(card).getByLabelText(ru.question.ownAnswer), { target: { value: 'My actual view' } });
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: ru.question.send, exact: true })));
     expect(answers).toEqual([{ answer: 'My actual view' }]);
+    view.unmount();
+    await act(async () => { view = render(h(cards.QuestionCard, { question, answered: false, busy: false,
+      onAnswer: answer => answers.push(answer), words: ru })); });
+    await act(async () => fireEvent.click(within(view.container).getByRole('button', { name: ru.question.decide, exact: true })));
+    expect(answers).toEqual([{ answer: 'My actual view' }, { decideForPerson: true }]);
   });
   test('native multi_select keeps all chosen labels and does not duplicate delegation', async () => {
     const answers = [];

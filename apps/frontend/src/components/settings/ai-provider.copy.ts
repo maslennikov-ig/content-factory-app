@@ -243,9 +243,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       advancedLabel: 'Усиленная модель',
       advancedHint:
         'Модель для задач, которым нужно более глубокое рассуждение. Используется при автоматическом выборе; не назначается всем материалам подряд.',
-      advancedFlexLabel: 'Усиленная модель — только Flex',
+      advancedFlexLabel: 'Предпочитать Flex для усиленной модели',
       advancedFlexHint:
-        'Запрашивать только обработку Flex для выбранной усиленной модели. При недоступности Flex обычный тариф не включается автоматически.',
+        'Запрашивать Flex для выбранной модели. При подтверждённой недоступности возможен один повтор той же модели на Default, если повторы разрешены. Фактический тариф подтверждает ответ провайдера.',
       stageTitle: 'Модели по этапам',
       stageAutoEmpty:
         'Пустое поле — «Авто»: модель выбирается по задаче. Укажите модель, чтобы закрепить её за этапом.',
@@ -287,7 +287,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Веб-исследование — собрать и свести найденное в сети, когда включён поиск.',
       },
       draft: {
-        what: 'Суть материала — собрать факты, угол и структуру, на которые затем опираются тексты для каналов.',
+        what: 'Суть материала и сценарий ролика — собрать факты, угол и структуру, на которые затем опирается результат.',
       },
       adapt: {
         what: 'Адаптация — написать текст для конкретного канала по сути материала и его манере.',
@@ -296,7 +296,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Проверка голоса — сверить готовый текст с вашей манерой и сказать, где он на неё не похож.',
       },
       review: {
-        what: 'Проверка адаптации — убрать штампы, сверить утверждения с сутью заготовки или сделать оба действия за один вызов.',
+        what: 'Редакторская проверка — сверить утверждения и независимо проверить сценарий ролика. Для сценария выберите модель, отличную от автора.',
       },
       image: {
         what: 'Картинки — единственная роль, которой нужен ИИ, умеющий рисовать.',
@@ -402,9 +402,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       advancedLabel: 'Stronger model',
       advancedHint:
         'A model for tasks that need deeper reasoning. Automatic selection can use it; it is not assigned to every material.',
-      advancedFlexLabel: 'Stronger model — Flex only',
+      advancedFlexLabel: 'Prefer Flex for the stronger model',
       advancedFlexHint:
-        'Request Flex processing only for the configured stronger model. Unavailable Flex does not silently switch to the standard tier.',
+        'Request Flex for the selected model. Confirmed unavailability may allow one same-model Default retry when retries are enabled. The provider response confirms the actual tier.',
       stageTitle: 'Models by stage',
       stageAutoEmpty:
         'An empty field means Auto: the model is chosen for the task. Enter a model to pin it to the stage.',
@@ -446,7 +446,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Web research — gathering and summarising what search found, when search is on.',
       },
       draft: {
-        what: 'Material core — establish the facts, angle and structure that channel texts use.',
+        what: 'Material core and clip scenario — establish the facts, angle and structure used by the result.',
       },
       adapt: {
         what: 'Write for a specific channel from the material core and its voice.',
@@ -455,7 +455,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         what: 'Voice check — comparing the finished text against your own way of writing and saying where it drifts.',
       },
       review: {
-        what: 'Adaptation review — remove cliches, compare claims with the piece, or do both in one call.',
+        what: 'Editorial review — compare claims and independently check a clip scenario. Choose a different model from the author for scenarios.',
       },
       image: {
         what: 'Images — the one role that needs a model which can draw.',

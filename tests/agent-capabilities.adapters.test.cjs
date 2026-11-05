@@ -27,13 +27,13 @@ const find = (id) => catalogue.find((capability) => capability.id === id);
 const VIDEO_TOOLS = [
   'video_catalog', 'video_prepare', 'video_drafts', 'video_draft',
   'video_edit', 'video_preflight', 'video_launch', 'video_jobs',
-  'video_status', 'video_cancel', 'video_retry-save', 'video_access_v2',
+  'video_status', 'video_cancel', 'video_retry-save', 'video_access_v2', 'video_personal_assets', 'video_personal_readiness', 'video_personal_discover',
   'video_preflight_v2', 'video_launch_v2', 'video_jobs_v2', 'video_status_v2',
   'video_manual_v2', 'video_retry_save_v2', 'video_resume_v2',
 ];
 const VIDEO_READ_TOOLS = [
   'video_catalog', 'video_drafts', 'video_draft', 'video_jobs',
-  'video_status', 'video_access_v2', 'video_jobs_v2', 'video_status_v2',
+  'video_status', 'video_access_v2', 'video_personal_assets', 'video_personal_readiness', 'video_jobs_v2', 'video_status_v2',
 ];
 const build = (id, services, options = {}) =>
   registry.buildCapabilityTool(find(id), {
@@ -42,6 +42,39 @@ const build = (id, services, options = {}) =>
     entrance: 'chat',
     ...options,
   });
+
+describe('source artifact guard refusals', () => {
+  const codes = ['INPUT_INVALID', 'ACCESS_DENIED', 'NOT_FOUND', 'STALE', 'EMPTY', 'SCOPE_MISMATCH', 'DRAFT_ONLY', 'EDIT_RECEIPT_UNAVAILABLE', 'IDEMPOTENCY_CONFLICT'].map(suffix => `SOURCE_ARTIFACT_${suffix}`);
+  const actions = [
+    ['source.resolve_artifact', 'resolve', { version: 1, kind: 'piece', pieceId: 'owned-source' }],
+    ['source.edit_draft_artifact', 'editDraft', { sourceArtifact: { version: 1, kind: 'adaptation', pieceId: 'owned-source', adaptationId: 'owned-draft', revision: 'a'.repeat(64) }, body: 'Exact authored replacement', requestId: 'owned-edit' }],
+  ];
+  for (const [id, method, input] of actions) {
+    test.each(codes.flatMap(code => ['code', 'http'].map(shape => [code, shape])))(`${id}: preserves %s from %s without raw error text`, async (code, shape) => {
+      const error = shape === 'http'
+        ? new (require('@nestjs/common').HttpException)({ code, message: 'PRIVATE_SOURCE_ERROR_BODY', details: { raw: 'PRIVATE_SOURCE_ERROR_BODY' } }, 409)
+        : Object.assign(new Error('PRIVATE_SOURCE_ERROR_BODY'), { code });
+      const service = jest.fn(async () => { throw error; });
+      const { output } = await executeTool(build(id, { SourceArtifactServiceV1: { [method]: service } }), input, { requestContext: requestContextFor(registry) });
+      expect(output).toEqual({ ok: false, code, reason: code, canReviseInput: true });
+      expect(JSON.stringify(output)).not.toContain('PRIVATE_SOURCE_ERROR_BODY');
+      expect(service).toHaveBeenCalledWith(IDENTITY.organizationId, IDENTITY.userId, input);
+    });
+
+    test.each([
+      ['unknown-http-code', () => new (require('@nestjs/common').HttpException)({ code: 'SOURCE_ARTIFACT_NEW_UNKNOWN', message: 'PRIVATE_SOURCE_ERROR_BODY' }, 500)],
+      ['unknown-direct-code', () => Object.assign(new Error('PRIVATE_SOURCE_ERROR_BODY'), { code: 'SOURCE_ARTIFACT_NEW_UNKNOWN' })],
+      ['plain-unknown', () => new Error('PRIVATE_SOURCE_ERROR_BODY')],
+      ['string-http-body', () => new (require('@nestjs/common').HttpException)('SOURCE_ARTIFACT_STALE', 409)],
+      ['non-string-code', () => ({ getResponse: () => ({ code: { value: 'SOURCE_ARTIFACT_STALE' } }) })],
+      ['conflicting-direct-code', () => ({ code: 'UNRECOGNIZED_FAILURE', getResponse: () => ({ code: 'SOURCE_ARTIFACT_STALE' }) })],
+      ['broken-http-reader', () => ({ getResponse: () => { throw Error('PRIVATE_SOURCE_ERROR_BODY'); } })],
+    ])(`${id}: %s remains the identical unknown failure`, async (_name, makeError) => {
+      const error = makeError();
+      await expect(find(id).run({ organizationId: IDENTITY.organizationId, userId: IDENTITY.userId, service: () => ({ [method]: async () => { throw error; } }) }, input)).rejects.toBe(error);
+    });
+  }
+});
 
 describe('piece.research period-aware facts card', () => {
   const period = {
@@ -239,6 +272,14 @@ describe('native Mastra tools', () => {
 
   test('one tool per capability, named after its id', () => {
     expect(Object.keys(tools)).toEqual([
+      'video_preproduction', 'video_preproduction_open', 'video_preproduction_resume_review', 'video_preproduction_revise_v2',
+      'video_pilot_prepare', 'video_pilot_prepare_delegated', 'video_pilot_budget', 'video_pilot_launch', 'video_pilot_launch_reviewed_clip_v2', 'video_pilot_recover', 'video_pilot_stop',
+      'video_pilot_prepare_last_frame_repair', 'video_pilot_launch_last_frame_repair',
+      'video_pilot_refresh_last_frame_repair_quote',
+      'video_pilot_renew_credentials', 'video_pilot_recover_vision_fenced_v1',
+      'campaign_create', 'campaign_open', 'campaign_list', 'campaign_stop', 'campaign_mode', 'campaign_grant', 'campaign_revoke', 'campaign_approve', 'campaign_deliver', 'campaign_reconcile',
+      'channel_editorial_profile', 'channel_editorial_profile_save', 'source_permission_save', 'source_permission_revoke', 'channel_discover', 'campaign_decide_editorial', 'campaign_measure', 'campaign_findings', 'campaign_finding_review',
+      'source_resolve_artifact', 'source_edit_draft_artifact', 'campaign_draft_destination_create', 'campaign_render_local_reel', 'campaign_compose_local_video', 'campaign_local_video_open', 'campaign_local_video_stop', 'campaign_plan_materials', 'campaign_prepare', 'campaign_edit', 'campaign_reinspect', 'campaign_revise', 'campaign_bind_video', 'campaign_finalize_video', 'video_production_create', 'video_production_open', 'video_production_preflight', 'video_production_launch', 'video_production_stop', 'video_production_retry_save', 'campaign_optional_evidence', 'campaign_tracking_link', 'campaign_tracking_clicks', 'campaign_finding_feedback', 'campaign_experiment', 'campaign_evaluate_experiment', 'campaign_propose_finding', 'helixa_read',
       ...VIDEO_TOOLS,
       'workspace_snapshot',
       'channels_list',
@@ -370,6 +411,7 @@ describe('native Mastra tools', () => {
         .filter((capability) => capability.suspendSchema)
         .map((capability) => [capability.id, capability.risk])
     ).toEqual([
+      ['video.pilot_budget', 'input'],
       ['piece.create', 'paid'],
       ['piece.create.from-research', 'paid'],
       ['piece.answer', 'paid'],
@@ -823,6 +865,9 @@ describe('MCP tools from the same registry', () => {
   test('confirm, input and secret never reach MCP — but scheduling and moving, asked in the conversation (kcxz.49)', () => {
     const names = Object.keys(mcpTools('ADMIN'));
     expect(names).toEqual([
+      'campaign_create', 'campaign_open', 'campaign_list', 'campaign_stop', 'campaign_revoke', 'campaign_reconcile',
+      'channel_editorial_profile', 'channel_editorial_profile_save', 'source_permission_revoke', 'channel_discover', 'campaign_decide_editorial', 'campaign_measure', 'campaign_findings', 'campaign_finding_review',
+      'source_resolve_artifact', 'source_edit_draft_artifact', 'campaign_draft_destination_create', 'campaign_render_local_reel', 'campaign_compose_local_video', 'campaign_local_video_open', 'campaign_local_video_stop', 'campaign_plan_materials', 'campaign_prepare', 'campaign_edit', 'campaign_reinspect', 'campaign_revise', 'campaign_bind_video', 'campaign_finalize_video', 'video_production_create', 'video_production_open', 'video_production_preflight', 'video_production_stop', 'video_production_retry_save', 'campaign_optional_evidence', 'campaign_tracking_link', 'campaign_tracking_clicks', 'campaign_finding_feedback', 'campaign_experiment', 'campaign_evaluate_experiment', 'helixa_read',
       ...VIDEO_TOOLS,
       'workspace_snapshot',
       'channels_list',
@@ -922,7 +967,7 @@ describe('MCP tools from the same registry', () => {
 
   test('a USER token lists only the reads', () => {
     expect(Object.keys(mcpTools('USER'))).toEqual([
-      ...VIDEO_READ_TOOLS,
+      ...VIDEO_READ_TOOLS.filter(name => !['video_personal_assets', 'video_personal_readiness'].includes(name)),
       'workspace_snapshot',
       'channels_list',
       'piece_list',

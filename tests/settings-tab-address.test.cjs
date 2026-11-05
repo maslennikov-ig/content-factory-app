@@ -368,3 +368,11 @@ test('the known list is exactly what the screen can draw', () => {
   for (const tab of drawn) expect(known.has(tab)).toBe(true);
   for (const tab of known) expect(drawn).toContain(tab);
 });
+
+test('video provider settings link resolves to the actual settings tab', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../apps/frontend/src/components/videos/video.workspace.tsx'), 'utf8');
+  const target = source.match(/href="(\/settings\?tab=[^"]+)"/);
+  expect(target).not.toBeNull();
+  const tab = new URL(target[1], 'https://example.test').searchParams.get('tab');
+  expect(settings.resolveSettingsTab(tab)).toBe('global_settings');
+});

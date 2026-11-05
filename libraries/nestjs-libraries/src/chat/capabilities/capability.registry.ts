@@ -1,3 +1,6 @@
+import { NATIVE_CLIP_PREPRODUCTION_CAPABILITIES_V1 } from './catalogue/native-clip-preproduction.capabilities.v1';
+import { NATIVE_CLIP_PRODUCTION_CAPABILITIES_V1 } from './catalogue/native-clip-production.capabilities.v1';
+import { SOCIAL_FACTORY_CAPABILITIES } from './catalogue/social-factory.capabilities';
 import {
   assertCapabilityInput,
   freeTextPaths,
@@ -136,6 +139,9 @@ import {
  * media library and generating a picture).
  */
 export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
+  ...NATIVE_CLIP_PREPRODUCTION_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
+  ...NATIVE_CLIP_PRODUCTION_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
+  ...SOCIAL_FACTORY_CAPABILITIES as readonly CapabilityDeclaration[],
   ...VIDEO_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
   ...VIDEO_ACCESS_CAPABILITIES_V2 as readonly CapabilityDeclaration[],
   workspaceSnapshot as CapabilityDeclaration,
