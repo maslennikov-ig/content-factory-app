@@ -41,19 +41,20 @@ if (Number.isFinite(days) && days !== 0) {
   const shift = days * 24 * 60 * 60 * 1000;
   const RealDate = Date;
 
-  class ShiftedDate extends RealDate {
-    constructor(...args) {
-      if (args.length === 0) {
-        super(RealDate.now() + shift);
-      } else {
-        super(...args);
-      }
-    }
-
-    static now() {
-      return RealDate.now() + shift;
-    }
+  // Jest captures the native constructor before setup files run. Keep its
+  // prototype so dates from fake timers and structuredClone remain Date instances.
+  function ShiftedDate(...args) {
+    if (!new.target) return new RealDate(RealDate.now() + shift).toString();
+    return Reflect.construct(
+      RealDate,
+      args.length === 0 ? [RealDate.now() + shift] : args,
+      new.target
+    );
   }
+  Object.setPrototypeOf(ShiftedDate, RealDate);
+  ShiftedDate.prototype = RealDate.prototype;
+  // An own writable property lets explicit test clocks spy/override and restore it.
+  ShiftedDate.now = () => RealDate.now() + shift;
 
   // Parsing and UTC arithmetic answer questions about a given moment, not
   // about the present one, so they are handed over untouched.

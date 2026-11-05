@@ -57,4 +57,6 @@ printf 'A failure here is a test that depends on today, not a broken feature.\n\
 # module: a test path placed there comes back as "module not found in the
 # setupFiles option", which reads like a broken check rather than a misplaced
 # argument. Passing it last leaves nothing for it to swallow.
-CF_TIME_TRAVEL_DAYS="$days" npx jest "${@:2}" "--setupFiles=$setup_file"
+# Reuse the ordinary suite's heap, coverage and open-handle configuration;
+# its proven serial execution also applies to the shifted calendar.
+CF_TIME_TRAVEL_DAYS="$days" pnpm run test:jest "${@:2}" "--setupFiles=$setup_file"
