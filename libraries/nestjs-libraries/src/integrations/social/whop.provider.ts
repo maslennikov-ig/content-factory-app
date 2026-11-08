@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs, mediaUploadFetch } from './media-upload-sources';
 import { createHash, randomBytes } from 'crypto';
 import {
   AuthTokenDetails,
@@ -225,8 +226,9 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
     const attachments: { id: string }[] = [];
 
     for (const item of media) {
-      const fileResponse = await fetch(item.path);
-      const fileBuffer = await fileResponse.arrayBuffer();
+      const opened = await openMediaUploadBlobs([{path:item.path}]);
+      try {
+      const fileBuffer = opened.files[0].blob;
       const fileName = item.path.split('/').pop() || 'file';
 
       const createFileResponse = await (
@@ -247,7 +249,7 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
       ).json();
 
       if (createFileResponse.upload_url) {
-        await fetch(createFileResponse.upload_url, {
+        await mediaUploadFetch(createFileResponse.upload_url, {
           method: 'PUT',
           headers: createFileResponse.upload_headers || {},
           body: fileBuffer,
@@ -285,6 +287,7 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
       }
 
       attachments.push({ id: createFileResponse.id });
+      } finally { await opened.close(); }
     }
 
     return attachments;

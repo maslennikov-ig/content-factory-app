@@ -1,16 +1,11 @@
-import { readFileSync } from 'fs';
-import axios from 'axios';
+import { readMediaSource } from './media.source';
+import { MAX_IMAGE_UPLOAD_SIZE } from '@contentfactory/nestjs-libraries/upload/upload.limits';
 
 export const readOrFetch = async (path: string) => {
-  if (path.indexOf('http') === 0) {
-    return (
-      await axios({
-        url: path,
-        method: 'GET',
-        responseType: 'arraybuffer',
-      })
-    ).data;
-  }
-
-  return readFileSync(path);
+  const media = await readMediaSource(path, { maxBytes: MAX_IMAGE_UPLOAD_SIZE });
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of media.stream) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
+  } finally { media.close(); }
 };

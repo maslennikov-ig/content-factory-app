@@ -12,7 +12,7 @@ const {providerCapability}=loadTypeScriptModule('libraries/nestjs-libraries/src/
 const integration={id:'channel',organizationId:'org',internalId:'owned-account',providerIdentifier:'instagram-standalone',token:'synthetic-only',disabled:false,refreshNeeded:false,deletedAt:null,additionalSettings:JSON.stringify([{key:'account_type',value:'BUSINESS'}])};
 const originalFetch=global.fetch;
 afterEach(()=>{global.fetch=originalFetch;});
-test.each([[FacebookInstagram,'https://graph.facebook.com/v20.0/owned-account?fields=id,account_type',{id:'owned-account',account_type:'BUSINESS'},'business'],[StandaloneInstagram,'https://graph.instagram.com/v21.0/me?fields=user_id,account_type',{user_id:'owned-account',account_type:'MEDIA_CREATOR'},'creator']])('reads actual connected account type at the provider-owned fixed route',async(Provider,url,body,type)=>{
+test.each([[FacebookInstagram,'https://graph.facebook.com/v25.0/owned-account?fields=id,account_type',{id:'owned-account',account_type:'BUSINESS'},'business'],[StandaloneInstagram,'https://graph.instagram.com/v25.0/me?fields=user_id,account_type',{user_id:'owned-account',account_type:'MEDIA_CREATOR'},'creator']])('reads actual connected account type at the provider-owned fixed route',async(Provider,url,body,type)=>{
  global.fetch=jest.fn(async()=>({ok:true,json:async()=>body}));
  expect(await new Provider().readAccountType(integration)).toBe(type);
  expect(global.fetch.mock.calls[0][0]).toBe(url);expect(global.fetch.mock.calls[0][1]).toMatchObject({headers:{Authorization:'Bearer synthetic-only'},redirect:'error'});

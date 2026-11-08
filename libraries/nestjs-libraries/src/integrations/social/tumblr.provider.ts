@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -11,7 +12,6 @@ import {
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { TumblrDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/tumblr.dto';
 import { Integration } from '@prisma/client';
-import axios from 'axios';
 import { lookup } from 'mime-types';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 
@@ -515,14 +515,12 @@ export class TumblrProvider extends SocialAbstract implements SocialProvider {
       new Blob([JSON.stringify(payload)], { type: 'application/json' })
     );
 
+    const opened = await openMediaUploadBlobs(media.map(item => ({path:this.getMediaUrl(item.path),type:this.getMimeType(item.path)})));
+    try {
     for (const [index, item] of media.entries()) {
-      const mimeType = this.getMimeType(item.path);
-      const { data } = await axios.get(this.getMediaUrl(item.path), {
-        responseType: 'arraybuffer',
-      });
       formData.append(
         `media-${index}`,
-        new Blob([Buffer.from(data)], { type: mimeType }),
+        opened.files[index].blob,
         item.path.split('/').pop() || `media-${index}`
       );
     }
@@ -540,6 +538,7 @@ export class TumblrProvider extends SocialAbstract implements SocialProvider {
         }
       )
     ).json()) as TumblrCreatePostResponse;
+    } finally { await opened.close(); }
   }
 
   private async createContentBlocks(post: PostDetails<TumblrDto>) {

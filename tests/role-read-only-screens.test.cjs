@@ -53,6 +53,9 @@ const stub = new Proxy(
 );
 
 const translation = {
+  '@contentfactory/react/translation/use-interface-language': {
+    useInterfaceLanguage: () => 'en',
+  },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => (_key, fallback) => fallback,
   },

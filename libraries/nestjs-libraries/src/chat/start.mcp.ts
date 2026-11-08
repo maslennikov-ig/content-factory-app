@@ -1,4 +1,5 @@
 import { Injectable, Logger, type Type } from '@nestjs/common';
+import { mediaUploadWidgetHtmlV1, UPLOAD_WIDGET_URI_V1 } from './ui/media-upload.widget.v1';
 import { ModuleRef } from '@nestjs/core';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { MCPServer } from '@mastra/mcp';
@@ -17,6 +18,7 @@ import {
   buildMcpCapabilityTools,
   hardenMcpServerTools,
   mcpToolNamesFor,
+  installMcpAppResultEnvelope,
 } from '@contentfactory/nestjs-libraries/chat/capabilities/mcp.adapter';
 import { agentTimeZone } from '@contentfactory/nestjs-libraries/chat/capabilities/person-time';
 import {
@@ -206,9 +208,17 @@ export class McpServers {
           language,
           role,
         }),
+        appResources: {
+          [UPLOAD_WIDGET_URI_V1]: {
+            name: 'Content Factory media upload',
+            html: mediaUploadWidgetHtmlV1(language),
+            meta: { csp: { connectDomains: mcpUrls() ? [new URL(mcpUrls()!.issuer).origin] : [] } },
+          },
+        },
         mapAuthInfoToUser: seedMcpRequestContext as never,
       });
       hardenMcpServerTools(server, logMcpCall, logMcpFailure);
+      installMcpAppResultEnvelope(server);
       this.servers.set(key, server);
     }
     return server;

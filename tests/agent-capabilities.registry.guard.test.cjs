@@ -19,6 +19,7 @@ const {
   fixtures,
   loadRegistry,
   providerConfig,
+  permissionsService,
   servicesFrom,
   requestContextFor,
   executeTool,
@@ -157,7 +158,7 @@ describe('agent capability registry', () => {
     // doors are the administrator's (kcxz.20); and the cliché check, whose
     // door is the editor's — a reader has no draft to check (kcxz.24).
     const notForEveryone = (entry) => entry.id.startsWith('campaign.') || entry.id==='source.resolve_artifact' || entry.id==='channel.editorial_profile' || ['video.personal_assets','video.personal_readiness'].includes(entry.id) || entry.id==='video.production_open' || entry.id==='video.preproduction_open' || entry.id==='helixa.read' || entry.group === 'ai-settings' || entry.id === 'text.slop_check';
-    for (const capability of byClass('read').filter((entry) => !notForEveryone(entry))) {
+    for (const capability of byClass('read').filter((entry) => !notForEveryone(entry) && (!entry.entrances || entry.entrances.includes('chat')))) {
       expect(offered.has(registry.toolNameOf(capability.id))).toBe(true);
     }
   });
@@ -191,11 +192,12 @@ describe('agent capability registry', () => {
   test('EDITOR is offered every capability but the channel’s life and the AI settings, which are ADMIN’s', () => {
     expect(registry.activeCapabilityToolNames(catalogue, 'EDITOR')).toEqual(
       catalogue
+        .filter(capability => !capability.entrances || capability.entrances.includes('chat'))
         .filter((capability) => !ADMIN_ONLY.includes(capability.id))
         .map((capability) => registry.toolNameOf(capability.id))
     );
     expect(registry.activeCapabilityToolNames(catalogue, 'ADMIN')).toEqual(
-      catalogue.map((capability) => registry.toolNameOf(capability.id))
+      catalogue.filter(capability => !capability.entrances || capability.entrances.includes('chat')).map((capability) => registry.toolNameOf(capability.id))
     );
   });
 });
@@ -395,11 +397,12 @@ describe('A4: foreign words reach the model only as data', () => {
       const tool = registry.buildCapabilityTool(capability, {
         services: servicesFrom(fixture.services),
         language: 'ru',
-        entrance: 'chat',
+        entrance: capability.entrances?.includes('chat') === false ? 'mcp' : 'chat',
+        gate: new registry.DoorPolicyGate(permissionsService()),
       });
-      const { model, asked } = await executeFixture(tool, fixture, {
+      const { model, asked } = await registry.withMcpAppResultScope(() => executeFixture(tool, fixture, {
         requestContext: requestContextFor(registry),
-      });
+      }));
       expect(model?.value?.ok).toBe(true);
       // A card is for the person: nothing it carries is in the model's output.
       if (asked) expect(asked.output).toBeUndefined();
@@ -444,7 +447,8 @@ describe('A4: foreign words reach the model only as data', () => {
       const tool = registry.buildCapabilityTool(capability, {
         services: servicesFrom(fixture.services),
         language: 'ru',
-        entrance: 'chat',
+        entrance: capability.entrances?.includes('chat') === false ? 'mcp' : 'chat',
+        gate: new registry.DoorPolicyGate(permissionsService()),
       });
       const { model } = await executeFixture(tool, fixture, {
         requestContext: requestContextFor(registry),

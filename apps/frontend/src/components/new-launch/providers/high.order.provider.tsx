@@ -23,6 +23,7 @@ import { InternalChannels } from '@contentfactory/frontend/components/launches/i
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import SafeImage from '@contentfactory/react/helpers/safe.image';
+import { useMediaSettingsValues } from '../media.settings.section';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 
 class Empty {
@@ -62,6 +63,7 @@ export const withProvider = function <T extends object>(params: {
 
   const Wrapped = forwardRef((props: { id: string }, ref) => {
     const t = useT();
+    const hasMediaSettings = useMediaSettingsValues().some(value => value.media?.length);
     const fetch = useFetch();
     const {
       current,
@@ -324,7 +326,7 @@ export const withProvider = function <T extends object>(params: {
                   document.createElement('div')
               )}
             {current &&
-              !SettingsComponent &&
+              !SettingsComponent && !hasMediaSettings &&
               createPortal(
                 <style>{`#wrapper-settings {display: none !important;} #social-empty {display: block !important;}`}</style>,
                 document.querySelector('#social-settings') ||

@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "הגדרות חשבון TikTok אינן זמינות. נסו שוב או חברו מחדש את הערוץ.",
   "validation_tiktok_interactions_changed": "הגדרות האינטראקציה ב-TikTok השתנו. בדקו תגובות, Duet ו-Stitch לפני הפרסום.",
   "validation_tiktok_disclosure_invalid": "לפני הפרסום, הגילוי המסחרי ב-TikTok חייב להתאים למותגים ולהגדרות הפרטיות שנבחרו.",
-  "validation_tiktok_duration_invalid": "משך הסרטון ב-TikTok אינו זמין או חורג מהמגבלה הנוכחית של החשבון. יש לבדוק את הסרטון לפני הפרסום."
+  "validation_tiktok_duration_invalid": "משך הסרטון ב-TikTok אינו זמין או חורג מהמגבלה הנוכחית של החשבון. יש לבדוק את הסרטון לפני הפרסום.",
+  "media_settings_save_failed": "לא ניתן לשמור את הגדרות המדיה. בדקו את הרשאות הגישה ונסו שוב.",
+  "media_settings_provider_support": "Reels ו-YouTube תומכים בתמונות שער; Reels ו-TikTok תומכים בבחירת פריים מהסרטון. כל פלטפורמה מחילה רק את ההגדרות שבהן היא תומכת.",
+  "comment": "תגובה",
+  "youtube_thumbnail_overrides_media": "התמונה הממוזערת הייעודית ל-YouTube מחליפה את תמונת השער שנקבעה בהגדרות המדיה."
 }

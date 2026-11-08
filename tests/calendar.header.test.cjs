@@ -22,7 +22,7 @@ for (const key of ['window', 'document', 'navigator'])
   });
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { render, screen, cleanup, within } = require('@testing-library/react');
+const { render, screen, cleanup, within, fireEvent } = require('@testing-library/react');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 
 const h = React.createElement;
@@ -31,6 +31,7 @@ afterEach(cleanup);
 let calendar;
 let role;
 const openPicker = jest.fn();
+const openAssistant = jest.fn();
 
 const { Filters } = loadWithMocks('apps/frontend/src/components/launches/filters.tsx', {
   '@contentfactory/frontend/components/launches/calendar.context': {
@@ -53,7 +54,10 @@ const { Filters } = loadWithMocks('apps/frontend/src/components/launches/filters
   './adaptation-picker': { useAdaptationPicker: () => openPicker },
   './plan-ahead': {
     PlanAheadChip: (props) =>
-      h('span', { 'data-plan-ahead-stub': 'true', 'data-with-legend': String(Boolean(props.withLegend)) }),
+      h('span', { 'data-plan-ahead-stub': 'true', 'data-integration-ids': JSON.stringify(props.integrationIds), 'data-with-legend': String(Boolean(props.withLegend)) }),
+  },
+  '../agents/assistant.workspace-context': {
+    AssistantContextAction: ({ context }) => h('button', { onClick: () => openAssistant(context) }, 'Open assistant'),
   },
   '@contentfactory/react/form/button-link': {
     ButtonLink: ({ href, children, variant, density, ...rest }) =>
@@ -61,8 +65,9 @@ const { Filters } = loadWithMocks('apps/frontend/src/components/launches/filters
   },
 });
 
-const draw = (display = 'week', who = 'ADMIN') => {
+const draw = (display = 'week', who = 'ADMIN', filters = {}) => {
   role = who;
+  openAssistant.mockClear();
   calendar = {
     display,
     startDate: '2026-09-21',
@@ -82,6 +87,7 @@ const draw = (display = 'week', who = 'ADMIN') => {
     setFilters: jest.fn(),
     setListState: jest.fn(),
     setListPage: jest.fn(),
+    ...filters,
   };
   return render(h(Filters));
 };
@@ -107,7 +113,7 @@ describe('header A: two rows by meaning (97dq.82)', () => {
 
     const filters = row('filters');
     const order = [
-      filters.querySelector('select[aria-label="Все каналы"]'),
+      within(filters).getByRole('button', { name: 'Все каналы' }),
       filters.querySelector('select[name="editorialStageFilter"]'),
       filters.querySelector('[data-select-customer]'),
       filters.querySelector('[data-calendar-channels-link]'),
@@ -115,6 +121,8 @@ describe('header A: two rows by meaning (97dq.82)', () => {
       within(filters).getByRole('button', { name: '+ Запланировать' }),
     ];
     for (const node of order) expect(node).not.toBeNull();
+    expect(order[0].getAttribute('aria-haspopup')).toBe('dialog');
+    expect(order[0].getAttribute('aria-expanded')).toBe('false');
     for (let index = 1; index < order.length; index += 1)
       expect(order[index - 1].compareDocumentPosition(order[index]) & 4).toBe(4);
 
@@ -146,6 +154,40 @@ describe('header A: two rows by meaning (97dq.82)', () => {
     expect(time.querySelector('[aria-label="Какие посты показать"]')).not.toBeNull();
     expect(time.querySelector('[aria-label="Период: день, неделя или месяц"]')).toBeNull();
     expect(time.querySelector('[aria-label="Вид: календарь или список"]')).not.toBeNull();
+  });
+});
+
+describe('plan and assistant scope follow the actual channel-filter intersection', () => {
+  test.each([
+    ['a legacy match after the first multiselect entry', { integrationId: 'vk', integrationIds: ['tg', 'vk'] }, ['vk'], 'vk'],
+    ['a disjoint intersection', { integrationId: 'other', integrationIds: ['tg', 'vk'] }, [], undefined],
+    ['an optional old single-channel context', { integrationId: 'vk' }, ['vk'], 'vk'],
+    ['an empty multiselect beside a legacy ID', { integrationId: 'vk', integrationIds: [] }, ['vk'], 'vk'],
+    ['a single multiselect channel', { integrationIds: ['vk'] }, ['vk'], 'vk'],
+    ['multiple selected channels', { integrationIds: ['tg', 'vk'] }, ['tg', 'vk'], undefined],
+    ['no filter', {}, ['tg', 'vk'], undefined],
+  ])('%s', (_label, filters, expectedIds, expectedChannel) => {
+    draw('week', 'ADMIN', filters);
+    expect(JSON.parse(document.querySelector('[data-plan-ahead-stub]').getAttribute('data-integration-ids'))).toEqual(expectedIds);
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }));
+    const [context] = openAssistant.mock.calls[0];
+    expect(context.kind).toBe('calendar');
+    if (expectedChannel) expect(context.channelId).toBe(expectedChannel);
+    else expect(context).not.toHaveProperty('channelId');
+  });
+
+  test('an unfiltered project keeps its live-channel plan without inventing a single-channel assistant filter', () => {
+    draw('week', 'ADMIN', {
+      customer: 'project-a', integrationIds: [],
+      integrations: [
+        { id: 'tg', name: 'First', disabled: false, customer: { id: 'project-a' } },
+        { id: 'vk', name: 'Other project', disabled: false, customer: { id: 'project-b' } },
+        { id: 'disabled', name: 'Disabled', disabled: true, customer: { id: 'project-a' } },
+      ],
+    });
+    expect(JSON.parse(document.querySelector('[data-plan-ahead-stub]').getAttribute('data-integration-ids'))).toEqual(['tg']);
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }));
+    expect(openAssistant.mock.calls[0][0]).not.toHaveProperty('channelId');
   });
 });
 

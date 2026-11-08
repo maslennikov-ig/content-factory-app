@@ -9,6 +9,8 @@ datasource db {
 }
 
 model Organization {
+  previewReviewGrantsV1      PreviewReviewGrantV1[]
+  previewReviewThreadsV1     PreviewReviewThreadV1[]
   socialFactoryRecords SocialFactoryRecord[]
   videoProductionRevisions VideoProductionRevision[]
   id                         String                       @id @default(uuid())
@@ -109,6 +111,9 @@ model TagsPosts {
 }
 
 model User {
+  previewReviewGrantsV1             PreviewReviewGrantV1[]   @relation("PreviewReviewGrantCreatorV1")
+  previewReviewResolutionsV1        PreviewReviewThreadV1[]  @relation("PreviewReviewResolverV1")
+  previewReviewCommentsV1           PreviewReviewCommentV1[] @relation("PreviewReviewAuthorV1")
   id                               String               @id @default(uuid())
   email                            String
   password                         String?
@@ -454,6 +459,8 @@ model Integration {
   internalId            String
   organizationId        String
   name                  String
+  /// Workspace-local label; provider name and identity remain independent.
+  displayName           String?
   picture               String?
   providerIdentifier    String
   type                  String
@@ -550,6 +557,8 @@ model Comments {
 }
 
 model Post {
+  previewReviewGrantsV1       PreviewReviewGrantV1[]
+  previewReviewThreadsV1      PreviewReviewThreadV1[]
   id                         String                      @id @default(cuid())
   state                      State                       @default(QUEUE)
   // Where the post sits in the editorial process (plan/draft/review/schedule),
@@ -628,6 +637,68 @@ model Post {
   @@index([releaseURL])
   @@index([integrationId])
   @@index([organizationId, editorialStage])
+}
+
+/// Review is discussion, never publication approval. Legacy Comments remain intact.
+model PreviewReviewGrantV1 {
+  id                String                   @id @default(cuid())
+  organizationId    String
+  postId            String
+  tokenHash         String                   @unique @db.VarChar(64)
+  createdByUserId   String?
+  createdAt         DateTime                 @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post              Post                     @relation(fields: [organizationId, postId], references: [organizationId, id], onDelete: Cascade)
+  createdBy         User?                    @relation("PreviewReviewGrantCreatorV1", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  comments          PreviewReviewCommentV1[]
+
+  @@unique([organizationId, postId, id])
+  @@index([organizationId, postId, createdAt])
+  @@index([createdByUserId])
+}
+
+model PreviewReviewThreadV1 {
+  id                String                   @id @default(cuid())
+  organizationId    String
+  postId            String
+  anchorPostId      String?
+  anchorQuote       String?                  @db.VarChar(2000)
+  anchorStart       Int?
+  anchorEnd         Int?
+  anchorRevision    String?                  @db.VarChar(64)
+  resolvedAt        DateTime?
+  resolvedByUserId  String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post              Post                     @relation(fields: [organizationId, postId], references: [organizationId, id], onDelete: Cascade)
+  resolvedBy        User?                    @relation("PreviewReviewResolverV1", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  comments          PreviewReviewCommentV1[]
+
+  @@unique([organizationId, postId, id])
+  @@index([organizationId, postId, createdAt])
+  @@index([resolvedByUserId])
+}
+
+model PreviewReviewCommentV1 {
+  id               String                  @id @default(cuid())
+  organizationId   String
+  postId           String
+  threadId         String
+  content          String                  @db.VarChar(4000)
+  authorUserId     String?
+  guestGrantId     String?
+  guestName        String?                 @db.VarChar(80)
+  createdAt        DateTime                @default(now())
+  thread           PreviewReviewThreadV1   @relation(fields: [organizationId, postId, threadId], references: [organizationId, postId, id], onDelete: Cascade)
+  author           User?                   @relation("PreviewReviewAuthorV1", fields: [authorUserId], references: [id], onDelete: SetNull)
+  guestGrant       PreviewReviewGrantV1?   @relation(fields: [organizationId, postId, guestGrantId], references: [organizationId, postId, id], onDelete: Restrict)
+
+  @@index([organizationId, postId, threadId, createdAt])
+  @@index([authorUserId])
+  @@index([organizationId, postId, guestGrantId])
 }
 
 model TelegramUpdateReceipt {

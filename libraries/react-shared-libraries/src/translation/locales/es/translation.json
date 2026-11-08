@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "La configuración de la cuenta de TikTok no está disponible. Inténtalo de nuevo o vuelve a conectar el canal.",
   "validation_tiktok_interactions_changed": "La configuración de interacción de TikTok ha cambiado. Revisa los comentarios, Duet y Stitch antes de publicar.",
   "validation_tiktok_disclosure_invalid": "Antes de publicar, la declaración comercial de TikTok debe coincidir con las marcas y la privacidad seleccionadas.",
-  "validation_tiktok_duration_invalid": "La duración del vídeo de TikTok no está disponible o supera el límite actual de la cuenta. Revisa el vídeo antes de publicar."
+  "validation_tiktok_duration_invalid": "La duración del vídeo de TikTok no está disponible o supera el límite actual de la cuenta. Revisa el vídeo antes de publicar.",
+  "media_settings_save_failed": "No se pudieron guardar los ajustes multimedia. Comprueba los permisos de acceso e inténtalo de nuevo.",
+  "media_settings_provider_support": "Reels y YouTube admiten imágenes de portada; Reels y TikTok permiten elegir un fotograma del vídeo. Cada plataforma aplica los ajustes que admite.",
+  "comment": "Comentario",
+  "youtube_thumbnail_overrides_media": "Esta miniatura específica de YouTube sustituye a la portada de los ajustes multimedia."
 }

@@ -13,13 +13,13 @@ multi_repo = false
 launch_mode = "direct_execution"
 repo = "content-factory-next"
 root = "/home/me/code/content-factory-next"
-current_stage = ".codex/stages/social-factory-20261103/stage-manifest.json"
-current_stage_id = "social-factory-20261103"
-base_commit = "4305609a6248a8eb04add199c5daf82fc2d05a48"
+current_stage = ".codex/stages/release-preparation-20261108/stage-manifest.json"
+current_stage_id = "release-preparation-20261108"
+base_commit = "e3b4257edecdde397185a244b86944843a0a85a5"
 
 [delivery]
 mode = "mixed"
-current_branch = "codex/social-factory-epic-20261103"
+current_branch = "codex/release-ready-20261108"
 protected_branches = ["main", "master"]
 push_after_closeout = "ask"
 
@@ -65,12 +65,12 @@ legacy_delta = "slice_acceptance"
 stages_dir = ".codex/stages"
 artifact_pattern = ".codex/stages/{stage_id}/artifacts/{task_id}.md"
 summary_pattern = ".codex/stages/{stage_id}/implementation.md"
-current_stage_summary = ".codex/stages/social-factory-20261103/summary.md"
+current_stage_summary = ".codex/stages/release-preparation-20261108/summary.md"
 
 [completion_inbox]
 scope = "git_common_dir"
-events_file = ".codex/stages/social-factory-20261103/completions.ndjson"
-review_state_file = ".codex/stages/social-factory-20261103/review-state.json"
+events_file = ".codex/stages/release-preparation-20261108/completions.ndjson"
+review_state_file = ".codex/stages/release-preparation-20261108/review-state.json"
 report_entrypoint = "scripts/orchestration/report_child_completion.py"
 review_entrypoint = "scripts/orchestration/review_completion_inbox.py"
 

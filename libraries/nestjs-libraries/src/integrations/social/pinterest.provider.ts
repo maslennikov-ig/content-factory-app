@@ -1,3 +1,4 @@
+import { mediaUploadFetch, openMediaUploadBlobs } from './media-upload-sources';
 import { normalizeAnalytics } from './analytics.data';
 import {
   AnalyticsData,
@@ -8,8 +9,6 @@ import {
 } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { PinterestSettingsDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/pinterest.dto';
-import axios from 'axios';
-import FormData from 'form-data';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import {
   BadBody,
@@ -271,13 +270,8 @@ export class PinterestProvider
         })
       ).json();
 
-      const { data, status } = await axios.get(
-        postDetails?.[0]?.media?.[0]?.path!,
-        {
-          responseType: 'stream',
-        }
-      );
-
+      const opened = await openMediaUploadBlobs([{path: findMp4.path, type: 'video/mp4'}]);
+      try {
       const formData = Object.keys(upload_parameters)
         .filter((f) => f)
         .reduce((acc, key) => {
@@ -285,8 +279,10 @@ export class PinterestProvider
           return acc;
         }, new FormData());
 
-      formData.append('file', data);
-      await axios.post(upload_url, formData);
+      formData.append('file', opened.files[0].blob, findMp4.path.split('/').pop());
+      const uploaded = await mediaUploadFetch(upload_url, {method:'POST',body:formData});
+      await uploaded.body?.cancel();
+      } finally { await opened.close(); }
 
       let statusCode = '';
       let attempts = 0;
@@ -461,40 +457,40 @@ export class PinterestProvider
       const result: AnalyticsData[] = [];
       const metrics = data.all;
 
-      if (metrics.lifetime_metrics) {
-        const lifetimeMetrics = metrics.lifetime_metrics;
+      if (metrics.summary_metrics) {
+        const summaryMetrics = metrics.summary_metrics;
 
-        if (lifetimeMetrics.IMPRESSION !== undefined) {
+        if (summaryMetrics.IMPRESSION !== undefined) {
           result.push({
             label: 'Impressions',
             percentageChange: null,
-            data: [{ total: String(lifetimeMetrics.IMPRESSION), date: today }],
+            data: [{ total: String(summaryMetrics.IMPRESSION), date: today }],
           });
         }
 
-        if (lifetimeMetrics.PIN_CLICK !== undefined) {
+        if (summaryMetrics.PIN_CLICK !== undefined) {
           result.push({
             label: 'Pin Clicks',
             percentageChange: null,
-            data: [{ total: String(lifetimeMetrics.PIN_CLICK), date: today }],
+            data: [{ total: String(summaryMetrics.PIN_CLICK), date: today }],
           });
         }
 
-        if (lifetimeMetrics.OUTBOUND_CLICK !== undefined) {
+        if (summaryMetrics.OUTBOUND_CLICK !== undefined) {
           result.push({
             label: 'Outbound Clicks',
             percentageChange: null,
             data: [
-              { total: String(lifetimeMetrics.OUTBOUND_CLICK), date: today },
+              { total: String(summaryMetrics.OUTBOUND_CLICK), date: today },
             ],
           });
         }
 
-        if (lifetimeMetrics.SAVE !== undefined) {
+        if (summaryMetrics.SAVE !== undefined) {
           result.push({
             label: 'Saves',
             percentageChange: null,
-            data: [{ total: String(lifetimeMetrics.SAVE), date: today }],
+            data: [{ total: String(summaryMetrics.SAVE), date: today }],
           });
         }
       }

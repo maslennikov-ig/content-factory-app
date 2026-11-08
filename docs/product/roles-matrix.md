@@ -152,7 +152,7 @@ if (!packageOptions) {
 | `/content-intelligence/text-quality/slop-check` | EDITOR | 1 | редактор |
 | `/content-intelligence/voice` | EDITOR | 21 | редактор |
 | `/copilot` | AI; AI, EDITOR | 2 | редактор — исследование; остаток кредитов картинок и видео для медиатеки (`GET /copilot/credits`, политика с `kcxz.8`); двери старого экрана агента сняты (`kcxz.8`), помощник окна поста `POST /copilot/chat` — с `kcxz.28` (окно открывает чат агента кнопкой «Спросить агента») |
-| `/integrations` | ADMIN | 9 | **администратор** — удаление и все настройки канала |
+| `/integrations` | ADMIN | 11 | **администратор** — удаление и все настройки канала |
 | `/integrations/disable` | ADMIN | 1 | **администратор** |
 | `/integrations/enable` | ADMIN | 1 | **администратор** |
 | `/integrations/provider/:id/connect` | CHANNEL | 1 | любой участник |
@@ -209,7 +209,7 @@ if (!packageOptions) {
 причине, что и подключение, — канал общий актив с обоих концов. Пункты меню
 канала участник не видит.
 
-Остальные девять дверей строки `/integrations` — настройки канала, группа,
+Остальные одиннадцать дверей строки `/integrations` — настройки канала, группа,
 имя площадки, язык содержимого, имя и картинка бота, временные интервалы,
 заглушки — тоже админские, и меню канала это показывает только с 05.09.2026.
 До того роль на нём проверяли лишь удаление, отключение и включение: живой
@@ -812,3 +812,26 @@ Postgres — отдельная опасная операция (см. шаг в
 03.09.2026: три роли на шестнадцать дверей — это сорок восемь переключателей, в
 которых продукту предстоит быть правильным, а за просьбой обычно стоят две
 конкретные потребности, решаемые именованными ролями.
+
+## Scoped preview and MCP media authentication
+
+The two local-name mutations (`PUT /integrations/:id/display-name` and
+`PUT /integrations/customers/:id`) use the existing ADMIN policy. They change
+workspace labels only and send no platform rename request.
+
+Preview review V1 has its own authentication boundary because a guest has no
+workspace account. Every request revalidates either an active workspace member
+or a hashed, unexpired, unrevoked grant for the exact live preview. Members and
+guests may comment and reply; only members may resolve/reopen discussions and
+create, revoke or replace grants. The session door exchanges a validated grant
+for a short, post-scoped HttpOnly media cookie; it grants no extra action.
+JSON changes additionally require the configured application origin and review
+header. Legacy preview/comment routes use the same authorization boundary.
+
+`POST /mcp-media/upload` accepts a short-lived single-use upload ticket rather
+than a workspace session cookie. Its service rechecks the bound user's active
+membership and editor permission, organization, filename, byte count and file
+nonce. The ticket cannot authorize attachment or publication. Normal MCP tools
+retain their OAuth and door-policy admission. The exact purpose-authenticated
+mutations are named in the existing unpoliced-door ledger; no general policy
+exemption or new unreviewed query allowance is introduced.

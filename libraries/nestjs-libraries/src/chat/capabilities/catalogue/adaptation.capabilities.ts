@@ -1,5 +1,6 @@
 import { startNativeAdaptationSeries, resumeNativeAdaptationSeries } from '../../conductor/native-adaptation-series';
 import { z } from 'zod';
+import { McpMediaUploadServiceV1 } from '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1';
 import { writingSettingsWithinLimit, writingLengthOptionsSchema } from '@contentfactory/helpers/utils/writing-settings';
 import { questionCardView } from '../question-card';
 import { writingSettingsQuestionFields, writingSettingsAnswerSchema, writingSettingsCheckpoint, channelWritingSettings, hasWritingProposal, proposedWritingSettings, settingsProfileFingerprint, writingSettingsDiffer, writingSettingsOverrides } from '../writing-settings-proposal';
@@ -1054,11 +1055,14 @@ export const adaptationImage = defineCapability({
   group: 'media',
   label: { ru: 'Картинка к адаптации', en: 'Picture for an adaptation' },
   description:
-    'Set a picture from the workspace media library on a draft adaptation, by media id, or take it off with `mediaId: null`. The server takes the file from the library itself.',
+    'Attach an owned image or video from the workspace library by mediaId, or remove it with mediaId:null. Optional post-specific alt, owned thumbnailMediaId (null clears cover) and thumbnailTimestamp (milliseconds, null clears) follow platform support. Never pass URLs or filesystem paths. Returns a private member post previewUrl and a temporary media preview; this edits the draft and does not publish or change publication confirmations.',
   input: z.object({
     pieceId,
     adaptationId,
     mediaId: z.string().min(1).max(128).nullable().describe('Media library id; null takes the picture off'),
+    alt: z.string().max(5000).optional(),
+    thumbnailMediaId: z.string().uuid().nullable().optional(),
+    thumbnailTimestamp: z.number().int().min(0).max(24 * 60 * 60 * 1000).nullable().optional(),
   }),
   risk: 'write',
   card: 'adaptation',
@@ -1066,14 +1070,23 @@ export const adaptationImage = defineCapability({
   untrusted: [],
   run: async (ctx, input) => {
     // `buildAdaptationPatch({ image })`: only the library id goes.
-    await ctx.service(PieceService).editAdaptation(
+    const edited = await ctx.service(PieceService).editAdaptation(
       ctx.organizationId,
       input.pieceId,
       input.adaptationId,
-      { image: input.mediaId ? { id: input.mediaId } : null },
+      { image: input.mediaId ? { id: input.mediaId,
+        ...(input.alt !== undefined ? { alt: input.alt } : {}),
+        ...(input.thumbnailMediaId !== undefined ? { thumbnailMediaId: input.thumbnailMediaId } : {}),
+        ...(input.thumbnailTimestamp !== undefined ? { thumbnailTimestamp: input.thumbnailTimestamp } : {}),
+      } : null },
       ctx.language
     );
-    return { pieceId: input.pieceId, adaptationId: input.adaptationId, image: input.mediaId !== null };
+    const media = input.mediaId && ctx.entrance === 'mcp'
+      ? await ctx.service(McpMediaUploadServiceV1).metadata(ctx, input.mediaId) : null;
+    return { pieceId: input.pieceId, adaptationId: input.adaptationId, image: input.mediaId !== null,
+      ...(media ? { media } : {}),
+      ...(ctx.entrance === 'mcp' && edited?.adaptation?.postId && process.env.FRONTEND_URL
+        ? { previewUrl: `${process.env.FRONTEND_URL.replace(/\/$/, '')}/p/${encodeURIComponent(edited.adaptation.postId)}` } : {}) };
   },
   summarize: (output) => ({ ...output }),
   cardOf: adaptationCard,

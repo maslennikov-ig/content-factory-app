@@ -7,6 +7,7 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useOpenMediaBox } from '@contentfactory/frontend/components/media/media.component';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
@@ -320,6 +321,8 @@ export const MediaComponentInner: FC<{
   const t = useT();
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   const newFetch = useFetch();
+  const openMediaBox = useOpenMediaBox();
+  const [saveError, setSaveError] = useState('');
   const [newThumbnail, setNewThumbnail] = useState<string | null>(null);
   const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
   const [altText, setAltText] = useState<string>(media?.alt || '');
@@ -328,7 +331,7 @@ export const MediaComponentInner: FC<{
     props.media?.thumbnail || null
   );
   const [thumbnailTimestamp, setThumbnailTimestamp] = useState<number | null>(
-    props.media?.thumbnailTimestamp || null
+    props.media?.thumbnailTimestamp ?? null
   );
 
   useEffect(() => {
@@ -340,23 +343,24 @@ export const MediaComponentInner: FC<{
 
   const save = useCallback(async () => {
     setLoading(true);
+    setSaveError('');
+    try {
     let path = thumbnail || '';
     if (newThumbnail) {
       const blob = await (await fetch(newThumbnail)).blob();
       const formData = new FormData();
       formData.append('file', blob, 'media.jpg');
-      formData.append('preventSave', 'true');
-      const data = await (
-        await newFetch('/media/upload-simple', {
+      formData.append('preventSave', 'false');
+      const uploadResponse = await newFetch('/media/upload-simple', {
           method: 'POST',
           body: formData,
-        })
-      ).json();
+        });
+      if (!uploadResponse.ok) throw new Error('MEDIA_SAVE_REFUSED');
+      const data = await uploadResponse.json();
       path = data.path;
     }
 
-    const media = await (
-      await newFetch('/media/information', {
+    const response = await newFetch('/media/information', {
         method: 'POST',
         body: JSON.stringify({
           id: props.media.id,
@@ -364,15 +368,18 @@ export const MediaComponentInner: FC<{
           thumbnail: path,
           thumbnailTimestamp: thumbnailTimestamp,
         }),
-      })
-    ).json();
-
+      });
+    if (!response.ok) throw new Error('MEDIA_SAVE_REFUSED');
+    const media = await response.json();
     onSelect(media);
     onClose();
+    } catch { setSaveError(t('media_settings_save_failed', 'Could not save media settings. Check access and try again.')); }
+    finally { setLoading(false); }
   }, [altText, newThumbnail, thumbnail, thumbnailTimestamp]);
 
   return (
     <div className="mt-[10px] flex flex-col gap-[20px]">
+      {saveError && <p role="alert" className="cf-body-sm text-cf-danger">{saveError}</p>}
       <div className="flex flex-col space-y-2">
         <Input
           standalone
@@ -407,7 +414,7 @@ export const MediaComponentInner: FC<{
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="secondary"
                     disabled={loading}
                     onClick={() => setIsEditingThumbnail(true)}
@@ -417,12 +424,22 @@ export const MediaComponentInner: FC<{
                       ? t('media_thumbnail_edit', 'Edit thumbnail')
                       : t('media_thumbnail_create', 'Create thumbnail')}
                   </Button>
+                  <Button variant="secondary" disabled={loading} className="flex-1" onClick={() => openMediaBox(selected => {
+                    const cover = selected?.[0];
+                    if (!cover) return;
+                    setNewThumbnail(null);
+                    setThumbnail(cover.path);
+                    setThumbnailTimestamp(null);
+                  }, {type: 'image-static'})}>
+                    {t('media_library', 'Media Library')}
+                  </Button>
                   {(thumbnail || newThumbnail) && (
                     <Button variant="destructive"
                       disabled={loading}
                       onClick={() => {
                         setNewThumbnail(null);
                         setThumbnail(null);
+                        setThumbnailTimestamp(null);
                       }}
                       className="flex-1"
                     >
@@ -468,6 +485,7 @@ export const MediaComponentInner: FC<{
                       const url = URL.createObjectURL(blob);
                       setNewThumbnail(url);
                       setThumbnailTimestamp(timestampMs);
+                      setThumbnail(null);
                       setIsEditingThumbnail(false);
                     };
                     reader.readAsDataURL(blob);

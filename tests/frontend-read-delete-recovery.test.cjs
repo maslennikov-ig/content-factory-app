@@ -231,6 +231,9 @@ const loadChannelMenu = () =>
       dayjs: require('dayjs'),
       'copy-to-clipboard': { __esModule: true, default: () => true },
       '@prisma/client': {},
+      '@contentfactory/react/translation/use-interface-language': {
+        useInterfaceLanguage: () => 'ru',
+      },
       '@mantine/hooks': { useClickOutside: () => ({ current: null }) },
       'next/navigation': { useRouter: () => ({ push: () => {} }) },
       '@contentfactory/react/translation/get.transation.service.client': {

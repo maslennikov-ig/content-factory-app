@@ -46,6 +46,7 @@ export const calendarDefaults = {
   endDate: newDayjs().endOf('isoWeek').format('YYYY-MM-DD'),
   customer: null as string | null,
   integrationId: null as string | null,
+  integrationIds: [] as string[],
   // Editorial process stage, NOT the post's delivery `state` — the filter
   // carried the same way `customer` already is: through the calendar's own
   // query params, not a client-side filter over an already-fetched page.
@@ -81,6 +82,7 @@ export const calendarDefaults = {
     display: 'week' | 'month' | 'day' | 'list';
     customer: string | null;
     integrationId?: string | null;
+    integrationIds?: string[];
     editorialStage?: EditorialStageValue | null;
   }) => {
     /** empty **/
@@ -127,6 +129,8 @@ export interface Integrations {
   postsSummary?: { total: number; lastPostAt: string | null };
   publicUrl?: string;
   name: string;
+  originalName?: string;
+  displayName?: string | null;
   id: string;
   disabled?: boolean;
   inBetweenSteps: boolean;
@@ -231,6 +235,7 @@ export const CalendarWeekProvider: FC<{
     endDate: initialRange.endDate,
     customer: initCustomer || null,
     integrationId: searchParams.get('integrationId') || null,
+    integrationIds: (searchParams.get('integrationIds') || '').split(',').filter(Boolean),
     editorialStage: isEditorialStageValue(initEditorialStage)
       ? initEditorialStage
       : null,
@@ -244,6 +249,7 @@ export const CalendarWeekProvider: FC<{
       endDate: filters.endDate,
       customer: filters?.customer?.toString() || '',
       ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
+      ...(filters.integrationIds?.length ? { integrationIds: filters.integrationIds.join(',') } : {}),
       ...(filters.editorialStage
         ? { editorialStage: filters.editorialStage }
         : {}),
@@ -256,6 +262,7 @@ export const CalendarWeekProvider: FC<{
       display: filters.display,
       customer: filters?.customer?.toString() || '',
       ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
+      ...(filters.integrationIds?.length ? { integrationIds: filters.integrationIds.join(',') } : {}),
       startDate: newDayjs(filters.startDate).startOf('day').utc().format(),
       endDate: newDayjs(filters.endDate).endOf('day').utc().format(),
       // Omitted (not sent as an empty string) when unset: the server DTO
@@ -280,6 +287,7 @@ export const CalendarWeekProvider: FC<{
       limit: '100',
       customer: filters?.customer?.toString() || '',
       ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
+      ...(filters.integrationIds?.length ? { integrationIds: filters.integrationIds.join(',') } : {}),
       state: listState,
       // No editorialStage here (2q28.25): the list has one status control,
       // the state tabs, and a stage chosen in the calendar must not narrow a
@@ -289,7 +297,7 @@ export const CalendarWeekProvider: FC<{
       // one the list had before search existed.
       ...(listSearched ? { q: listSearched } : {}),
     }).toString();
-  }, [listPage, filters.customer, filters.integrationId, listState, listSearched]);
+  }, [listPage, filters.customer, filters.integrationId, filters.integrationIds, listState, listSearched]);
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);
@@ -361,13 +369,19 @@ export const CalendarWeekProvider: FC<{
       display: 'week' | 'month' | 'day' | 'list';
       customer: string | null;
       integrationId?: string | null;
+      integrationIds?: string[];
       editorialStage?: EditorialStageValue | null;
     }) => {
       setDisplaySaved(newFilters.display);
-      const integrationId = newFilters.integrationId === undefined ? filters.integrationId : newFilters.integrationId;
+      const integrationId = newFilters.integrationIds !== undefined
+        ? null
+        : newFilters.integrationId === undefined ? filters.integrationId : newFilters.integrationId;
+      const integrationIds = newFilters.integrationIds ??
+        (newFilters.integrationId !== undefined ? [] : filters.integrationIds);
       setFilters({
         ...newFilters,
         integrationId,
+        integrationIds,
         editorialStage: newFilters.editorialStage ?? null,
       });
       setInternalData([]);
@@ -379,6 +393,7 @@ export const CalendarWeekProvider: FC<{
 
       const path = [
         integrationId ? `integrationId=${encodeURIComponent(integrationId)}` : '',
+        integrationIds.length ? `integrationIds=${encodeURIComponent(integrationIds.join(','))}` : '',
         `startDate=${newFilters.startDate}`,
         `endDate=${newFilters.endDate}`,
         `display=${newFilters.display}`,
@@ -389,7 +404,7 @@ export const CalendarWeekProvider: FC<{
       ].filter((f) => f);
       window.history.replaceState(null, '', `/launches?${path.join('&')}`);
     },
-    [filters.integrationId]
+    [filters.integrationId, filters.integrationIds]
   );
 
   const posts = useMemo(() => calendarData?.posts || [], [calendarData?.posts]);

@@ -14,7 +14,7 @@ async function scenario(kind) {
   let modelCalls = 0, domainCalls = 0;
   const registry = loadCapabilityModule('capability.registry.ts');
   const capability = {
-    ...registry.CAPABILITY_CATALOGUE.find(entry => entry.risk === (kind === 'fatal' ? 'write' : 'read')),
+    ...registry.CAPABILITY_CATALOGUE.find(entry => entry.risk === (kind === 'fatal' ? 'write' : 'read') && (!entry.entrances || entry.entrances.includes('chat'))),
     id: 'fixture.persist', group: 'content', risk: kind === 'fatal' ? 'write' : 'read',
     label: { ru: 'Фикстура', en: 'Fixture' }, description: 'Fixture operation.',
     input: z.object({ selection: z.enum(['mixed', 'single']) }), untrusted: [],

@@ -1,0 +1,74 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-npyu",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-npyu",
+  "source_digest": "b3342f5436da93576695076642d43263f68209aa65709ac1685a30ae81c3f173",
+  "criteria": [
+    {
+      "criterion_id": "content-factory-next-npyu.1",
+      "text": "Restrict local media access to owned storage\nReport rows: 01. Confine local reads/deletes to configured storage; reject traversal, symlink escapes, foreign/deleted Media and invalid save-media object names. Preserve normal uploads.\nAcceptance: Real filesystem tests cover traversal, symlinks, ownership, deletion and valid media.",
+      "text_digest": "174d7f138a408e961765b10f673047c7f26de9ec2fbf64ce29b554506bc9fd9a"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.10",
+      "text": "Carry cover and alt settings through providers\nReport rows: 12. Reuse existing media fields and select owned library covers or timestamps. Carry supported settings through providers; optional cover failure preserves confirmed publication receipt.\nAcceptance: Provider payloads and UI ownership/unsupported settings checks pass; existing YouTube thumbnail receipt regression remains green.",
+      "text_digest": "407b4f2da6bd76cfe827ca4f767fe25e3ad4e04f0a5d336daf8fac0d16d86c5a"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.11",
+      "text": "Filter calendar and lists by multiple channels\nReport rows: 14. Add integrationIds server filtering and multiselect with pagination; retain project/editorial/date/state filters and old integrationId compatibility.\nAcceptance: Multi/single/empty selections, pagination and filter combinations work with accessible controls.",
+      "text_digest": "9f74c2507e076f201dfe0cf6100b011ba60bfb0b839219294f82bd0947232ef2"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.12",
+      "text": "Add local channel aliases and group rename\nReport rows: 15. Persist optional displayName independently from provider name; use one label helper, reset alias and preserve it on reconnect. Reuse existing group menu; no platform rename requests.\nAcceptance: Alias fallback/reset/reconnect, organization scoping and existing group rename behavior pass.",
+      "text_digest": "ed6f78967912a49dae1d17c1d8ed76ba78302f63e357a1d9b3c7b28379149987"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.13",
+      "text": "Support media upload and attachment metadata through MCP\nReport rows: 16. Extend shared capabilities with upload widget/ticket/status, owned media metadata and previewUrl. Binary goes through uploader, never model arguments. Preserve OAuth/policies/confirmations and manual fallback.\nAcceptance: Controlled SDK/widget flow covers upload/status/attach/preview, foreign/deleted ids, authorization and clients without widget support.",
+      "text_digest": "9f985997d68e32dd97d823f4b886c5cf2243f1d2c24a49bfe5baf2cec287eb05"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.2",
+      "text": "Stream media through bounded SSRF-safe reads\nReport rows: 02,09. Use one safe media reader with DNS/redirect guards, byte limits, deadlines and cancellation. Stream large LinkedIn/X transfers; buffer only bounded image transforms.\nAcceptance: Stalled body, redirect/private addresses, abort, truncated/large stream tests pass without buffering the entire video.",
+      "text_digest": "5b0dd25f3ff3e1714281f9a6c4be91a22410ecb9ee20489cb1b29adea45eebea"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.3",
+      "text": "Correct VK endpoints and publication receipts\nReport rows: 04. Adopt selected VK domain and response corrections for photos, videos and wall.post. Never report success without a confirmed provider identifier.\nAcceptance: Controlled photo/video/wall.post success and failure responses give truthful receipts.",
+      "text_digest": "c90041dc181acd5f9e865c8879b12bcaf2ae929150f133398968e468ffa24009"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.4",
+      "text": "Update Meta Graph requests and provider corrections\nReport rows: 05,13-Meta. Use shared Graph API v25.0 constant; verify affected official methods. Adapt carousel collaborator and video_insights corrections without changing auth routes or permissions.\nAcceptance: Request-contract and error tests cover Facebook/Instagram routes, carousels and analytics; unsupported observations remain unavailable.",
+      "text_digest": "36b97bb6c1aec4437f43f061fee16707fc863bdd7254f17d33c2ab48b21498c0"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.5",
+      "text": "Expose actionable provider failure categories\nReport rows: 06. Classify Telegram/VK/Meta/YouTube content, permissions, reconnect, safe retry and unknown outcome consistently across calendar/API/agent results. Keep sensitive raw responses out.\nAcceptance: Representative failures have actionable localized diagnostics; unknown outcome never enables resend; redaction regressions pass.",
+      "text_digest": "b59e68a74a5294b0e3d62c253d789c24c27dc3109e0af5326ef04c4a363db878"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.6",
+      "text": "Add versioned publication heartbeat and recovery\nReport rows: 08. Add a new post workflow/activity after V109, with heartbeat stage diagnostics. Route new starts to it while preserving all existing workflow/activity contracts and durable publication semantics.\nAcceptance: Controlled worker loss before send, after send and after receipt causes no duplicate; old contracts and running jobs remain compatible.",
+      "text_digest": "7c2256554262b19df87a0a459b4abdea29df369576b5953e47c3ba0ff50786d9"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.7",
+      "text": "Correct Pinterest analytics and LinkedIn company access\nReport rows: 13. Use Pinterest summary_metrics and selected LinkedIn company/content-admin access corrections. Keep source provenance and distinguish unavailable from zero; Meta portion belongs to T4.\nAcceptance: Fixture responses verify supported metrics, missing data and personal/company identity isolation.",
+      "text_digest": "28453b5b795d6228be9cea08c6c1670cbd26c8746717de92cebe16dddff049f4"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.8",
+      "text": "Add versioned anchored preview discussions\nReport rows: 11-team. Add text anchors, replies, resolve/reopen to existing preview; retain quote and source revision, mark changed anchors explicitly. Keep legacy Comments/userId and display old comments unanchored.\nAcceptance: Real service/database and UI tests cover thread/reply/resolve, changed text, legacy comments and two-tenant isolation.",
+      "text_digest": "05547b788d1c4fde4a9f8d05c817882457bab6c7d7753e57cd924371cf4a10b8"
+    },
+    {
+      "criterion_id": "content-factory-next-npyu.9",
+      "text": "Add revocable scoped guest preview access\nReport rows: 11-guest. Issue hashed 7-day scoped guest grants for one current preview and attachments; guests comment/reply only. Require member auth or valid grant on legacy preview/comment routes. Support revoke/reissue and label guest identity unverified.\nAcceptance: Expired/revoked/foreign grants and anonymous legacy URLs are refused; current text and anchored discussion work; no editing, resolving or publication authority leaks.",
+      "text_digest": "10cfc5ca7f8c19561d3a92b433e4ae02b278a160aabee15ee4e5e8d2dacddc7e"
+    }
+  ]
+}

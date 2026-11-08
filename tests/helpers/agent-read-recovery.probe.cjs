@@ -17,11 +17,11 @@ async function scenario(mode) {
   let readCalls = 0, writeCalls = 0, emptyReturned = false;
   const attempts = [];
   const capabilities = [
-    { ...registry.CAPABILITY_CATALOGUE.find(c => c.risk === 'read'), id: 'fixture.read', group: 'content', risk: 'read',
+    { ...registry.CAPABILITY_CATALOGUE.find(c => c.risk === 'read' && (!c.entrances || c.entrances.includes('chat'))), id: 'fixture.read', group: 'content', risk: 'read',
       input: z.object({ source: z.string() }), untrusted: [], beforeApproval: undefined, approvalContent: undefined,
       run: async () => { if (++readCalls === 1) throw Object.assign(Error('Source unavailable'), { code: 'MATERIAL_NOT_AVAILABLE' }); return { sourceAvailable: true }; },
       summarize: result => result },
-    { ...registry.CAPABILITY_CATALOGUE.find(c => c.risk === 'write'), id: 'fixture.write', group: 'content', risk: 'write',
+    { ...registry.CAPABILITY_CATALOGUE.find(c => c.risk === 'write' && (!c.entrances || c.entrances.includes('chat'))), id: 'fixture.write', group: 'content', risk: 'write',
       input: z.object({}), untrusted: [], beforeApproval: undefined, approvalContent: undefined,
       run: async () => { writeCalls++; throw Object.assign(Error('Write outcome unknown'), { code: 'CAPABILITY_FAILED' }); },
       summarize: result => result },

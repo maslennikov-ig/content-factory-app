@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "Die TikTok-Kontoeinstellungen sind nicht verfügbar. Versuche es erneut oder verbinde den Kanal neu.",
   "validation_tiktok_interactions_changed": "Die TikTok-Interaktionseinstellungen haben sich geändert. Prüfe vor der Veröffentlichung Kommentare, Duet und Stitch.",
   "validation_tiktok_disclosure_invalid": "Die kommerzielle Kennzeichnung bei TikTok muss vor der Veröffentlichung zu den ausgewählten Marken und Datenschutzeinstellungen passen.",
-  "validation_tiktok_duration_invalid": "Die TikTok-Videodauer ist nicht verfügbar oder überschreitet das aktuelle Kontolimit. Prüfe das Video vor der Veröffentlichung."
+  "validation_tiktok_duration_invalid": "Die TikTok-Videodauer ist nicht verfügbar oder überschreitet das aktuelle Kontolimit. Prüfe das Video vor der Veröffentlichung.",
+  "media_settings_save_failed": "Die Medieneinstellungen konnten nicht gespeichert werden. Prüfen Sie die Zugriffsrechte und versuchen Sie es erneut.",
+  "media_settings_provider_support": "Reels und YouTube unterstützen Vorschaubilder; Reels und TikTok unterstützen die Auswahl eines Videoframes. Jede Plattform übernimmt nur die von ihr unterstützten Einstellungen.",
+  "comment": "Kommentar",
+  "youtube_thumbnail_overrides_media": "Dieses YouTube-spezifische Vorschaubild ersetzt das Cover aus den Medieneinstellungen."
 }

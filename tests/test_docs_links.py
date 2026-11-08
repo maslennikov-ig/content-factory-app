@@ -73,6 +73,24 @@ class DocsLinkCheckerTest(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("Documentation links OK", result.stdout)
 
+    def test_keeps_github_spaces_around_removed_punctuation_and_duplicate_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            docs = root / "docs"
+            docs.mkdir()
+            (docs / "README.md").write_text(
+                "# Index\n\n[First](guide.md#owner-preview--4-november-2026)\n"
+                "[Second](guide.md#owner-preview--4-november-2026-1)\n",
+                encoding="utf-8",
+            )
+            (docs / "guide.md").write_text(
+                "# Guide\n\n## Owner preview — 4 November 2026\n\n"
+                "## Owner preview — 4 November 2026\n",
+                encoding="utf-8",
+            )
+            result = self.run_checker(root)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

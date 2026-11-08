@@ -58,6 +58,7 @@
   "connect_your_mcp_client_to_schedule_your_posts_faster": "Подключите сервер Content Factory MCP к вашему клиенту (HTTP-поток), чтобы быстрее планировать ваши публикации!",
   "share_with_a_client": "Поделиться с клиентом",
   "post": "Пост",
+  "comment": "Комментарий",
   "comments": "Комментарии",
   "user": "Пользователь",
   "login_register_to_add_comments": "Войдите или зарегистрируйтесь, чтобы добавить комментарии",
@@ -2203,5 +2204,8 @@
   "validation_tiktok_account_unavailable": "Настройки аккаунта TikTok недоступны. Повторите попытку или переподключите канал.",
   "validation_tiktok_interactions_changed": "Настройки взаимодействий TikTok изменились. Перед публикацией проверьте комментарии, Duet и Stitch.",
   "validation_tiktok_disclosure_invalid": "Перед публикацией согласуйте коммерческую маркировку TikTok с выбранными брендами и приватностью.",
-  "validation_tiktok_duration_invalid": "Длительность видео TikTok недоступна или превышает текущий лимит аккаунта. Проверьте видео перед публикацией."
+  "validation_tiktok_duration_invalid": "Длительность видео TikTok недоступна или превышает текущий лимит аккаунта. Проверьте видео перед публикацией.",
+  "media_settings_provider_support": "Reels и YouTube поддерживают обложки; Reels и TikTok — выбор кадра. Каждая площадка применяет доступные ей настройки.",
+  "media_settings_save_failed": "Не удалось сохранить настройки медиа. Проверьте доступ и повторите попытку.",
+  "youtube_thumbnail_overrides_media": "Отдельная обложка YouTube заменяет обложку из настроек медиа."
 }

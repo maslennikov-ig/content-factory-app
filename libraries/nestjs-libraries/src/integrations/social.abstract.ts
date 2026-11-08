@@ -40,8 +40,8 @@ export class RefreshToken extends ApplicationFailure {
       [
         {
           identifier,
-          json: truncateForTemporal(json, MAX_FAILURE_FIELD),
-          body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+          json: '[provider response omitted]',
+          body: '[request body omitted]',
         },
       ]
     );
@@ -53,8 +53,8 @@ export class BadBody extends ApplicationFailure {
     super(truncateForTemporal(message, MAX_FAILURE_MESSAGE), 'bad_body', true, [
       {
         identifier,
-        json: truncateForTemporal(json, MAX_FAILURE_FIELD),
-        body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+        json: '[provider response omitted]',
+        body: '[request body omitted]',
       },
     ]);
   }
@@ -189,11 +189,20 @@ export abstract class SocialAbstract {
     ignoreConcurrency = false,
     message = ''
   ): Promise<Response> {
-    const request = await fetch(url, {
-      ...options,
-      // @ts-ignore - undici-only option, not in the lib.dom RequestInit type
-      dispatcher: (options as any).dispatcher ?? getSsrfSafeDispatcher(),
-    });
+    const safeRead = ['GET', 'HEAD', 'OPTIONS'].includes((options.method || 'GET').toUpperCase());
+    let request: Response;
+    try {
+      request = await fetch(url, {
+        ...options,
+        signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
+        // @ts-ignore - undici-only option, not in the lib.dom RequestInit type
+        dispatcher: (options as any).dispatcher ?? getSsrfSafeDispatcher(),
+      });
+    } catch {
+      throw new BadBody(identifier, '{}', '{}', safeRead
+        ? 'Не удалось получить ответ площадки. Повторите чтение позже.'
+        : 'Результат запроса не подтверждён. Проверьте площадку перед повторной отправкой.');
+    }
 
     if (request.status === 200 || request.status === 201) {
       return request;
@@ -201,7 +210,22 @@ export abstract class SocialAbstract {
 
     let json = '{}';
     try {
-      json = await request.text();
+      if (request.body?.getReader) {
+        const reader = request.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        try {
+          while (bytes < 64 * 1024) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            chunks.push(chunk.value.subarray(0, 64 * 1024 - bytes));
+            bytes += chunk.value.byteLength;
+          }
+          json = Buffer.concat(chunks).toString('utf8');
+        } finally { await reader.cancel().catch(() => {}); }
+      } else {
+        json = (await request.text()).slice(0, 64 * 1024);
+      }
     } catch (err) {
       json = '{}';
     }
@@ -214,11 +238,16 @@ export abstract class SocialAbstract {
 
     const handleError = this.handleErrors(json || '{}', request.status);
 
+    // A 5xx or transport failure after a write is not evidence of rejection.
+    // Repeating inside the provider would bypass the durable publication claim.
+    if (!safeRead && request.status >= 500) {
+      throw new BadBody(identifier, '{}', '{}', 'Результат запроса не подтверждён. Проверьте площадку перед повторной отправкой.');
+    }
+
     if (
-      request.status === 429 ||
-      (request.status === 500 && !handleError) ||
-      json.includes('rate_limit_exceeded') ||
-      json.includes('Rate limit')
+      (request.status === 429 && (safeRead || options.body === undefined || typeof options.body === 'string')) ||
+      (safeRead && request.status >= 500 && !handleError) ||
+      (safeRead && (json.includes('rate_limit_exceeded') || json.includes('Rate limit')))
     ) {
       await timer(5000);
       return this.fetch(
@@ -231,7 +260,7 @@ export abstract class SocialAbstract {
       );
     }
 
-    if (handleError?.type === 'retry') {
+    if (handleError?.type === 'retry' && safeRead) {
       await timer(5000);
       return this.fetch(
         url,

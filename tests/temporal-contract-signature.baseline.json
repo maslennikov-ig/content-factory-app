@@ -220,6 +220,29 @@
       "LocalCompositionActivityV2.stepLocalCompositionV2": [
         "input:LocalCompositionActivityInputV2"
       ]
+    },
+    "apps/orchestrator/src/activities/post.activity.v110.ts": {
+      "PostActivityV110.getPostsListV110": [
+        "orgId:string",
+        "postId:string",
+        "repeat:boolean"
+      ],
+      "PostActivityV110.postSocialV110": [
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV110.postCommentV110": [
+        "postId:string",
+        "lastPostId:string | undefined",
+        "integration:Integration",
+        "posts:PublicationPostV106[]",
+        "operationId:string"
+      ],
+      "PostActivityV110.startPublicationStreakV110": [
+        "key:PublicationKeyV106"
+      ],
+      "PostActivityV110.searchForMissingThreeHoursPostsV111": []
     }
   },
   "workflows": {
@@ -376,6 +399,14 @@
       "localCompositionWorkflowV2": [
         "input:LocalCompositionActivityInputV2"
       ]
+    },
+    "apps/orchestrator/src/workflows/post-workflows/post.workflow.v1.1.0.ts": {
+      "postWorkflowV110": [
+        "{ taskQueue, postId, organizationId, postNow = false, }:{ taskQueue: string; postId: string; organizationId: string; postNow?: boolean; }"
+      ]
+    },
+    "apps/orchestrator/src/workflows/missing.post.workflow.v111.ts": {
+      "missingPostWorkflowV111": []
     }
   }
 }

@@ -1048,10 +1048,12 @@ export class PieceRepository {
     path: string;
     alt: string | null;
     thumbnail: string | null;
+    type: string;
+    thumbnailTimestamp: number | null;
   } | null> {
     return this.client().media.findFirst({
       where: { organizationId, id: mediaId, deletedAt: null },
-      select: { id: true, path: true, alt: true, thumbnail: true },
+      select: { id: true, path: true, alt: true, thumbnail: true, type: true, thumbnailTimestamp: true },
     });
   }
 

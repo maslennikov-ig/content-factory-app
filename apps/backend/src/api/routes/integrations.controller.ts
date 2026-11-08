@@ -1,3 +1,5 @@
+import { withIntegrationDisplayName } from '@contentfactory/helpers/utils/integration-name';
+import { IntegrationDisplayNameDto, CustomerNameDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.display.name.dto';
 import {
   Body,
   Controller,
@@ -87,6 +89,26 @@ export class IntegrationsController {
    * administrator's; the matrix now says the same for all of them
    * (`content-factory-next-fn33.90.1`).
    */
+  @Put('/:id/display-name')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  updateDisplayName(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: IntegrationDisplayNameDto
+  ) {
+    return this._integrationService.updateDisplayName(org.id, id, body.name);
+  }
+
+  @Put('/customers/:id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  updateCustomerName(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: CustomerNameDto
+  ) {
+    return this._integrationService.updateCustomerName(org.id, id, body.name);
+  }
+
   @Put('/:id/group')
   @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateIntegrationGroup(
@@ -136,7 +158,7 @@ export class IntegrationsController {
               p.contentLanguage
             );
           return {
-            name: p.name,
+            ...withIntegrationDisplayName({ name: p.name, displayName: p.displayName }),
             id: p.id,
             internalId: p.internalId,
             disabled: p.disabled,

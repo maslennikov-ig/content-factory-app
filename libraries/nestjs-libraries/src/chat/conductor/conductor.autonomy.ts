@@ -194,7 +194,9 @@ export const createConductorToolSearchProcessor = (options: {
   minScore?: number;
   autoLoad?: boolean;
 }) => {
-  const capabilities = options.capabilities ?? CAPABILITY_CATALOGUE;
+  const capabilities = (options.capabilities ?? CAPABILITY_CATALOGUE).filter(
+    capability => !capability.entrances || capability.entrances.includes('chat')
+  );
   const language = options.language ?? 'ru';
   const allTools: Record<string, any> = Object.fromEntries(
     capabilities.map((capability) => [

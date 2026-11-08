@@ -291,7 +291,7 @@ describe('F2: the chat re-reads the screens beside it without clearing them', ()
     expect(contract.panelReadsOf([message(['helixa_read'])], 'helixa_')).toBe(1);
     const registry = loadCapabilityModule('index.ts');
     const reads = registry.CAPABILITY_CATALOGUE.filter(
-      (capability) => capability.risk === 'read' && (/^(avatar|channel|ideas|facts|media|campaign|video|helixa)\./.test(capability.id) || capability.id === 'piece.read')
+      (capability) => (!capability.entrances || capability.entrances.includes('chat')) && capability.risk === 'read' && (/^(avatar|channel|ideas|facts|media|campaign|video|helixa)\./.test(capability.id) || capability.id === 'piece.read')
     ).map((capability) => capability.id.replace(/\./g, '_'));
     expect([...contract.READ_ONLY_TOOLS].sort()).toEqual([...reads, 'readConversationHistory', 'read-conversation-history'].sort());
   });

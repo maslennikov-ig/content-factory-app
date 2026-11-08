@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Every capability of the agent's registry has a recorded scenario
+ * Every native chat capability of the agent's registry has a recorded scenario
  * (`content-factory-next-kcxz.11`, spec §8). A task that adds a capability
  * adds its scenario in `tests/fixtures/agent-scenarios/`; one without fails
  * here, before review.
@@ -11,10 +11,23 @@ const { loadRegistry } = require('./helpers/agent-capabilities.cjs');
 const { coverageGaps, loadScenarios } = require('./helpers/agent-scenarios.cjs');
 
 const registry = loadRegistry();
-const capabilityIds = registry.CAPABILITY_CATALOGUE.map((capability) => capability.id);
+const capabilityIds = registry.CAPABILITY_CATALOGUE.filter(
+  capability => !capability.entrances || capability.entrances.includes('chat')
+).map((capability) => capability.id);
 const scenarios = loadScenarios();
 
 describe('recorded scenario coverage of the capability registry', () => {
+  test('MCP-only media capabilities have separate real SDK coverage, not native chat scenarios', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const mcpOnly = registry.CAPABILITY_CATALOGUE.filter(capability => capability.entrances && !capability.entrances.includes('chat')).map(capability => capability.id);
+    const sdkCoverage = ['media.upload', 'media.upload_ticket', 'media.upload_status', 'media.inspect'];
+    expect(mcpOnly.sort()).toEqual(sdkCoverage.sort());
+    const test = fs.readFileSync(path.join(__dirname, 'mcp.media-upload.test.cjs'), 'utf8');
+    const runner = fs.readFileSync(path.join(__dirname, 'helpers/mcp-media-upload.runner.cjs'), 'utf8');
+    expect(test).toContain('mcp-media-upload.runner.cjs');
+    for (const id of mcpOnly) expect(runner).toContain(`call('${id.replace(/\./g, '_')}'`);
+  });
   test('the registry is not empty and every scenario names what it covers', () => {
     expect(capabilityIds.length).toBeGreaterThan(0);
     for (const scenario of scenarios) {

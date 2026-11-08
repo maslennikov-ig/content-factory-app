@@ -1,0 +1,43 @@
+# Selective Postiz adoption — source integration and local acceptance
+
+The owner selected thirteen remaining released recommendations from the 2026-11-04 HTML comparison. The implementation is on `codex/postiz-remaining-20261107`, based on private main `37242b6ca6c229b7e9b278e67ef77c553afb79d9`, targeting Postiz v2.25.3 `a5affe62c74e39c1e7ac960d50d8418b807d532c`. No wholesale upgrade, upstream remote or dependency upgrade was performed. Existing 03/07/10 fixes and AGPL notices remain.
+
+Plan and Beads mapping: [implementation plan](../superpowers/plans/2026-11-07-postiz-selective-adoption.md). Epic: [HONEY-6321](https://linear.app/elwork/issue/HONEY-6321/adopt-remaining-selected-postiz-improvements). The tracker owns status, dependencies and accepted history.
+
+## Changed behavior and interfaces
+
+- Media reads/deletes are confined to configured storage descriptors; frontend public uploads use the same confinement. Provider transfers stream or use private owned disk spools, with size/time/cancellation/DNS/redirect controls. Public video proxy rejects HTML and uses MP4 MIME, nosniff and sandbox CSP.
+- Registered media IDs are checked against the workspace, even when a path accompanies the ID. Foreign/deleted IDs do not become external labels. Legacy public HTTPS external-URL API attachments can retain a client label only when it is not a registered library ID; they remain subject to safe network reads. Existing publicly served provider assets remain public. Legacy Transloadit registration accepts a new public object key without a server-owned upload completion receipt. Registration transactionally refuses every already registered foreign/deleted path and reuses a live same-workspace record; this is not upload-origin proof or a global storage ACL migration.
+- `Integration.displayName` is nullable, independent from provider `name`, preserved on reconnect and reset by clearing it. Calendar/list `integrationIds` filters run before pagination/count and remain compatible with the old `integrationId` filter.
+- Preview discussions have text anchors, original quote/revision, replies and resolve/reopen. Changed text is explicitly stale. Legacy Comments/userId remain unchanged and are displayed unanchored. Discussion state never permits publishing.
+- Guest links show the current post preview and expire after seven days by default. Tokens are random, hashed in storage, revocable/reissuable and scoped to one post. Guests can comment/reply; members manage threads/access. Links carry the bearer in a URL fragment, JSON requests use a dedicated header, and native media uses a scoped HttpOnly cookie with live grant checks on every request.
+- Old preview/comment routes now require a member session or valid scoped grant. Member payload shape is retained; guest responses are sanitized and use only scoped media URLs. Old anonymous links require sign-in or a new guest link. Private media supports validated Range/206/416 and no-store responses. Valid legacy external post attachments also use the scoped transport, with current-reference, grant and bounded egress checks. Per-post alt/cover/timestamp (including explicit null and zero) override library defaults; MP4 kind is inferred from the canonical filename despite inherited image defaults.
+- MCP adds upload widget/ticket/status/inspection through shared capability admission. Upload tickets are single-use and actor/file scoped; private result metadata stays out of model content. Incoming files use a private disk spool, streamed sniff/hash/storage and exact cleanup. A host without MCP Apps receives the manual library upload route. Media previews are short-lived; member post preview links mint no guest authority. Actual Claude/ChatGPT host rendering is separate from the local executable-widget/SDK proof.
+- VK receipts, Meta routes/carousels/covers, Pinterest analytics, LinkedIn identity/roles and cover/alt/timestamp propagation use selected released upstream corrections. Missing metrics remain unavailable. VK/Pinterest/Dribbble multipart encoding uses native FormData and disk-backed Blobs; Telegram albums retain filename/MIME metadata. New provider diagnostics persist only allowlisted categories and are reconstructed for calendar/list/agent output, including historical-row redaction. Unknown write outcomes never invite an automatic resend; conditional updates preserve concurrent confirmations and clear stale reasons after a late receipt.
+
+## Database and Temporal compatibility
+
+Apply only the [additive Prisma-generated SQL](preview-review-v1-schema-apply.sql) through the existing guarded production procedure when a release is separately authorized. Never use production db push. A local real old-schema upgrade with preexisting rows in seven tables preserved all original columns and legacy comment authors. Existing Mastra tables were not part of that application-schema migration.
+
+Keep all prior workflow/activity registrations. New starts use V110 and the recovery controller uses V111; old post histories retain their versions. Read the [publication recovery runbook](publication-recovery-v106.md) before rollout/rollback. Explicit RUN_CRON=true or 1 enables that controller; false/0/empty/unset do not. Never clear a pending publication claim or use an older sender to bypass uncertainty. Code rollback must retain new discussion/grant data and workers needed by new histories.
+
+## Meta API primary-source fallback
+
+Meta developer pages returned429. The official Meta Business SDK tag25.0.0 was read instead: [API version](https://github.com/meta/facebook-python-business-sdk/blob/25.0.0/facebook_business/apiconfig.py), [IGUser media parameters](https://github.com/meta/facebook-python-business-sdk/blob/25.0.0/facebook_business/adobjects/iguser.py), [IGMedia insights](https://github.com/meta/facebook-python-business-sdk/blob/25.0.0/facebook_business/adobjects/igmedia.py). Pinned blobs are respectively `d34e61e74866f348b2738bfa01c5d9baceea476f`, `cf194450f57720a3cb80eb6a98eea0beafe574b0`, `43f53bda663c0c717353a01563bb92aa72e20e14`. They confirm v25, collaborators/cover/alt/offset parameters and /insights. Actual account permissions and provider acceptance were not exercised.
+
+## Local preview and proof
+
+Current entry: http://127.0.0.1:4497/agents. Launch with Node 22.23.2 using `scripts/development/postiz-adoption-preview.cjs backend|frontend PRIVATE_STAND`. The private stand file is retained under the task evidence directory, never Git. It selects the existing explicit local test identity, separate task session/database login, two new owned databases and isolated Redis. It contains no paid model/provider credentials; paid/publishing mutations are blocked in this preview. Existing owner 4477 and foreign runtimes were preserved.
+
+Acceptance details: [stage record](../../.codex/stages/postiz-remaining-20261107/acceptance.md). Local proof includes affected tests, three-app types, real PostgreSQL isolation/upgrade, actual SDK worker SIGKILL/heartbeat recovery and browser guest/member/legacy/range behavior. A Next server-bundling CSS-asset defect was repaired by keeping the Node sanitizer external; final browser has no page/console/server errors. The later full verification completed all three typechecks/four build targets and the exact946-file Jest population. Its one unchanged5000ms UI timeout passed two22/22 focused replays; the original release attempt remains nonzero. Node343 passed/38 skipped, Python51 passed, and branding/docs/process/diff checks passed. The focused receipt is source acceptance; no green image-release receipt or skipped-fixture acceptance is claimed. Public CI, production and live accounts remain separate gates.
+
+## Owner-requested full verification and main integration
+
+On 7 November the owner separately requested full verification and normal main integration. Additional review findings were corrected before the final configured run. This authorizes source push/PR/merge only; production deployment, paid calls and real account publication remain separate. Exact results belong to the [current verification summary](../../.codex/stages/postiz-remaining-20261107/summary.md), not to the earlier local receipt.
+
+Source delivery: [PR1283](https://github.com/maslennikov-ig/content-factory-next/pull/1283)
+to private main. Verified application source is `4690714308197696600149ab59c511976ca760be`;
+later delivery changes affect documentation/evidence only. A clean complete
+release receipt and actual green public CI remain required before an authorized
+image publication. Do not treat the unchanged test's recovered timeout as a
+successful original full release run.

@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -13,7 +14,6 @@ import {
   ValidityMedia,
 } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
 import { lookup } from 'mime-types';
-import axios from 'axios';
 import WebSocket from 'ws';
 import { Tool } from '@contentfactory/nestjs-libraries/integrations/tool.decorator';
 import { Integration } from '@prisma/client';
@@ -177,10 +177,8 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
       )
     ).json();
 
-    const { data } = await axios.get(path, {
-      responseType: 'arraybuffer',
-    });
-
+    const opened = await openMediaUploadBlobs([{path,type:mimeType || 'application/octet-stream'}]);
+    try {
     const upload = (fields as { name: string; value: string }[]).reduce(
       (acc, value) => {
         acc.append(value.name, value.value);
@@ -191,15 +189,16 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
 
     upload.append(
       'file',
-      new Blob([Buffer.from(data)], { type: mimeType as string })
+      opened.files[0].blob
     );
 
-    const d = await fetch('https:' + action, {
+    const d = await this.fetch('https:' + action, {
       method: 'POST',
       body: upload,
     });
 
     return [...(await d.text()).matchAll(/<Location>(.*?)<\/Location>/g)][0][1];
+    } finally { await opened.close(); }
   }
 
   async post(

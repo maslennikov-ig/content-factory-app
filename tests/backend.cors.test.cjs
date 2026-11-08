@@ -78,6 +78,16 @@ function preflight(
 }
 
 describe('backend CORS', () => {
+  test('scoped review can send its grant and CSRF headers on a credentialed cross-origin preflight', async () => {
+    const origin = 'http://localhost:4200';
+    const response = await preflight(buildBackendCorsOptions({ FRONTEND_URL: origin }), origin, { path: '/preview-review/v1/posts/post-a/session', headers: 'content-type,x-preview-grant,x-preview-review' });
+    expect(response.headers['access-control-allow-origin']).toBe(origin);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+    expect(response.headers['access-control-allow-headers'].toLowerCase()).toContain('x-preview-grant');
+    expect(response.headers['access-control-allow-headers'].toLowerCase()).toContain('x-preview-review');
+    const foreign = await preflight(buildBackendCorsOptions({ FRONTEND_URL: origin }), 'https://foreign.example', { path: '/preview-review/v1/posts/post-a/session', headers: 'x-preview-grant,x-preview-review' });
+    expect(foreign.headers['access-control-allow-origin']).toBeUndefined();
+  });
   test('accepts a credentialed agent chat preflight for the cookie session', async () => {
     const origin = 'http://localhost:4200';
     const response = await preflight(

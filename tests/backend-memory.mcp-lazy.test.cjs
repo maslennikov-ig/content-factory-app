@@ -6,6 +6,7 @@ function loadMcp({ failFirst = false } = {}) {
   let loads = 0;
   const constructed = [];
   const harden = jest.fn();
+  const installEnvelope = jest.fn();
   const tools = jest.fn(() => ({ read: {} }));
   class FakeMcpServer {
     constructor(options) {
@@ -35,6 +36,7 @@ function loadMcp({ failFirst = false } = {}) {
           role === 'EDITOR' ? ['read', 'create'] : ['read'],
         buildMcpCapabilityTools: tools,
         hardenMcpServerTools: harden,
+        installMcpAppResultEnvelope: installEnvelope,
       },
       '@contentfactory/nestjs-libraries/chat/capabilities/person-time': {
         agentTimeZone: () => 'UTC',
@@ -50,7 +52,7 @@ function loadMcp({ failFirst = false } = {}) {
     }
   );
   const servers = new mcp.McpServers({ get: () => ({}) });
-  return { mcp, servers, constructed, harden, tools, loads: () => loads };
+  return { mcp, servers, constructed, harden, installEnvelope, tools, loads: () => loads };
 }
 
 test('backend helpers and provider construction do not load the unused MCP SDK', () => {
@@ -59,6 +61,7 @@ test('backend helpers and provider construction do not load the unused MCP SDK',
   expect(run.mcp.MCP_HTTP_PATH).toBe('/mcp');
   expect(run.loads()).toBe(0);
   expect(run.constructed).toHaveLength(0);
+  expect(run.installEnvelope).not.toHaveBeenCalled();
 });
 
 test('first authorized server use loads the SDK and preserves role/language cache and HTTP options', async () => {
@@ -76,9 +79,12 @@ test('first authorized server use loads the SDK and preserves role/language cach
   });
   expect(run.tools).toHaveBeenCalledWith([], expect.objectContaining({ role: 'EDITOR', language: 'ru' }));
   expect(run.harden).toHaveBeenCalledWith(first, run.mcp.logMcpCall, run.mcp.logMcpFailure);
+  expect(run.installEnvelope).toHaveBeenCalledTimes(1);
+  expect(run.installEnvelope).toHaveBeenCalledWith(first);
   expect(run.servers.serverFor('USER', 'ru')).not.toBe(first);
   expect(run.servers.serverFor('EDITOR', 'en')).not.toBe(first);
   expect(run.constructed).toHaveLength(3);
+  expect(run.installEnvelope).toHaveBeenCalledTimes(3);
   const req = { url: '/mcp?probe=synthetic' };
   const res = {};
   await run.servers.handle(req, res, { role: 'EDITOR', language: 'ru' });
@@ -90,14 +96,17 @@ test('first authorized server use loads the SDK and preserves role/language cach
     options: { serverless: true },
   });
   expect(run.constructed).toHaveLength(3);
+  expect(run.installEnvelope).toHaveBeenCalledTimes(3);
 });
 
 test('a failed first SDK load leaves the server cache empty and can be retried', () => {
   const run = loadMcp({ failFirst: true });
   expect(() => run.servers.serverFor('EDITOR', 'ru')).toThrow('synthetic SDK load failure');
   expect(run.constructed).toHaveLength(0);
+  expect(run.installEnvelope).not.toHaveBeenCalled();
   const server = run.servers.serverFor('EDITOR', 'ru');
   expect(run.loads()).toBe(2);
   expect(run.servers.serverFor('EDITOR', 'ru')).toBe(server);
   expect(run.constructed).toHaveLength(1);
+  expect(run.installEnvelope).toHaveBeenCalledTimes(1);
 });

@@ -101,6 +101,8 @@ export type CapabilityRunContext = CapabilityIdentity & {
   requestContext?: RequestContext;
   nativeToolCallId?: string;
   entrance: CapabilityEntrance;
+  /** MCP Apps host-only metadata; never serialized into model-visible output. */
+  setMcpAppPrivateResult?: (meta: Record<string, unknown>) => void;
   /** The Nest provider the door itself uses, resolved by class. */
   service: <T>(token: Type<T>) => T;
   /** Native chat only; provenance does not grant approval or change permissions. */
@@ -167,6 +169,8 @@ export type CapabilityDeclaration<
   id: string;
   group: CapabilityGroup;
   entrances?: readonly CapabilityEntrance[];
+  /** MCP Apps rendering/visibility metadata, consumed only by the MCP adapter. */
+  mcpApp?: { resourceUri?: string; visibility?: Array<'app' | 'model'> };
   /** The label people read (the tool `title`), in both interface languages. */
   label: { ru: string; en: string };
   /** For the model: when to use it and what it returns. English. */

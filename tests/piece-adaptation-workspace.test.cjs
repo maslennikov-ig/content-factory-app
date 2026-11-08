@@ -407,6 +407,7 @@ const build = (options = {}) => {
       organizationId === 'org-a' ? ('draft' in options ? options.draft : draftRow()) : null,
     findMedia: async (organizationId, id) => {
       calls.media.push([organizationId, id]);
+      if (options.media) return organizationId === 'org-a' ? options.media[id] ?? null : null;
       return organizationId === 'org-a' && id === 'media-1'
         ? { id: 'media-1', path: '/uploads/a.png', alt: null, thumbnail: null }
         : null;
@@ -755,6 +756,31 @@ describe('ручная правка: только черновик, одной �
 
     await service.editAdaptation('org-a', 'piece-1', 'ad-1', { image: null }, 'ru');
     expect(calls.edits[1][4]).toEqual({ image: '[]', mediaId: null });
+  });
+
+  test('пост сохраняет alt, обложку и нулевой кадр без изменения оригинала медиа', async () => {
+    const media = {
+      video: {id: 'video', path: '/uploads/a.mp4', type: 'video', alt: 'Stored alt', thumbnail: '/uploads/old.jpg', thumbnailTimestamp: 0},
+      cover: {id: 'cover', path: '/uploads/cover.jpg', type: 'image', alt: null, thumbnail: null},
+    };
+    const {service, calls} = build({media});
+    await service.editAdaptation('org-a','piece-1','ad-1',{image:{id:'video'}},'en');
+    expect(JSON.parse(calls.edits[0][4].image)[0]).toMatchObject({alt:'Stored alt',thumbnail:'/uploads/old.jpg',thumbnailTimestamp:0});
+    await service.editAdaptation('org-a','piece-1','ad-1',{image:{id:'video',alt:'',thumbnailMediaId:'cover',thumbnailTimestamp:null}},'en');
+    expect(JSON.parse(calls.edits[1][4].image)[0]).toEqual({id:'video',path:'/uploads/a.mp4',thumbnail:'/uploads/cover.jpg'});
+    await service.editAdaptation('org-a','piece-1','ad-1',{image:{id:'video',thumbnailTimestamp:1000}},'en');
+    expect(JSON.parse(calls.edits[2][4].image)[0]).toEqual({id:'video',path:'/uploads/a.mp4',alt:'Stored alt',thumbnailTimestamp:1000});
+    expect(media.video.thumbnail).toBe('/uploads/old.jpg');
+  });
+
+  test('чужая или неподходящая обложка не записывается', async () => {
+    const media = {video:{id:'video',path:'/uploads/a.mp4',type:'video'},cover:{id:'cover',path:'/uploads/b.mp4',type:'video'}};
+    const {service,calls}=build({media});
+    for (const thumbnailMediaId of ['foreign','cover']) {
+      const error=await refusalOf(()=>service.editAdaptation('org-a','piece-1','ad-1',{image:{id:'video',thumbnailMediaId}},'en'));
+      expect(error.code).toBe('ADAPTATION_MEDIA_UNKNOWN');
+    }
+    expect(calls.edits).toEqual([]);
   });
 
   test('чужая картинка — отказ, ничего не записано', async () => {

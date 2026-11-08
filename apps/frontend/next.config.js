@@ -13,6 +13,9 @@ const nextConfig = {
   // Keep local previews usable; runtime errors still show their error overlay.
   devIndicators: false,
   transpilePackages: ['crypto-hash'],
+  // The server sanitizer's nested jsdom reads its CSS relative to its package.
+  // Keep native Node resolution so webpack does not relocate that asset into .next.
+  serverExternalPackages: ['isomorphic-dompurify'],
   // No build plugin wraps this config. The error-reporting one that used to
   // uploaded the frontend's source maps — its sources — to a third party on
   // every build, and cut a release there each time. Three settings existed

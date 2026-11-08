@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "无法获取 TikTok 账号设置。请重试或重新连接频道。",
   "validation_tiktok_interactions_changed": "TikTok 互动设置已更改。发布前请检查评论、Duet 和 Stitch。",
   "validation_tiktok_disclosure_invalid": "发布前，TikTok商业内容披露必须与所选品牌和隐私设置一致。",
-  "validation_tiktok_duration_invalid": "无法获取TikTok视频时长，或视频超过了当前账户限制。请在发布前检查视频。"
+  "validation_tiktok_duration_invalid": "无法获取TikTok视频时长，或视频超过了当前账户限制。请在发布前检查视频。",
+  "media_settings_save_failed": "无法保存媒体设置。请检查访问权限后重试。",
+  "media_settings_provider_support": "Reels 和 YouTube 支持封面图片；Reels 和 TikTok 支持选择视频帧。各平台只应用其支持的设置。",
+  "comment": "评论",
+  "youtube_thumbnail_overrides_media": "此 YouTube 专用缩略图将覆盖媒体设置中的封面图片。"
 }

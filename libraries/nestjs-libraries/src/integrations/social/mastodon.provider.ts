@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -137,14 +138,10 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     alt?: string
   ) {
+    const opened = await openMediaUploadBlobs([{path:fileUrl}]);
+    try {
     const form = new FormData();
-    form.append(
-      'file',
-      await fetch(fileUrl, {
-        // @ts-ignore - undici-only option; blocks SSRF to internal IPs
-        dispatcher: getSsrfSafeDispatcher(),
-      }).then((r) => r.blob())
-    );
+    form.append('file', opened.files[0].blob, fileUrl.split('/').pop());
     if (alt) {
       form.append('description', alt);
     }
@@ -158,6 +155,7 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
       })
     ).json();
     return media.id;
+    } finally { await opened.close(); }
   }
 
   async dynamicPost(

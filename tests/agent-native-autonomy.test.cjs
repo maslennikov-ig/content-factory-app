@@ -236,6 +236,12 @@ describe('Native Autonomy, Planning, Questions, Goals, Subagents, and Follow-Up 
     expect(toolSearch.userSearchNames).not.toContain('piece_create');
     expect(toolSearch.userSearchNames).not.toContain('piece_create_from-research');
     expect(toolSearch.userSearchNames).toContain('piece_read');
+    expect(toolSearch.mediaSearchNames).toContain('media_library');
+    for (const name of ['media_upload', 'media_upload_ticket', 'media_upload_status', 'media_inspect']) {
+      expect(toolSearch.editorSearchNames).not.toContain(name);
+      expect(toolSearch.userSearchNames).not.toContain(name);
+      expect(toolSearch.mediaSearchNames).not.toContain(name);
+    }
   });
 
   test('A19 & A20: recurring follow-up schedules default to Europe/Moscow when timezone is unset, cancel cleanly, and skip deleted threads', () => {

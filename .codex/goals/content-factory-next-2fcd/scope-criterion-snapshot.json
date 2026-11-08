@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-2fcd",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-2fcd",
+  "source_digest": "e11563d7804cc32aa29c77ce1b627eeb1d703c9bb658cd4bc89b81ea56c9c5c6",
+  "criteria": [
+    {
+      "criterion_id": "content-factory-next-2fcd",
+      "text": "Prepare Content Factory release excluding active HeyGen work\nPrepare a deployable Content Factory release from accepted main, inventory all other refs, and exclude active codex/chat-owner-feedback-20261106 and its dirty HeyGen worktree. Preserve all unrelated work, live data, pinned previews and recovery assets. Fix the existing cold PlanCard fixture preparation without relaxing assertions/timeouts; run the complete configured release verification on one frozen candidate. Prepare reviewed source/image/schema/rollback artifacts and operator commands; do not switch production, apply live schema, make paid calls, connect real accounts or publish social posts.\nAcceptance: (1) Git/PR inventory distinguishes merged, patch-equivalent, unproved historical and excluded work with exact identities. (2) The frozen candidate excludes all unique HeyGen work, passes complete release checks and has an honest exact-source suite receipt. (3) Release artifacts, required additive SQL and rollback/owner deployment commands are concrete and verified; deployment itself is excluded. (4) Safe-only cleanup and closeout preserve active/dirty/foreign work and record canonical task state and external boundaries.",
+      "text_digest": "53fd58ef6b663cce5781ff08478092ec59c1c408fa39183e12237633b0785f0c"
+    }
+  ]
+}

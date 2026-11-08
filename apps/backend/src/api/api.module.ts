@@ -52,6 +52,8 @@ import {
   McpOAuthMetadataController,
 } from '@contentfactory/backend/api/routes/mcp-oauth.controller';
 import { McpController } from '@contentfactory/backend/api/routes/mcp.controller';
+import { McpMediaControllerV1, McpMediaTicketInterceptorV1 } from './routes/mcp-media.controller';
+import { McpMediaUploadServiceV1 } from '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1';
 import { McpBearerMiddleware } from '@contentfactory/backend/services/auth/mcp.bearer.middleware';
 import { McpOAuthRepository } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.repository';
 import { McpOAuthService } from '@contentfactory/nestjs-libraries/database/prisma/oauth/mcp-oauth.service';
@@ -85,6 +87,10 @@ import { ContentTextQualityController } from '@contentfactory/backend/api/routes
 // `PieceService` приезжает из глобального `AgentModule` — там же, где стоит
 // `IntakeService`, и по той же причине (`content-factory-next-tu3k.9`).
 import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
+import { PreviewReviewControllerV1 } from './routes/preview-review.v1.controller';
+import { PreviewReviewRateGuardV1 } from './routes/preview-review.v1.guard';
+import { PreviewReviewServiceV1 } from '@contentfactory/nestjs-libraries/preview-review/v1/preview-review.service';
+import { PreviewReviewRepositoryV1 } from '@contentfactory/nestjs-libraries/preview-review/v1/preview-review.repository';
 
 const authenticatedController = [
   SocialFactoryController,
@@ -132,6 +138,7 @@ const authenticatedController = [
     StripeController,
     AuthController,
     PublicController,
+    PreviewReviewControllerV1,
     PublicGrowthEventsController,
     // AGPL-3.0 section 13 owes the Corresponding Source to anyone who reaches
     // this deployment over a network, so it belongs with the controllers the
@@ -146,9 +153,15 @@ const authenticatedController = [
     McpOAuthMetadataController,
     McpOAuthController,
     McpController,
+    McpMediaControllerV1,
     ...authenticatedController,
   ],
   providers: [
+    McpMediaUploadServiceV1,
+    McpMediaTicketInterceptorV1,
+    PreviewReviewServiceV1,
+    PreviewReviewRepositoryV1,
+    PreviewReviewRateGuardV1,
     RuntimeMonitorService,
     AuthService,
     StripeService,

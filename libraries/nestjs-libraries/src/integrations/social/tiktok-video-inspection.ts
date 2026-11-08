@@ -74,7 +74,24 @@ async function ownedReader(path: string): Promise<Reader> {
 }
 
 export async function inspectTikTokOwnedVideo(path: string): Promise<{durationSeconds: number; size: number}> {
-  const reader = await ownedReader(path); let count = 0;
+  return inspectReader(await ownedReader(path));
+}
+
+/** Descriptor-owned temporary copy: validation and upload consume identical bytes. */
+export async function inspectTikTokVideoSpool(source: {path:string;size:number}): Promise<{durationSeconds:number;size:number}> {
+  const file = await open(source.path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    if ((await file.stat()).size !== source.size) refuse();
+    return await inspectReader({size:source.size,read:async(offset,length)=>{
+      const buffer=Buffer.alloc(length);let count=0;
+      while(count<length){const result=await file.read(buffer,count,length-count,offset+count);if(!result.bytesRead)refuse();count+=result.bytesRead;}
+      return buffer;
+    },finish:async()=>{},close:()=>file.close()});
+  } catch(error) { await file.close().catch(()=>{});throw error; }
+}
+
+async function inspectReader(reader: Reader): Promise<{durationSeconds:number;size:number}> {
+  let count = 0;
   const boxes = async (start: number, end: number): Promise<Box[]> => {
     const found: Box[] = [];
     for (let position = start; position < end;) {

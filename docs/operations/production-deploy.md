@@ -30,7 +30,77 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 2 November 2026: 9c88a65a368b
+## Current release 6 November 2026: 3d6b8c326e0e
+
+Production public P `3d6b8c326e0edcdeade35a89996caa6c39f8d2a3` binds immutable
+private C4 `f44f2a6151170c4f92b4c229487827f3c879a6b2`, tree
+`87466950f352391dbf6fcde6fd427bf77c5fd9de`. This engineering release adds native
+campaigns, separate script/image-pair/one-video approval, immutable revisions,
+resumable local composition, durable Stop/recovery and explicit HeyGen API-source
+selection. It does not migrate QA accounts or choose a payer.
+
+C4 complete local Jest/Node/Python passed (15,918 / 343 / 50; suite-owned skips
+retained). Unchanged application inputs reuse the accepted C3 build; the published
+P image has its own successful four-application build. Exact P main
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/42138995720)
+and [Code Quality](https://github.com/maslennikov-ig/content-factory-app/actions/runs/42138995755)
+passed. Public ordinary and +400-day Jest each covered all 924 discovered files:
+15,916 passed tests and 274 suite-owned skips; Node 343 passed/38 skipped, Python
+50 passed. These are separate populations from the local C4 receipt.
+
+Registry index digest:
+`sha256:1acd840c693c548f563b6f3814b09cd38de37d52e6fffa94278a5678665f5073`.
+The canonical switch completed at 01:54 UTC on 6 November; app health and deployed
+P marker passed. Anonymous HTTPS `/agents` redirects to `/auth`; `/auth/login`
+and `/api/` return 200, and `/api/public/source/version` reports exact P.
+Backend, frontend and orchestrator were online with zero restarts; worker
+readiness returned `{"status":"ok"}`. Only the release lines in `.env` and
+`app.env` changed. `/api/public/source` serves HTML; read JSON release identity
+from `/api/public/source/version`. The served `/api/public/source/archive`
+was read to EOF: 16,124,342 bytes, SHA-256
+`7e3ae30b047bef90794f368b44142954e782e8d70608357a8eb396026281ad59`,
+matching the accepted P archive.
+
+Before schema apply, backup `20261106T014705Z` passed all checksums, globals
+completion and all five custom-dump table-of-contents checks; no restore was run.
+Nine guarded statements applied in one transaction: product tables 88→90,
+47 separate Mastra tables/catalog unchanged, then empty managed schema diff.
+Existing runtime privileges remain; no role, grant or credential change was used.
+Before/after readback preserves V2 owner data, pending/native state and workflows;
+all 17 foreign containers and their recorded state are unchanged.
+
+After canonical retention, the two local release tags were `3d6b8c326e0e`
+(running) and `9c88a65a368b` (rollback). The rollback image digest and
+pre-release backup were read back; an actual rollback was not performed.
+After new V2 owner work or explicit new HeyGen API-source selection,
+do not switch to that V1 image or `0bdd01349db6`. Retained tags alone do not prove
+compatibility. Recheck compatibility immediately before rollback and follow the
+ordinary release procedure.
+
+The read-only predicate inventories every `SocialFactoryRecord` video-composition
+pilot and new revision row, plus all `VideoProductionRevision` rows and ancestry.
+Top-level pilot `payload.version` remains `1`; check all five nested markers:
+`payload.executionModeV2`, `payload.revisionV2`,
+`payload.production.executionV2`, `payload.production.credentialRenewalsV2` and
+`payload.production.executionCredentialsV2`. Presence, including unexpected/null
+markers, requires review; a top-level version filter or only known base pilot ids
+is insufficient. Inspect resolved workspace settings for explicit
+`videoSpendPolicy.heygen.credentialSource`, including a `third_party` descriptor;
+do not emit keys, secrets or owner identifiers.
+
+V1 rollback requires ALL of: no new V2-bearing/revision owner work, no explicit
+new API-source selection, unchanged compatible suspended native state against the
+pre-deploy baseline, and a recorded compatibility result. Suspended state includes
+pending approvals/questions, tool-call receipts and continuation snapshots.
+Unknown/missing/unreadable inventory refuses rollback. Never delete revisions,
+clear markers, change the source/payer, auto-answer gates or erase/rewind owner work
+to make this predicate pass; keep a V2-capable image or use a reviewed forward repair.
+Paid owner trials remain controlled by the owner's in-chat request, budget and two
+actual approvals; this deployment does not run one. Account/funding qualification,
+editorial acceptance, publication/scheduling and Helixa/payment facts retain their
+separate gates.
+
+## Previous release 2 November 2026: 9c88a65a368b
 
 Native agents propose 2–3 task-specific post lengths before generation; manual
 channel defaults are a secondary explicit choice. The accepted/edited range is
@@ -5056,20 +5126,26 @@ CREATE INDEX "AiUsageRecord_createdAt_idx" ON "AiUsageRecord"("createdAt");
 
 ## Откат
 
-Старый образ остаётся на сервере, пока его не удалили. Достаточно вернуть
-прежний тег в `CF_IMAGE` и повторить `docker compose up -d cf-app`. Откат не
-обращается к реестру и не зависит от его доступности.
+Сначала повторно подтвердите совместимость сохранённых данных и приостановленных
+состояний по разделу текущего выпуска. Для social-factory V2 наличие старого тега
+не разрешает откат после новой работы V2 или выбора нового источника API-ключа.
+Неизвестное состояние не считается отсутствием новых данных; работу владельца
+нельзя удалять или откатывать ради совместимости.
 
-Цель отката ровно одна — предыдущий тег: по
-[шагу удержания](#после-переключения-удержать-на-хосте-только-нужное) на
-хосте остаются только он и работающий. Откат на две версии назад — это уже
-`pull-image-on-host.sh` из реестра, а не одна строка в `.env`.
+Только после этой проверки используйте штатный
+`scripts/release/switch-host-image.sh <совместимый-тег>` с настроенным
+`CF_DEPLOY_HOST` и обычной процедурой выпуска. Скрипт согласованно задаёт `CF_IMAGE`
+и `CONTENT_FACTORY_RELEASE`, ждёт здоровье и сверяет реально запущенный образ и
+маркер. Отдельная правка `.env` и самостоятельный `docker compose up` не заменяют
+эту процедуру. Для текущего выпуска сохранён кандидат `9c88a65a368b`; его откат
+не выполнялся и не тестировался.
 
-Имена на хосте перемешаны: то, что приехало файлом, называется
-`content-factory-next:<sha>`, а то, что пришло из реестра, —
-`ghcr.io/maslennikov-ig/content-factory-next:<sha>`. В `CF_IMAGE` подставляется
-то имя, под которым образ лежит **на хосте**, поэтому перед откатом стоит
-посмотреть список:
+Штатное [удержание](#после-переключения-удержать-на-хосте-только-нужное) оставляет
+текущий и предыдущий образ. Если совместимого образа на хосте нет, его доставка
+через `pull-image-on-host.sh` не заменяет проверку совместимости.
+Локальные имена могут быть `content-factory-next:<sha>` либо
+`ghcr.io/maslennikov-ig/content-factory-next:<sha>`. Следующий список служит
+диагностикой наличия; переключение образа и маркера выполняет штатный скрипт:
 
 ```bash
 # Два фильтра, потому что `*` в reference не переходит через `/`:

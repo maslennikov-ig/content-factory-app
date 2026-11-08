@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs, mediaUploadFetch } from './media-upload-sources';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { SocialAbstract } from '../social.abstract';
 import {
@@ -206,10 +207,10 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
     const fileIds: string[] = [];
 
     for (const item of media) {
-      const fileResponse = await fetch(item.path);
-      const fileBuffer = await fileResponse.arrayBuffer();
-      const contentType =
-        fileResponse.headers.get('content-type') || 'application/octet-stream';
+      const opened = await openMediaUploadBlobs([{path:item.path}]);
+      try {
+      const fileBuffer = opened.files[0].blob;
+      const contentType = fileBuffer.type || 'application/octet-stream';
       const fileName = item.path.split('/').pop() || 'file';
 
       const createFileResponse = await (
@@ -222,7 +223,7 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
           body: JSON.stringify({
             file_name: fileName,
             content_type: contentType,
-            content_length: fileBuffer.byteLength,
+            content_length: fileBuffer.size,
             content_disposition: '',
             ref: '',
             owner_id: userId,
@@ -231,7 +232,7 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
         }, 'create file record')
       ).json();
 
-      await fetch(createFileResponse.write_url, {
+      await mediaUploadFetch(createFileResponse.write_url, {
         method: 'PUT',
         headers: {
           'Content-Type': createFileResponse.content_type,
@@ -241,6 +242,7 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
       });
 
       fileIds.push(createFileResponse.file.id);
+      } finally { await opened.close(); }
     }
 
     return fileIds.join(',');

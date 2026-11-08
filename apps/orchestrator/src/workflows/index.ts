@@ -34,3 +34,6 @@ export * from './missing.post.workflow.v110';
 
 export * from './hgg-pilot-stage.workflow.v1';
 export * from './local-composition.workflow.v2';
+
+export * from './post-workflows/post.workflow.v1.1.0';
+export * from './missing.post.workflow.v111';

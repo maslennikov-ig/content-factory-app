@@ -1,7 +1,10 @@
+import { readMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { integrationDisplayName } from '@contentfactory/helpers/utils/integration-name';
 import {
   Body,
   Controller,
   Get,
+  Header,
   HttpException,
   Param,
   Post,
@@ -9,6 +12,7 @@ import {
   Req,
   Res,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
@@ -17,14 +21,15 @@ import { AgentGraphInsertService } from '@contentfactory/nestjs-libraries/agent/
 import { SubscriptionService } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/pricing';
-import { Readable, pipeline } from 'stream';
+import { pipeline } from 'stream';
 import { promisify } from 'util';
 import { OnlyURL } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhooks.dto';
-import { isSafePublicHttpsUrl } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhook.url.validator';
-import { ssrfSafeDispatcher } from '@contentfactory/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import {
   SignedParamsBodyDto,
 } from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
+import { PreviewReviewServiceV1 } from '@contentfactory/nestjs-libraries/preview-review/v1/preview-review.service';
+import { PreviewReviewRateGuardV1 } from './preview-review.v1.guard';
+import { Throttle } from '@nestjs/throttler';
 
 const pump = promisify(pipeline);
 
@@ -34,7 +39,8 @@ export class PublicController {
   constructor(
     private _agentGraphInsertService: AgentGraphInsertService,
     private _postsService: PostsService,
-    private _subscriptionService: SubscriptionService
+    private _subscriptionService: SubscriptionService,
+    private readonly _previewReview: PreviewReviewServiceV1
   ) {}
   @Post('/agent')
   async createAgent(
@@ -60,28 +66,32 @@ export class PublicController {
   }
 
   @Get(`/posts/:id`)
-  async getPreview(@Param('id') id: string) {
-    return (await this._postsService.getPostsRecursively(id, true)).map(
-      ({ childrenPost, ...p }) => ({
-        ...p,
-        ...(p.integration
-          ? {
-              integration: {
-                id: p.integration.id,
-                name: p.integration.name,
-                picture: p.integration.picture,
-                providerIdentifier: p.integration.providerIdentifier,
-                profile: p.integration.profile,
-              },
-            }
-          : {}),
-      })
-    );
+  @UseGuards(PreviewReviewRateGuardV1)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  async getPreview(@Param('id') id: string, @Req() req: Request) {
+    const actor = await this._previewReview.authorize(id, req);
+    if (actor.kind === 'guest') return this._previewReview.preview(actor);
+    // Keep the member API's established post shape; guests use its scoped,
+    // sanitized representation and never receive underlying storage locations.
+    return (await this._postsService.getPostsRecursively(id, true, actor.organizationId)).map(({ childrenPost, ...post }) => ({
+      ...post,
+      ...(post.integration ? { integration: {
+        id: post.integration.id, name: integrationDisplayName(post.integration), picture: post.integration.picture,
+        providerIdentifier: post.integration.providerIdentifier, profile: post.integration.profile,
+      } } : {}),
+    }));
   }
 
   @Get(`/posts/:id/comments`)
-  async getComments(@Param('id') postId: string) {
-    return { comments: await this._postsService.getComments(postId) };
+  @UseGuards(PreviewReviewRateGuardV1)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Header('Cache-Control', 'private, no-store, max-age=0')
+  async getComments(@Param('id') postId: string, @Req() req: Request) {
+    const actor = await this._previewReview.authorize(postId, req);
+    if (actor.kind === 'team') return { comments: await this._postsService.getComments(postId) };
+    const discussions = await this._previewReview.discussions(actor);
+    return { comments: discussions.legacyComments };
   }
 
   @Post('/modify-subscription')
@@ -127,69 +137,33 @@ export class PublicController {
     req.on('aborted', onClose);
     res.on('close', onClose);
 
-    // Manually follow redirects so every hop is re-validated against
-    // the SSRF blocklist (see GHSA-34w8-5j2v-h6ww). `fetch` defaults to
-    // `redirect: 'follow'`, which bypasses the DTO-level URL check.
-    const MAX_REDIRECTS = 5;
-    let currentUrl = url;
-    let r: globalThis.Response | undefined;
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      if (!(await isSafePublicHttpsUrl(currentUrl))) {
-        return res.status(400).send('Blocked URL');
-      }
-
-      r = await fetch(currentUrl, {
-        signal: ac.signal,
-        redirect: 'manual',
-        // @ts-ignore — undici option, not in lib.dom fetch types
-        dispatcher: ssrfSafeDispatcher,
-      });
-
-      if (r.status >= 300 && r.status < 400) {
-        const location = r.headers.get('location');
-        if (!location) {
-          return res.status(502).send('Redirect without Location');
-        }
-        try {
-          currentUrl = new URL(location, currentUrl).toString();
-        } catch {
-          return res.status(400).send('Invalid redirect target');
-        }
-        continue;
-      }
-
-      break;
-    }
-
-    if (!r) {
-      return res.status(502).send('No upstream response');
-    }
-
-    if (r.status >= 300 && r.status < 400) {
-      return res.status(508).send('Too many redirects');
-    }
-
-    if (!r.ok && r.status !== 206) {
-      res.status(r.status);
-      throw new Error(`Upstream error: ${r.statusText}`);
-    }
-
-    const type = r.headers.get('content-type') ?? 'application/octet-stream';
-    res.setHeader('Content-Type', type);
-
-    const contentRange = r.headers.get('content-range');
-    if (contentRange) res.setHeader('Content-Range', contentRange);
-
-    const len = r.headers.get('content-length');
-    if (len) res.setHeader('Content-Length', len);
-
-    const acceptRanges = r.headers.get('accept-ranges') ?? 'bytes';
-    res.setHeader('Accept-Ranges', acceptRanges);
-
-    if (r.status === 206) res.status(206); // Partial Content for range responses
-
+    let media: Awaited<ReturnType<typeof readMediaSource>> | undefined;
     try {
-      await pump(Readable.fromWeb(r.body as any), res);
-    } catch (err) {}
+      media = await readMediaSource(url, { signal: ac.signal, range: typeof req.headers.range === 'string' ? req.headers.range : undefined });
+      const mime = (media.contentType || 'application/octet-stream').trim().toLowerCase();
+      if (!['video/mp4', 'application/octet-stream', 'binary/octet-stream'].includes(mime)) {
+        return res.status(415).send('Unsupported video type');
+      }
+      // Never turn this public proxy into a same-origin HTML document, even
+      // when a remote server labels a malicious response as an octet stream.
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      res.setHeader('Accept-Ranges', 'bytes');
+      if (media.size !== undefined) res.setHeader('Content-Length', media.size);
+      if (media.contentRange) res.setHeader('Content-Range', media.contentRange);
+      res.status(media.status || 200);
+      if (req.method === 'HEAD') return res.end();
+      await pump(media.stream, res);
+    } catch (error) {
+      if (!res.headersSent && !ac.signal.aborted) {
+        const code = String((error as Error)?.message || '');
+        res.status(code === 'MEDIA_RANGE_INVALID' ? 416 : code === 'MEDIA_URL_UNSAFE' ? 400 : 502).send('Media is unavailable');
+      }
+    } finally {
+      media?.close();
+      req.off('aborted', onClose);
+      res.off('close', onClose);
+    }
   }
 }

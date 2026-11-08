@@ -117,6 +117,7 @@ import {
 import { VIDEO_ACCESS_CAPABILITIES_V2 } from './catalogue/video-access.capabilities.v2';
 import { VIDEO_CAPABILITIES_V1 } from './catalogue/video.capabilities';
 import { mediaGenerate, mediaKeep, mediaLibrary } from './catalogue/media.capabilities';
+import { MEDIA_UPLOAD_CAPABILITIES_V1 } from './catalogue/media-upload.capabilities.v1';
 import {
   pieceAnswer,
   pieceArchive,
@@ -139,6 +140,7 @@ import {
  * media library and generating a picture).
  */
 export const CAPABILITY_CATALOGUE: readonly CapabilityDeclaration[] = [
+  ...MEDIA_UPLOAD_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
   ...NATIVE_CLIP_PREPRODUCTION_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
   ...NATIVE_CLIP_PRODUCTION_CAPABILITIES_V1 as readonly CapabilityDeclaration[],
   ...SOCIAL_FACTORY_CAPABILITIES as readonly CapabilityDeclaration[],

@@ -1,3 +1,7 @@
+import { spoolMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { readOrFetch } from '@contentfactory/helpers/utils/read.or.fetch';
+import { createReadStream } from 'node:fs';
+import { mediaUploadFetch } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -26,7 +30,6 @@ import { isSafePublicHttpsUrl } from '@contentfactory/nestjs-libraries/dtos/webh
 import sharp from 'sharp';
 import { Plug } from '@contentfactory/helpers/decorators/plug.decorator';
 import { timer } from '@contentfactory/helpers/utils/timer';
-import axios from 'axios';
 import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
@@ -34,8 +37,7 @@ import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 async function reduceImageBySize(url: string, maxSizeKB = 976) {
   try {
     // Fetch the image from the URL
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    let imageBuffer = Buffer.from(response.data);
+    let imageBuffer = await readOrFetch(url);
 
     // Use sharp to get the metadata of the image
     const metadata = await sharp(imageBuffer).metadata();
@@ -74,38 +76,27 @@ async function uploadVideo(
     exp: Date.now() / 1000 + 60 * 30, // 30 minutes
   });
 
-  async function downloadVideo(
-    url: string
-  ): Promise<{ video: Buffer; size: number }> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch video: ${response.statusText}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const video = Buffer.from(arrayBuffer);
-    const size = video.length;
-    return { video, size };
-  }
-
-  const video = await downloadVideo(videoPath);
-
-  console.log('Downloaded video', videoPath, video.size);
-
+  const source = await spoolMediaSource(videoPath);
+  try {
   const uploadUrl = new URL(
     'https://video.bsky.app/xrpc/app.bsky.video.uploadVideo'
   );
   uploadUrl.searchParams.append('did', agent.session!.did);
   uploadUrl.searchParams.append('name', videoPath.split('/').pop()!);
 
-  const uploadResponse = await fetch(uploadUrl, {
+  const uploadStream = createReadStream(source.path);
+  let uploadResponse: Response;
+  try {
+  uploadResponse = await mediaUploadFetch(uploadUrl, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${serviceAuth.token}`,
       'Content-Type': 'video/mp4',
-      'Content-Length': video.size.toString(),
+      'Content-Length': String(source.size),
     },
-    body: video.video,
-  });
+    body: uploadStream as any, duplex:'half',
+  } as RequestInit);
+  } finally { uploadStream.destroy(); }
 
   const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
   console.log('JobId:', jobStatus.jobId);
@@ -155,6 +146,7 @@ async function uploadVideo(
     $type: 'app.bsky.embed.video',
     video: blob,
   } satisfies AppBskyEmbedVideo.Main;
+  } finally { await source.dispose(); }
 }
 
 @Rules(

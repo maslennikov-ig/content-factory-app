@@ -106,6 +106,10 @@ function harness(options = {}) {
     }
   }
   const mocks = {
+    'node:fs':{...fs,createReadStream:()=>require('node:stream').Readable.from([Buffer.from([1,2,3,4])])},
+    '@contentfactory/helpers/utils/read.or.fetch':{readOrFetch:async url=>{calls.events.push(['imageRead',url]);return Buffer.from('synthetic image');}},
+    '@contentfactory/helpers/utils/media.source':{spoolMediaSource:async url=>{calls.events.push(['videoRead',url]);if(options.videoReadError)throw options.videoReadError;return{path:'synthetic-owned-spool',size:4,dispose:async()=>{}};}},
+    './media-upload-sources':{mediaUploadFetch:async (...args)=>fetch(...args)},
     '@contentfactory/nestjs-libraries/integrations/social.abstract': { SocialAbstract: class {}, RefreshToken, BadBody },
     '@contentfactory/nestjs-libraries/services/make.is': { makeId: (length) => 's'.repeat(length) },
     '@contentfactory/helpers/auth/auth.service': { AuthService: { fixedDecryption: (input) => {

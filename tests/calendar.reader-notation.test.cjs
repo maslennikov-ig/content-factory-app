@@ -189,8 +189,8 @@ describe('the channel menu is a menu', () => {
     expect(menu).toContain('<MenuList');
     expect(menu).toContain('role="menuitem"');
     // Every row is an action on a real control, so nothing in the list is
-    // reachable by pointer only. Eleven rows, eleven menu items.
-    expect(menu.split('<MenuAction').length - 1).toBe(11);
+    // reachable by pointer only. Includes the two agreed local-name actions.
+    expect(menu.split('<MenuAction').length - 1).toBe(13);
     expect(menu).not.toMatch(
       /<div\s+className="flex gap-\[12px\] items-center py-\[8px\] px-\[10px\]"/
     );

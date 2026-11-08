@@ -13,7 +13,7 @@ import {
   newDayjs,
 } from '@contentfactory/frontend/components/layout/set.timezone';
 
-import { Select } from '@contentfactory/react/form/select';
+import { SelectChannels } from './select.channels';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
@@ -65,22 +65,25 @@ export const Filters = () => {
   const locale = language.startsWith('ru') ? 'ru' : 'en';
   const copy = calendarPlanningCopy[locale];
   const openPicker = useAdaptationPicker();
-  /*
-    The plan-ahead chip counts the channels the calendar shows: the one picked
-    in the channel filter, else every live channel of the chosen customer.
-  */
+  // Match the server's intersection when both channel query forms are present.
+  const selectedChannels = useMemo(
+    () => calendar.integrationIds?.length
+      ? [...new Set(calendar.integrationIds.filter(id => !calendar.integrationId || id === calendar.integrationId))]
+      : calendar.integrationId ? [calendar.integrationId] : undefined,
+    [calendar.integrationId, calendar.integrationIds]
+  );
+  const assistantChannelId = selectedChannels?.length === 1 ? selectedChannels[0] : undefined;
+  // An explicit empty intersection stays empty; absent filters count the project's live channels.
   const aheadChannels = useMemo(
     () =>
-      calendar.integrationId
-        ? [calendar.integrationId]
-        : calendar.integrations
+      selectedChannels ?? calendar.integrations
             .filter(
               (one) =>
                 !one.disabled &&
                 (!calendar.customer || one.customer?.id === calendar.customer)
             )
             .map((one) => one.id),
-    [calendar.integrationId, calendar.integrations, calendar.customer]
+    [selectedChannels, calendar.integrations, calendar.customer]
   );
   // The count follows the calendar: a post placed, moved or deleted reloads
   // the posts, and a changed fingerprint asks for the count again.
@@ -236,6 +239,7 @@ export const Filters = () => {
         endDate: calendar.endDate,
         display: calendar.display as 'day' | 'week' | 'month',
         customer: customer,
+        integrationIds: [],
         editorialStage: calendar.editorialStage,
       });
     },
@@ -483,29 +487,18 @@ export const Filters = () => {
         data-calendar-header-row="filters"
         className="flex min-w-0 flex-wrap items-center gap-[8px]"
       >
-        <Select
-          standalone
-          aria-label={copy.allChannels}
-          value={calendar.integrationId || ''}
-          className="w-[220px] max-w-full"
-          onChange={(event) =>
-            calendar.setFilters({
-              startDate: calendar.startDate,
-              endDate: calendar.endDate,
-              display: calendar.display as 'day' | 'week' | 'month' | 'list',
-              customer: calendar.customer,
-              editorialStage: calendar.editorialStage,
-              integrationId: event.target.value || null,
-            })
-          }
-        >
-          <option value="">{copy.allChannels}</option>
-          {calendar.integrations.map((one) => (
-            <option key={one.id} value={one.id}>
-              {one.name}
-            </option>
-          ))}
-        </Select>
+        <SelectChannels
+          integrations={calendar.integrations.filter((one) => !calendar.customer || one.customer?.id === calendar.customer)}
+          value={calendar.integrationIds?.length ? calendar.integrationIds : calendar.integrationId ? [calendar.integrationId] : []}
+          onChange={(integrationIds) => calendar.setFilters({
+            startDate: calendar.startDate,
+            endDate: calendar.endDate,
+            display: calendar.display as 'day' | 'week' | 'month' | 'list',
+            customer: calendar.customer,
+            editorialStage: calendar.editorialStage,
+            integrationIds,
+          })}
+        />
         {/*
           The list has its own status tabs in row 1; a second status control
           («Все этапы») beside them was the same question twice (2q28.25).
@@ -556,7 +549,7 @@ export const Filters = () => {
           version: 'assistant-work-context/v1', kind: 'calendar',
           from: newDayjs(calendar.startDate).startOf('day').toISOString(),
           to: newDayjs(calendar.endDate).add(1, 'day').startOf('day').toISOString(),
-          ...(calendar.integrationId ? { channelId: calendar.integrationId } : {}),
+          ...(assistantChannelId ? { channelId: assistantChannelId } : {}),
         }} />
         <PlanAheadChip
           locale={locale}

@@ -1,4 +1,8 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { readMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { readOrFetch } from '@contentfactory/helpers/utils/read.or.fetch';
+import { resolveOwnedPostMediaV1 } from './owned-post-media.v1';
+import { lookup } from 'mime-types';
 import { randomUUID } from 'node:crypto';
 import { MediaRepository } from '@contentfactory/nestjs-libraries/database/prisma/media/media.repository';
 import { OpenaiService } from '@contentfactory/nestjs-libraries/openai/openai.service';
@@ -33,6 +37,37 @@ export class MediaService {
 
   getMediaById(org: string, id: string) {
     return this._mediaRepository.getMediaById(org, id);
+  }
+
+  getMediaByPath(org: string, path: string) {
+    return this._mediaRepository.getLiveMediaByPath(org, path);
+  }
+
+  resolvePostMediaV1(org: string, references: any[]) {
+    return resolveOwnedPostMediaV1(org, references, {
+      byId: (organizationId, mediaId) => this.getMediaById(organizationId, mediaId),
+      byPath: (organizationId, path) => this.getMediaByPath(organizationId, path),
+      exists: id => this._mediaRepository.hasMediaId(id),
+    });
+  }
+
+  readPostImageV1(path: string) { return readOrFetch(path); }
+
+  /** The review service must prove current post association before selecting this source. */
+  async openPreviewMediaV1(path: string, filename: string, options: { signal?: AbortSignal; range?: string } = {}) {
+    const source = await readMediaSource(path, options);
+    return { ...source, contentType: lookup(path.split(/[?#]/, 1)[0]) || 'application/octet-stream', filename };
+  }
+
+  /** Server-selected storage source; callers must additionally prove post/media association. */
+  async openOwnedMediaV1(organizationId: string, mediaId: string, options: { signal?: AbortSignal; thumbnail?: boolean; range?: string } = {}) {
+    const row = await this._mediaRepository.getMediaById(organizationId, mediaId);
+    if (!row || row.deletedAt || row.organizationId !== organizationId) throw new NotFoundException();
+    const path = options.thumbnail ? row.thumbnail : row.path;
+    if (!path) throw new NotFoundException();
+    if (options.thumbnail && !await this._mediaRepository.getLiveMediaByPath(organizationId, path)) throw new NotFoundException();
+    const source = await readMediaSource(path, { signal: options.signal, range: options.range });
+    return { ...source, contentType: lookup(path.split('?')[0]) || 'application/octet-stream', filename: row.originalName || row.name };
   }
 
   /**
@@ -139,6 +174,10 @@ export class MediaService {
     return this._mediaRepository.saveFile(org, fileName, filePath, originalName);
   }
 
+  saveRegisteredObjectV1(org: string, fileName: string, filePath: string, originalName?: string) {
+    return this._mediaRepository.saveRegisteredObjectV1(org, fileName, filePath, originalName);
+  }
+
   saveLocalCompositionV2(org:string,name:string,path:string,originalName:string,bytes:number){
     return this._mediaRepository.saveLocalCompositionV2(org,name,path,originalName,bytes);
   }
@@ -161,7 +200,14 @@ export class MediaService {
     return this._mediaRepository.getMedia(org, page, search);
   }
 
-  saveMediaInformation(org: string, data: SaveMediaInformationDto) {
+  async saveMediaInformation(org: string, data: SaveMediaInformationDto) {
+    const current = await this._mediaRepository.getMediaById(org, data.id);
+    if (!current || current.deletedAt) throw new NotFoundException();
+    if (data.thumbnail) {
+      const thumbnail = await this._mediaRepository.getLiveMediaByPath(org, data.thumbnail);
+      if (!thumbnail || !String(lookup(thumbnail.path.split('?')[0]) || '').startsWith('image/'))
+        throw new BadRequestException('Choose a cover from this workspace media library');
+    }
     return this._mediaRepository.saveMediaInformation(org, data);
   }
 

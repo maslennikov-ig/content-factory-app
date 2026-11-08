@@ -11,6 +11,7 @@ function youtubeFixture({upload,cover,coverRead}={}){
   '@contentfactory/nestjs-libraries/chat/rules.description.decorator':{Rules:()=>target=>target},
   '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/youtube.settings.dto':{YoutubeSettingsDto:class{}},
   axios:{__esModule:true,default:fetch},
+  '@contentfactory/helpers/utils/media.source':{readMediaSource:async(url)=>({stream:(await fetch({url})).data,close:()=>{}})},
  });
  const details={id:'p1',message:'Saved description',media:[{path:'https://media.invalid/video.mp4'}],settings:{title:'Saved title',type:'public',thumbnail:{path:'https://media.invalid/cover.png'}}};
  return {provider:new YoutubeProvider(),insert,thumbnail,fetch,credentials,details};

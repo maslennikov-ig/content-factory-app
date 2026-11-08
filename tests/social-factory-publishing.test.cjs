@@ -37,9 +37,9 @@ function memoryStore() {
   };
   return repo;
 }
-async function fixture({ platform = 'telegram', format = 'post', withEditor = true, authority = 'user' } = {}) {
+async function fixture({ platform = 'telegram', format = 'post', withEditor = true, authority = 'user', publicationVersion = 109 } = {}) {
   const repo = memoryStore(), campaigns = new CampaignService(repo), autonomy = new AutonomyService(repo);
-  const f = publicationFixture();
+  const f = publicationVersion === 110 ? require('./helpers/publication-v110.module.cjs').fixture() : publicationFixture();
   f.integration.providerIdentifier = platform;
   f.provider.editor = 'none';
   const nativePost = f.client.row;
@@ -211,10 +211,10 @@ test('an already queued unrelated post cannot be adopted by a campaign', async (
   expect(await f.repo.read('a', 'publication_binding', 'p1')).toBeNull();
 });
 
-test('unavailable guard repository blocks external writes', async () => {
-  const f = await fixture(); await f.service.deliver('a', f.input);
+test.each([109, 110])('V%s unavailable production binding repository blocks external writes before claiming', async publicationVersion => {
+  const f = await fixture({publicationVersion}); await f.service.deliver('a', f.input);
   f.repo.read = async () => { throw new Error('repository unavailable'); };
-  await expect(f.activity.postSocialV109(f.integration, [f.nativePost], 'initial')).rejects.toThrow('repository unavailable');
+  await expect(f.activity[`postSocialV${publicationVersion}`](f.integration, [f.nativePost], 'initial')).rejects.toThrow('repository unavailable');
   expect(f.calls.writes).toBe(0); expect(f.nativePost.publicationJournal).toBeNull();
 });
 
@@ -301,9 +301,12 @@ async function threadFixture(options = {}) {
   f.repo.restoreNative = saved => saved.forEach((value, index) => { for (const key of Object.keys(rows[index])) delete rows[index][key]; Object.assign(rows[index], value); });
   f.activity.posts.getPostById = f.service.posts.getPostById;
   const journal = new PublicationStoreV106(client);
+  const diagnostics = loadTypeScriptModule('libraries/nestjs-libraries/src/database/prisma/posts/publication-diagnostic.v110.ts');
   Object.assign(f.activity.posts, {
     inspectPublicationV106: key => journal.inspect(key), claimPublicationV106: key => journal.claim(key),
     confirmPublicationV106: (key, receipts) => journal.confirm(key, receipts), markPublicationUncertainV106: key => journal.markUncertain(key),
+    confirmPublicationV110: (key, receipts) => diagnostics.confirmPublicationV110(client, key, receipts),
+    markPublicationUncertainV110: (key, diagnostic) => diagnostics.markPublicationUncertainV110(client, key, diagnostic),
   });
   f.provider.comment = async (_id, _parent, _last, _token, details) => { f.calls.comments++; const id = details[0].id;
     return [{ id, postId: `remote-${id}`, releaseURL: `https://threads.invalid/${id}`, status: 'success' }]; };
@@ -535,4 +538,29 @@ test('scheduled TikTok publication rechecks its scoped declaration receipt befor
  const row=await f.repo.read('a','action',consent.id);row.invalidatedAt=new Date();await f.repo.put({...row,expectedRevision:row.revision});
  await expect(f.service.beforeSend('a',f.nativePost.id)).rejects.toHaveProperty('code','AUTONOMY_PLATFORM_CONSENT_REQUIRED');
  expect(post).not.toHaveBeenCalled();
+});
+
+
+test('V110 admits an ordinary unbound native post through the same atomic campaign guard', async () => {
+  const f = await fixture({ publicationVersion: 110 });
+  f.nativePost.state = 'QUEUE';
+  await expect(f.activity.postSocialV110(f.integration, [f.nativePost], 'initial')).resolves.toEqual(f.receipts);
+  expect(f.calls.writes).toBe(1);
+  expect(f.nativePost.publicationJournal.attempts[0].status).toBe('confirmed');
+});
+
+test('V110 workflow keeps native campaign thread admission and confirmed receipts for every part', async () => {
+  const f = await threadFixture({ publicationVersion: 110 }); await f.service.deliver('a', f.input);
+  f.activity.posts.getPostsRecursively = f.service.posts.getPostsRecursively;
+  const { workflow } = require('./helpers/publication-v110.module.cjs');
+  await workflow({
+    getPost: async () => f.rows[0], getPostsListV110: (...args) => f.activity.getPostsListV110(...args),
+    postSocialV110: (...args) => f.activity.postSocialV110(...args), postCommentV110: (...args) => f.activity.postCommentV110(...args),
+    startPublicationStreakV110: async () => ({ started: true }), isCommentable: async () => true,
+    inAppNotification: async () => {}, changeState: async () => {}, sendWebhooksV108: async () => {},
+    internalPlugs: async () => [], globalPlugs: async () => [],
+  })({ taskQueue: 'threads', postId: 'p1', organizationId: 'a' });
+  expect(f.calls).toMatchObject({ writes: 1, comments: 2 });
+  expect((await f.campaigns.get('a', f.campaign.id)).items[0].state).toBe('published');
+  expect(f.rows.every(row => row.publicationJournal.attempts[0].status === 'confirmed')).toBe(true);
 });

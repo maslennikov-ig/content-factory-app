@@ -6,6 +6,7 @@ import { PieceService } from '@contentfactory/nestjs-libraries/content-intellige
 import { ADAPTATION_QUEUE_NEEDS_CONSENT } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-review.contract';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import { publicPublicationErrorV110 } from '@contentfactory/nestjs-libraries/database/prisma/posts/publication-diagnostic.v110';
 import type { AgentCardPayloads, PlanSlotState } from '../agent-parts.contract';
 import {
   defineCapability,
@@ -309,11 +310,14 @@ export const planCalendar = defineCapability({
     const rows = posts
       .map((post) => {
         const time = isoOf(post.publishDate);
+        // Historical errors may contain raw SDK text. Expose only a reconstructed static failure.
+        const safeError = publicPublicationErrorV110(post.error, post.integration?.providerIdentifier);
         return {
           postId: String(post.id ?? ''),
           at: time,
           local: time ? localTime(time, zone, ctx.language) : null,
           state: String(post.state ?? ''),
+          error: safeError,
           plan: typeof post.plan === 'string' ? post.plan : null,
           channel: { id: String(post.integration?.id ?? ''), name: String(post.integration?.name ?? '') },
           piece: post.piece?.id

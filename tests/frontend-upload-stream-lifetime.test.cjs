@@ -12,6 +12,7 @@ let directory;
 let previousDirectory;
 let streams;
 let get;
+let head;
 
 const closed = (stream) =>
   stream.closed ? Promise.resolve() : new Promise((resolve) => stream.once('close', resolve));
@@ -35,19 +36,24 @@ beforeEach(() => {
   process.env.UPLOAD_DIRECTORY = directory;
   streams = [];
   get = loadTypeScriptModule(ROUTE, {
-    fs: {
-      ...fs,
-      createReadStream(...args) {
-        const stream = fs.createReadStream(...args);
-        // Observe real files while keeping the original missing-file RED from
-        // becoming an unhandled background error before cleanup can destroy it.
-        stream.on('error', () => {});
-        streams.push(stream);
-        return stream;
+    'node:fs/promises': {
+      ...fs.promises,
+      async open(...args) {
+        const file = await fs.promises.open(...args);
+        const createReadStream = file.createReadStream.bind(file);
+        file.createReadStream = (...streamArgs) => {
+          const stream = createReadStream(...streamArgs);
+          stream.on('error', () => {});
+          streams.push(stream);
+          return stream;
+        };
+        return file;
       },
     },
     'next/server': { NextResponse: class extends Response {} },
-  }).GET;
+  });
+  head = get.HEAD;
+  get = get.GET;
 });
 
 afterEach(async () => {
@@ -61,8 +67,8 @@ afterEach(async () => {
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
-const download = (segments = ['sample.txt']) =>
-  get({}, { params: Promise.resolve({ path: segments }) });
+const download = (segments = ['sample.txt'], options = {}) =>
+  get({ method: 'GET', headers: new Headers(options.headers), signal: options.signal }, { params: Promise.resolve({ path: segments }) });
 
 test('canceling a paused real 8 MiB download closes its file stream and descriptor', async () => {
   const response = await download();
@@ -126,7 +132,7 @@ test('normal downloads preserve exact bytes, type, length, mtime and immutable h
 });
 
 test('missing-file stat failure creates no orphan ReadStream', async () => {
-  await expect(download(['missing.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+  expect((await download(['missing.txt'])).status).toBe(404);
   expect(streams.length).toBe(0);
 });
 
@@ -161,6 +167,68 @@ test('a file error before the first body read stays available to the reader', as
   streams[0].destroy(failure);
   await nextTurn();
   await expect(response.body.getReader().read()).rejects.toBe(failure);
+  expect(await closesWithin(streams[0])).toBe(true);
+  expect(streams[0].fd).toBe(null);
+});
+
+test('directory and leaf symlinks cannot read outside the configured storage root', async () => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-upload-outside-'));
+  try {
+    fs.writeFileSync(path.join(outside, 'private.txt'), 'OUTSIDE_STORAGE_FIXTURE');
+    fs.symlinkSync(outside, path.join(directory, 'link'));
+    fs.symlinkSync(path.join(outside, 'private.txt'), path.join(directory, 'leaf.txt'));
+    for (const segments of [['link', 'private.txt'], ['leaf.txt']]) {
+      const response = await download(segments);
+      expect(response.status).toBe(404);
+      expect(await response.text()).not.toContain('OUTSIDE_STORAGE_FIXTURE');
+    }
+    expect(fs.readFileSync(path.join(outside, 'private.txt'), 'utf8')).toBe('OUTSIDE_STORAGE_FIXTURE');
+    expect(streams).toHaveLength(0);
+  } finally { fs.rmSync(outside, { recursive: true, force: true }); }
+});
+
+test('upload route parameters remain local keys and cannot become a remote proxy', async () => {
+  const original = global.fetch;
+  global.fetch = jest.fn(() => { throw new Error('must not fetch from a local upload route'); });
+  try {
+    for (const segments of [['https://public.example/payload.html'], ['https%3A%2F%2Fpublic.example%2Fpayload.html']]) {
+      expect((await download(segments)).status).toBe(404);
+    }
+    expect(global.fetch).not.toHaveBeenCalled();
+    // A real nested directory named uploads is not treated as a URL prefix.
+    fs.mkdirSync(path.join(directory, 'uploads'));
+    fs.writeFileSync(path.join(directory, 'uploads', 'nested.txt'), 'literal local directory');
+    expect(await (await download(['uploads', 'nested.txt'])).text()).toBe('literal local directory');
+  } finally { global.fetch = original; }
+});
+
+test('HEAD returns the same public asset headers without reading the file body', async () => {
+  const response = await head({ method: 'HEAD', headers: new Headers() }, { params: Promise.resolve({ path: ['sample.txt'] }) });
+  expect(response.status).toBe(200);
+  expect(response.body).toBe(null);
+  expect(response.headers.get('content-length')).toBe(String(FILE_BYTES));
+  expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  expect(await closesWithin(streams[0])).toBe(true);
+  expect(streams[0].bytesRead).toBe(0);
+});
+
+test('valid local byte ranges return exact206 segments and invalid ranges return416', async () => {
+  const response = await download(['sample.txt'], { headers: { range: 'bytes=2-5' } });
+  expect(response.status).toBe(206);
+  expect(response.headers.get('content-range')).toBe(`bytes 2-5/${FILE_BYTES}`);
+  expect(response.headers.get('content-length')).toBe('4');
+  expect(response.headers.get('accept-ranges')).toBe('bytes');
+  expect(await response.text()).toBe('aaaa');
+  expect((await download(['sample.txt'], { headers: { range: 'bytes=999999999-' } })).status).toBe(416);
+});
+
+test('request cancellation closes a paused download and its source descriptor', async () => {
+  const abort = new AbortController();
+  const response = await download(['sample.txt'], { signal: abort.signal });
+  const reader = response.body.getReader();
+  await reader.read();
+  abort.abort();
+  await expect((async () => { while (!(await reader.read()).done) {} })()).rejects.toThrow();
   expect(await closesWithin(streams[0])).toBe(true);
   expect(streams[0].fd).toBe(null);
 });

@@ -29,6 +29,9 @@ export function buildBackendCorsOptions(
       // the browser ask first; unlisted, it blocks the whole chat on a
       // frontend of another origin (the stand, a split self-host; review W2 F1).
       'x-agent-timezone',
+      // Review credentials stay in headers and a scoped HttpOnly media cookie.
+      'x-preview-grant',
+      'x-preview-review',
     ],
     exposedHeaders: [
       'reload',

@@ -120,7 +120,12 @@ export const ADAPTATION_EDIT_BODY_MAX_CHARS = 100_000;
  */
 export type PieceAdaptationEditRequestV1 = {
   body?: string;
-  image?: { id: string } | null;
+  image?: {
+    id: string;
+    alt?: string;
+    thumbnailMediaId?: string | null;
+    thumbnailTimestamp?: number | null;
+  } | null;
 };
 
 /** Адаптация после правки — с пересчитанной квитанцией проверок. */

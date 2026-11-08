@@ -35,6 +35,9 @@ function loadProvider(file) {
   }).outputText;
   const loaded = { exports: {} };
   const localRequire = (request) => {
+    if (['./meta.constants', './provider-error-diagnostic', './media-upload-sources'].includes(request)) {
+      return loadTypeScriptModule(path.relative(repositoryRoot, path.resolve(providersDirectory, request + '.ts')));
+    }
     if (request === './tiktok-video-inspection') {
       return { inspectTikTokOwnedVideo: () => {
         throw new Error('Video inspection is outside the OAuth redirect fixture');

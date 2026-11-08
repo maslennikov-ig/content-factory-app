@@ -58,6 +58,7 @@
   "connect_your_mcp_client_to_schedule_your_posts_faster": "Connect Content Factory MCP server to your client (Http streaming) to schedule your posts faster!",
   "share_with_a_client": "Share with a client",
   "post": "Post",
+  "comment": "Comment",
   "comments": "Comments",
   "user": "User",
   "login_register_to_add_comments": "Login / Register to add comments",
@@ -2203,5 +2204,8 @@
   "validation_tiktok_account_unavailable": "TikTok account settings are unavailable. Try again or reconnect the channel.",
   "validation_tiktok_interactions_changed": "TikTok interaction settings changed. Review comments, Duet and Stitch before publishing.",
   "validation_tiktok_disclosure_invalid": "TikTok commercial disclosure must match the selected brands and privacy before publishing.",
-  "validation_tiktok_duration_invalid": "TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing."
+  "validation_tiktok_duration_invalid": "TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.",
+  "media_settings_provider_support": "Reels and YouTube support cover images; Reels and TikTok support video frames. Each platform applies the settings it supports.",
+  "media_settings_save_failed": "Could not save media settings. Check access and try again.",
+  "youtube_thumbnail_overrides_media": "This YouTube-specific thumbnail overrides the cover in media settings."
 }

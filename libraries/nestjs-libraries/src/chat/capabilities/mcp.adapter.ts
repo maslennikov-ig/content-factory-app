@@ -1,4 +1,5 @@
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+export { installMcpAppResultEnvelope, withMcpAppResultScope } from './mcp-app-result';
 import type { CapabilityGate } from './capability.admission';
 import {
   toolNameOf,

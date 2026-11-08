@@ -225,7 +225,7 @@ export const useOpenMediaBox = () => {
   return useCallback(
     (
       onSelect: (media: { id: string; path: string }[]) => void,
-      options?: { type?: 'image' | 'video' }
+      options?: { type?: 'image' | 'image-static' | 'video' }
     ) => {
       modals.openModal({
         title: t('media_library', 'Media Library'),
@@ -282,7 +282,7 @@ export const ReadOnlyMediaNote: FC<{ id: string }> = ({ id }) => {
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
-  type?: 'image' | 'video';
+  type?: 'image' | 'image-static' | 'video';
   closeModal: () => void;
 }> = ({ type, standalone, setMedia }) => {
   const [page, setPage] = useState(0);
@@ -355,7 +355,9 @@ export const MediaBox: FC<{
 
   const uppy = useUppyUploader({
     allowedFileTypes:
-      type == 'image'
+      type == 'image-static'
+        ? 'image/jpeg,image/png'
+        : type == 'image'
         ? 'image/*'
         : type == 'video'
         ? 'video/mp4'
@@ -744,6 +746,8 @@ export const MediaBox: FC<{
                 ?.filter((f: any) => {
                   if (type === 'video') {
                     return hasExtension(f.path, 'mp4');
+                  } else if (type === 'image-static') {
+                    return ['jpg', 'jpeg', 'png'].some(extension => hasExtension(f.path, extension));
                   } else if (type === 'image') {
                     return !hasExtension(f.path, 'mp4');
                   }
@@ -1229,7 +1233,7 @@ export const MediaComponent: FC<{
       };
     };
   }) => void;
-  type?: 'image' | 'video';
+  type?: 'image' | 'image-static' | 'video';
   width?: number;
   height?: number;
 }> = (props) => {

@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -295,15 +296,9 @@ export class WordpressProvider
 
     let mediaId = '';
     if (postDetails?.[0]?.settings?.main_image?.path) {
-      console.log(
-        'Uploading image to WordPress',
-        postDetails[0].settings.main_image.path
-      );
-
-      const blob = await this.fetch(
-        postDetails[0].settings.main_image.path
-      ).then((r) => r.blob());
-
+      const opened = await openMediaUploadBlobs([{path:postDetails[0].settings.main_image.path}]);
+      try {
+      const blob = opened.files[0].blob;
       const mediaResponse = await (
         await this.fetch(`${body.domain}/wp-json/wp/v2/media`, {
           method: 'POST',
@@ -319,6 +314,7 @@ export class WordpressProvider
       ).json();
 
       mediaId = mediaResponse.id;
+      } finally { await opened.close(); }
     }
 
     const categories = (postDetails?.[0]?.settings?.categories || [])

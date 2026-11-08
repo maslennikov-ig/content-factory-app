@@ -48,6 +48,7 @@ describe('orchestrator autopost activity registration', () => {
     class PostActivityV107 {}
     class PostActivityV108 {}
     class PostActivityV109 {}
+    class PostActivityV110 {}
     class AutopostActivity {}
     class AutopostDraftV2Activity {}
     class AutopostService {}
@@ -81,6 +82,7 @@ describe('orchestrator autopost activity registration', () => {
       './activities/hgg-pilot-stage.activity.v1': { HggPilotStageActivityV1 },
       './activities/local-composition.activity.v2': { LocalCompositionActivityV2 },
       './activities/post.activity.v109': { PostActivityV109 },
+      './activities/post.activity.v110': { PostActivityV110 },
       '@contentfactory/nestjs-libraries/content-intelligence/social-factory/social-factory.module': {
         SocialFactoryModule,
       },

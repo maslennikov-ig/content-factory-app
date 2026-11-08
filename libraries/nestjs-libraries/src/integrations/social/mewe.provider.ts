@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -204,8 +205,9 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     mediaPath: string
   ): Promise<string> {
-    const mediaResponse = await fetch(mediaPath);
-    const blob = await mediaResponse.blob();
+    const opened = await openMediaUploadBlobs([{path:mediaPath}]);
+    try {
+    const blob = opened.files[0].blob;
     const fileName = mediaPath.split('/').pop() || 'photo.jpg';
 
     const form = new FormData();
@@ -231,6 +233,7 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
 
     const uploadData = await uploadResponse.json();
     return uploadData.id;
+    } finally { await opened.close(); }
   }
 
   async post(

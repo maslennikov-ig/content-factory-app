@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "إعدادات حساب TikTok غير متاحة. حاول مرة أخرى أو أعد ربط القناة.",
   "validation_tiktok_interactions_changed": "تغيّرت إعدادات التفاعل في TikTok. راجع التعليقات وDuet وStitch قبل النشر.",
   "validation_tiktok_disclosure_invalid": "يجب أن يتوافق الإفصاح التجاري في TikTok مع العلامات التجارية وإعدادات الخصوصية المحددة قبل النشر.",
-  "validation_tiktok_duration_invalid": "مدة فيديو TikTok غير متاحة أو تتجاوز الحد الحالي للحساب. تحقق من الفيديو قبل النشر."
+  "validation_tiktok_duration_invalid": "مدة فيديو TikTok غير متاحة أو تتجاوز الحد الحالي للحساب. تحقق من الفيديو قبل النشر.",
+  "media_settings_save_failed": "تعذر حفظ إعدادات الوسائط. تحقق من صلاحيات الوصول وحاول مجددًا.",
+  "media_settings_provider_support": "تدعم Reels وYouTube صور الغلاف، وتدعم Reels وTikTok اختيار إطار من الفيديو. تطبق كل منصة الإعدادات التي تدعمها فقط.",
+  "comment": "تعليق",
+  "youtube_thumbnail_overrides_media": "تُستخدم هذه الصورة المصغّرة الخاصة بـYouTube بدلًا من الغلاف المحدد في إعدادات الوسائط."
 }

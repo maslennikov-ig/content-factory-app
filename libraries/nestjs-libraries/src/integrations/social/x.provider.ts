@@ -1,3 +1,6 @@
+import { spoolMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { open } from 'node:fs/promises';
+import { readUploadChunk } from './media-upload-chunks';
 import { normalizeAnalytics, completeAnalyticsSum } from './analytics.data';
 import type { TweetV2, TwitterApi } from 'twitter-api-v2';
 import { createHmac, randomBytes } from 'crypto';
@@ -472,6 +475,36 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     );
   }
 
+  private async uploadVideo(client: TwitterApi, path: string): Promise<string> {
+    const source = await spoolMediaSource(path);
+    try {
+      const initialized = await client.v2.post<any>('media/upload/initialize', {
+        media_type: 'video/mp4', media_category: 'tweet_video', total_bytes: source.size,
+      });
+      const mediaId = initialized?.data?.id;
+      if (!mediaId || typeof mediaId !== 'string') throw new Error('X_UPLOAD_RECEIPT_MISSING');
+      const file = await open(source.path, 'r');
+      try {
+        const chunkSize = 1024 * 1024;
+        for (let offset = 0, segment = 0; offset < source.size; offset += chunkSize, segment++) {
+          const chunk = await readUploadChunk(file, offset, Math.min(chunkSize, source.size - offset));
+          await client.v2.post(`media/upload/${mediaId}/append`, { segment_index: segment, media: chunk }, { forceBodyMode: 'form-data' });
+        }
+      } finally { await file.close(); }
+      let finalized = await client.v2.post<any>(`media/upload/${mediaId}/finalize`);
+      for (let attempt = 0; finalized?.data?.processing_info; attempt++) {
+        const processing = finalized.data.processing_info;
+        if (processing.state === 'succeeded') return mediaId;
+        if (processing.state === 'failed' || attempt >= 30 || !['pending', 'in_progress'].includes(processing.state)) {
+          throw new Error('X_UPLOAD_PROCESSING_FAILED');
+        }
+        await timer(Math.min(15, Math.max(1, Number(processing.check_after_secs) || 1)) * 1000);
+        finalized = await client.v2.get<any>('media/upload', { command: 'STATUS', media_id: mediaId });
+      }
+      return mediaId;
+    } finally { await source.dispose(); }
+  }
+
   private async uploadMedia(
     client: TwitterApi,
     postDetails: PostDetails<any>[]
@@ -483,10 +516,10 @@ export class XProvider extends SocialAbstract implements SocialProvider {
             return {
               id: await this.runInConcurrent(
                 async () =>
-                  client.v2.uploadMedia(
-                    hasExtension(m.path, 'mp4')
-                      ? Buffer.from(await readOrFetch(m.path))
-                      : await sharp(await readOrFetch(m.path), {
+                  hasExtension(m.path, 'mp4')
+                    ? this.uploadVideo(client, m.path)
+                    : client.v2.uploadMedia(
+                      await sharp(await readOrFetch(m.path), {
                           animated: lookup(m.path) === 'image/gif',
                         })
                           .resize({

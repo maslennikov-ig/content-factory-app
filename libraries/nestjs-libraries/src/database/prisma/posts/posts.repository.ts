@@ -1,3 +1,4 @@
+import { integrationIdsFilter } from '@contentfactory/nestjs-libraries/dtos/posts/integration-ids';
 import {
   PrismaRepository,
   PrismaTransaction,
@@ -53,6 +54,8 @@ import { searchWords } from '@contentfactory/nestjs-libraries/content-intelligen
 import type { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 
 import { PublicationStoreV106, PublicationKeyV106 } from './publication-store.v106';
+import { markPublicationUncertainV110, confirmPublicationV110, publicPublicationErrorV110 } from './publication-diagnostic.v110';
+import type { PublicProviderDiagnosticV110 } from '../../../integrations/social/provider-error-diagnostic';
 import type { PostResponse } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 
 dayjs.extend(isoWeek);
@@ -292,7 +295,7 @@ export class PostsRepository {
           deletedAt: null,
           organizationId: orgId,
           ...(query.customer ? { customerId: query.customer } : {}),
-          ...(query.integrationId ? { id: query.integrationId } : {}),
+          ...integrationIdsFilter(query),
         },
         ...(query.editorialStage
           ? { editorialStage: query.editorialStage }
@@ -305,6 +308,7 @@ export class PostsRepository {
         releaseURL: true,
         releaseId: true,
         state: true,
+        error: true,
         editorialStage: true,
         intervalInDays: true,
         group: true,
@@ -325,6 +329,7 @@ export class PostsRepository {
             id: true,
             providerIdentifier: true,
             name: true,
+            displayName: true,
             picture: true,
           },
         },
@@ -334,7 +339,7 @@ export class PostsRepository {
     ]);
 
     const withOrigins = list.map((post) =>
-      this.withPieceOrigin(post, origins)
+      this.withPieceOrigin({...post,error:publicPublicationErrorV110(post.error,post.integration?.providerIdentifier)}, origins)
     );
 
     return withOrigins.reduce((all, post) => {
@@ -480,7 +485,7 @@ export class PostsRepository {
               customerId: query.customer,
             }
           : {}),
-        ...(query.integrationId ? { id: query.integrationId } : {}),
+        ...integrationIdsFilter(query),
       },
     };
 
@@ -499,6 +504,7 @@ export class PostsRepository {
           releaseURL: true,
           releaseId: true,
           state: true,
+          error: true,
           editorialStage: true,
           intervalInDays: true,
           group: true,
@@ -519,6 +525,7 @@ export class PostsRepository {
               id: true,
               providerIdentifier: true,
               name: true,
+              displayName: true,
               picture: true,
             },
           },
@@ -529,7 +536,7 @@ export class PostsRepository {
     ]);
 
     return {
-      posts: posts.map((post) => this.withPieceOrigin(post, origins)),
+      posts: posts.map((post) => this.withPieceOrigin({...post,error:publicPublicationErrorV110(post.error,post.integration?.providerIdentifier)}, origins)),
       total,
       page,
       limit,
@@ -727,6 +734,14 @@ export class PostsRepository {
 
   markPublicationUncertainV106(key: PublicationKeyV106) {
     return new PublicationStoreV106(this._post.model).markUncertain(key);
+  }
+
+  markPublicationUncertainV110(key: PublicationKeyV106, diagnostic?: PublicProviderDiagnosticV110) {
+    return markPublicationUncertainV110(this._post.model, key, diagnostic);
+  }
+
+  confirmPublicationV110(key: PublicationKeyV106, receipts: PostResponse[]) {
+    return confirmPublicationV110(this._post.model, key, receipts);
   }
 
   markPublicationPreparationFailureV106(key: PublicationKeyV106) {

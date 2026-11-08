@@ -641,6 +641,30 @@ export class IntegrationRepository {
     return integration?.integration;
   }
 
+  updateDisplayName(org: string, id: string, name: string) {
+    return this._integration.model.integration.update({
+      where: { id, organizationId: org, deletedAt: null },
+      data: { displayName: name.trim() || null },
+      select: { id: true, name: true, displayName: true },
+    });
+  }
+
+  getCustomerById(orgId: string, id: string) {
+    return this._customers.model.customer.findFirst({ where: { id, orgId, deletedAt: null } });
+  }
+
+  getCustomerByName(orgId: string, name: string) {
+    return this._customers.model.customer.findFirst({ where: { orgId, name, deletedAt: null } });
+  }
+
+  updateCustomerName(orgId: string, id: string, name: string) {
+    return this._customers.model.customer.update({
+      where: { id, orgId, deletedAt: null },
+      data: { name },
+      select: { id: true, name: true },
+    });
+  }
+
   async updateOnCustomerName(org: string, id: string, name: string) {
     const customer = !name
       ? undefined
@@ -744,6 +768,7 @@ export class IntegrationRepository {
         id: true,
         internalId: true,
         name: true,
+        displayName: true,
         picture: true,
         providerIdentifier: true,
         type: true,

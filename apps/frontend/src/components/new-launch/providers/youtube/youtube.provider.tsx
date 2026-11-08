@@ -1,5 +1,6 @@
 'use client';
 
+import { useWatch } from 'react-hook-form';
 import { FC } from 'react';
 import {
   PostComment,
@@ -17,6 +18,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 const YoutubeSettings: FC = () => {
   const t = useT();
   const { register, control } = useSettings();
+  const thumbnail = useWatch({control, name: 'thumbnail'});
   const type = [
     { label: t('youtube_visibility_public', 'Public'), value: 'public' },
     { label: t('youtube_visibility_private', 'Private'), value: 'private' },
@@ -54,6 +56,7 @@ const YoutubeSettings: FC = () => {
         ))}
       </Select>
       <MediumTags label={t('label_tags', 'Tags')} {...register('tags')} />
+      {!!thumbnail?.path && <p className="cf-body-sm text-cf-muted">{t('youtube_thumbnail_overrides_media', 'This YouTube-specific thumbnail overrides the cover in media settings.')}</p>}
       <div className="mt-[20px]">
         <MediaComponent
           type="image"

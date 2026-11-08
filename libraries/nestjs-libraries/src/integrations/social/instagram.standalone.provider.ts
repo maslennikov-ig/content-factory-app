@@ -1,3 +1,4 @@
+import { META_GRAPH_API_VERSION } from './meta.constants';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -28,7 +29,7 @@ export class InstagramStandaloneProvider
   async readAccountType(integration: Integration): Promise<'business' | 'creator' | 'unknown'> {
     if (!integration.token || integration.disabled || integration.refreshNeeded || integration.deletedAt) return 'unknown';
     try {
-      const response = await fetch(`https://graph.instagram.com/v21.0/me?fields=user_id,account_type`, {headers:{Authorization:`Bearer ${integration.token}`},signal:AbortSignal.timeout(8000),redirect:'error'});
+      const response = await fetch(`https://graph.instagram.com/${META_GRAPH_API_VERSION}/me?fields=user_id,account_type`, {headers:{Authorization:`Bearer ${integration.token}`},signal:AbortSignal.timeout(8000),redirect:'error'});
       if (!response.ok) return 'unknown';
       const body = await response.json();
       if (String(body.user_id ?? body.id ?? '') !== String(integration.internalId)) return 'unknown';
@@ -97,7 +98,7 @@ export class InstagramStandaloneProvider
       profile_picture_url = '',
     } = await (
       await fetch(
-        `https://graph.instagram.com/v21.0/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
+        `https://graph.instagram.com/${META_GRAPH_API_VERSION}/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
       )
     ).json();
 
@@ -164,7 +165,7 @@ export class InstagramStandaloneProvider
 
     const { user_id, name, username, profile_picture_url } = await (
       await fetch(
-        `https://graph.instagram.com/v21.0/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
+        `https://graph.instagram.com/${META_GRAPH_API_VERSION}/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
       )
     ).json();
 

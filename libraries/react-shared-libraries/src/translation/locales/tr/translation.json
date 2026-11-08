@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "TikTok hesap ayarları kullanılamıyor. Tekrar deneyin veya kanalı yeniden bağlayın.",
   "validation_tiktok_interactions_changed": "TikTok etkileşim ayarları değişti. Yayınlamadan önce yorumları, Duet ve Stitch ayarlarını kontrol edin.",
   "validation_tiktok_disclosure_invalid": "Yayınlamadan önce TikTok ticari içerik bildirimi seçilen markalar ve gizlilik ayarlarıyla eşleşmelidir.",
-  "validation_tiktok_duration_invalid": "TikTok video süresi kullanılamıyor veya hesabın geçerli sınırını aşıyor. Yayınlamadan önce videoyu kontrol edin."
+  "validation_tiktok_duration_invalid": "TikTok video süresi kullanılamıyor veya hesabın geçerli sınırını aşıyor. Yayınlamadan önce videoyu kontrol edin.",
+  "media_settings_save_failed": "Medya ayarları kaydedilemedi. Erişim izinlerini kontrol edip tekrar deneyin.",
+  "media_settings_provider_support": "Reels ve YouTube kapak görsellerini; Reels ve TikTok video karesi seçimini destekler. Her platform yalnızca desteklediği ayarları uygular.",
+  "comment": "Yorum",
+  "youtube_thumbnail_overrides_media": "YouTube’a özel bu küçük resim, medya ayarlarındaki kapak görselinin yerine kullanılır."
 }

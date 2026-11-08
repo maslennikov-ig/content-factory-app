@@ -23,6 +23,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -457,6 +458,21 @@ export class PieceAdaptationImageDto {
   @MinLength(1)
   @MaxLength(128)
   id: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  alt?: string;
+
+  @IsOptional()
+  @IsUUID()
+  thumbnailMediaId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  thumbnailTimestamp?: number | null;
 }
 
 /**

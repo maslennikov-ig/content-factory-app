@@ -1,4 +1,5 @@
 import type { PublicationKeyV106 } from './publication-store.v106';
+import type { PublicProviderDiagnosticV110 } from '../../../integrations/social/provider-error-diagnostic';
 import type { PostResponse } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import {
   BadRequestException,
@@ -143,6 +144,14 @@ export class PostsService {
 
   markPublicationUncertainV106(key: PublicationKeyV106) {
     return this._postRepository.markPublicationUncertainV106(key);
+  }
+
+  markPublicationUncertainV110(key: PublicationKeyV106, diagnostic?: PublicProviderDiagnosticV110) {
+    return this._postRepository.markPublicationUncertainV110(key, diagnostic);
+  }
+
+  confirmPublicationV110(key: PublicationKeyV106, receipts: PostResponse[]) {
+    return this._postRepository.confirmPublicationV110(key, receipts);
   }
 
   markPublicationPreparationFailureV106(key: PublicationKeyV106) {
@@ -448,20 +457,10 @@ export class PostsService {
     convertToJPEG = false
   ) {
     try {
-      let imageUpdateNeeded = false;
+      const resolved = await this._mediaService.resolvePostMediaV1(orgId, imagesList || []);
+      let imageUpdateNeeded = resolved.changed;
       const getImageList = await Promise.all(
-        (
-          await Promise.all(
-            (imagesList || []).map(async (p: any) => {
-              if (!p.path && p.id) {
-                imageUpdateNeeded = true;
-                return this._mediaService.getMediaById(orgId, p.id);
-              }
-
-              return p;
-            })
-          )
-        )
+        resolved.items
           .map((m) => {
             return {
               ...m,
@@ -486,11 +485,7 @@ export class PostsService {
 
             if (hasExtension(m.path, 'png')) {
               imageUpdateNeeded = true;
-              const response = await axios.get(m.url, {
-                responseType: 'arraybuffer',
-              });
-
-              const imageBuffer = Buffer.from(response.data);
+              const imageBuffer = await this._mediaService.readPostImageV1(m.path);
 
               // Use sharp to get the metadata of the image
               const buffer = await sharp(imageBuffer)
@@ -541,7 +536,7 @@ export class PostsService {
 
       return getImageList;
     } catch (err: any) {
-      return imagesList;
+      throw new BadRequestException('Media is unavailable or does not belong to this workspace');
     }
   }
 
@@ -868,7 +863,7 @@ export class PostsService {
     try {
       await this._temporalService.client
         .getRawClient()
-        ?.workflow.start(await this._postRepository.isSocialFactoryPublication(orgId, postId) ? 'postWorkflowV109' : 'postWorkflowV108', {
+        ?.workflow.start('postWorkflowV110', {
           workflowId: `post_${postId}`,
           taskQueue: 'main',
           workflowIdConflictPolicy: 'TERMINATE_EXISTING',

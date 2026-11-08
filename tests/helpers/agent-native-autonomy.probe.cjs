@@ -791,7 +791,7 @@ const probeToolSearchProcessor = async () => {
   const processor = conductor.createConductorToolSearchProcessor({
     services,
     gate: allowAll,
-    topK: 5,
+    topK: 1000,
     minScore: 0,
   });
 
@@ -827,12 +827,17 @@ const probeToolSearchProcessor = async () => {
     { query: 'create piece draft' },
     { requestContext: userCtx }
   );
+  const mediaSearchResult = await editorPrepared.tools.search_tools.execute(
+    { query: 'media library upload ticket status' },
+    { requestContext: editorCtx }
+  );
 
   return {
     editorHasSearchTools: Boolean(editorPrepared.tools?.search_tools),
     editorHasLoadTool: Boolean(editorPrepared.tools?.load_tool),
     editorSearchNames: (editorSearchResult?.results ?? []).map((r) => r.name),
     userSearchNames: (userSearchResult?.results ?? []).map((r) => r.name),
+    mediaSearchNames: (mediaSearchResult?.results ?? []).map((r) => r.name),
   };
 };
 

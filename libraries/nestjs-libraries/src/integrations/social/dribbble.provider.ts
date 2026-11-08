@@ -1,3 +1,4 @@
+import { mediaUploadFetch, openMediaUploadBlobs } from './media-upload-sources';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -6,14 +7,11 @@ import {
   SocialProvider,
 } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
-import axios from 'axios';
-import FormData from 'form-data';
 import {
   SocialAbstract,
   ValidityMedia,
 } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
 import { DribbbleDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
-import mime from 'mime-types';
 import { DiscordDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/discord.dto';
 import { Tool } from '@contentfactory/nestjs-libraries/integrations/tool.decorator';
 
@@ -139,36 +137,20 @@ export class DribbbleProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     postDetails: PostDetails<DribbbleDto>[]
   ): Promise<PostResponse[]> {
-    const { data, status } = await axios.get(
-      postDetails?.[0]?.media?.[0]?.path!,
-      {
-        responseType: 'stream',
-      }
-    );
-
+    const opened = await openMediaUploadBlobs([{path:postDetails[0].media[0].path, maxBytes:10*1024*1024}]);
+    try {
     const slash = postDetails?.[0]?.media?.[0]?.path.split('/').at(-1);
 
     const formData = new FormData();
-    formData.append('image', data, {
-      filename: slash,
-      contentType: mime.lookup(slash!) || '',
-    });
+    formData.append('image', opened.files[0].blob, slash);
 
     formData.append('title', postDetails[0].settings.title);
     formData.append('description', postDetails[0].message);
 
-    const data2 = await axios.post(
-      'https://api.dribbble.com/v2/shots',
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    const location = data2.headers['location'];
+    const uploaded = await mediaUploadFetch('https://api.dribbble.com/v2/shots', {method:'POST',headers:{Authorization:`Bearer ${accessToken}`},body:formData});
+    const location = uploaded.headers.get('location');
+    await uploaded.body?.cancel();
+    if (!location) throw new Error('DRIBBBLE_UPLOAD_RECEIPT_MISSING');
     const newId = location.split('/').at(-1);
 
     return [
@@ -179,6 +161,7 @@ export class DribbbleProvider extends SocialAbstract implements SocialProvider {
         releaseURL: `https://dribbble.com/shots/${newId}`,
       },
     ];
+    } finally { await opened.close(); }
   }
 
   analytics(

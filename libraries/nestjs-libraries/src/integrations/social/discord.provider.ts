@@ -1,3 +1,4 @@
+import { openMediaUploadBlobs } from './media-upload-sources';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -172,13 +173,14 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
       })
     );
 
+    const opened = await openMediaUploadBlobs((firstPost.media || []).map(media => ({path:media.path})));
+    try {
     let index = 0;
     for (const media of firstPost.media || []) {
-      const loadMedia = await fetch(media.path);
 
       form.append(
         `files[${index}]`,
-        await loadMedia.blob(),
+        opened.files[index].blob,
         media.path.split('/').pop()
       );
       index++;
@@ -202,6 +204,7 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
         status: 'success',
       },
     ];
+    } finally { await opened.close(); }
   }
 
   async comment(
@@ -253,13 +256,14 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
       })
     );
 
+    const opened = await openMediaUploadBlobs((commentPost.media || []).map(media => ({path:media.path})));
+    try {
     let index = 0;
     for (const media of commentPost.media || []) {
-      const loadMedia = await fetch(media.path);
 
       form.append(
         `files[${index}]`,
-        await loadMedia.blob(),
+        opened.files[index].blob,
         media.path.split('/').pop()
       );
       index++;
@@ -286,6 +290,7 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
         status: 'success',
       },
     ];
+    } finally { await opened.close(); }
   }
 
   async changeNickname(id: string, accessToken: string, name: string) {

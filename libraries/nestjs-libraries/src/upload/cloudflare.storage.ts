@@ -1,3 +1,5 @@
+import { openDiskUploadV1, type DiskUploadFileV1, type DiskUploadResultV1 } from './disk.upload.v1';
+import { randomUUID } from 'node:crypto';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import 'multer';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
@@ -9,6 +11,8 @@ import axios from 'axios';
 import { isSafePublicHttpsUrl } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 import { ssrfSafeDispatcher } from '@contentfactory/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { parseDataUrl } from '@contentfactory/nestjs-libraries/upload/data.url';
+import { readMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { MAX_IMAGE_UPLOAD_SIZE } from './upload.limits';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { fromBuffer } = require('file-type');
 
@@ -84,14 +88,9 @@ class CloudflareStorage implements IUploadProvider {
     if (dataUrl) {
       body = dataUrl.buffer;
     } else {
-      if (!(await isSafePublicHttpsUrl(path))) {
-        throw new Error('Unsafe URL');
-      }
-      const loadImage = await fetch(path, {
-        // @ts-ignore — undici option, not in lib.dom fetch types
-        dispatcher: ssrfSafeDispatcher,
-      });
-      body = Buffer.from(await loadImage.arrayBuffer());
+      const media = await readMediaSource(path, { maxBytes: MAX_IMAGE_UPLOAD_SIZE });
+      try { const chunks: Buffer[] = []; for await (const chunk of media.stream) chunks.push(Buffer.from(chunk)); body = Buffer.concat(chunks); }
+      finally { media.close(); }
     }
     const detected = await fromBuffer(body);
     if (!detected || !ALLOWED_MIME_TYPES.has(detected.mime)) {
@@ -152,6 +151,19 @@ class CloudflareStorage implements IUploadProvider {
       console.error('Error uploading file to Cloudflare R2:', err);
       throw err;
     }
+  }
+
+  async uploadFileFromDiskV1(input: DiskUploadFileV1): Promise<DiskUploadResultV1> {
+    const source = await openDiskUploadV1(input);
+    try {
+      const filename = `${randomUUID().replace(/-/g,'')}.${source.extension}`;
+      await this._client.send(new PutObjectCommand({
+        Bucket:this._bucketName, ACL:'public-read', Key:filename,
+        Body:source.stream, ContentLength:source.size, ContentType:source.mimetype,
+      }));
+      await source.assertUnchanged();
+      return {filename,originalname:filename,path:`${this._uploadUrl}/${filename}`,mimetype:source.mimetype};
+    } finally { await source.close(); }
   }
 
   async removeFile(filePath: string): Promise<void> {

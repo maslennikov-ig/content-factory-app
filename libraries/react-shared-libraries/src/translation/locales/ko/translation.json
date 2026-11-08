@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "TikTok 계정 설정을 사용할 수 없습니다. 다시 시도하거나 채널을 다시 연결하세요.",
   "validation_tiktok_interactions_changed": "TikTok 상호작용 설정이 변경되었습니다. 게시하기 전에 댓글, Duet, Stitch를 확인하세요.",
   "validation_tiktok_disclosure_invalid": "게시 전에 TikTok 상업적 콘텐츠 공개가 선택한 브랜드 및 개인정보 설정과 일치해야 합니다.",
-  "validation_tiktok_duration_invalid": "TikTok 동영상 길이를 확인할 수 없거나 계정의 현재 한도를 초과합니다. 게시 전에 동영상을 확인하세요."
+  "validation_tiktok_duration_invalid": "TikTok 동영상 길이를 확인할 수 없거나 계정의 현재 한도를 초과합니다. 게시 전에 동영상을 확인하세요.",
+  "media_settings_save_failed": "미디어 설정을 저장하지 못했습니다. 접근 권한을 확인하고 다시 시도하세요.",
+  "media_settings_provider_support": "Reels와 YouTube는 표지 이미지를, Reels와 TikTok은 동영상 프레임 지정을 지원합니다. 각 플랫폼에서 지원하는 설정만 적용됩니다.",
+  "comment": "댓글",
+  "youtube_thumbnail_overrides_media": "이 YouTube 전용 썸네일은 미디어 설정의 표지 이미지보다 우선합니다."
 }

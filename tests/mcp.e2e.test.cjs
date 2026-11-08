@@ -163,6 +163,8 @@ describe('the tools', () => {
   test('a member demoted to USER sees only the reads on their next request', () => {
     const run = noError('demotion');
     expect(run.tools).toEqual([
+      'media_upload_status',
+      'media_inspect',
       'video_catalog',
       'video_drafts',
       'video_draft',

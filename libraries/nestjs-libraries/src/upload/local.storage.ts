@@ -1,5 +1,12 @@
+import { openDiskUploadV1, type DiskUploadFileV1, type DiskUploadResultV1 } from './disk.upload.v1';
+import { pipeline } from 'node:stream/promises';
+import { link, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
 import { IUploadProvider } from './upload.interface';
-import { mkdirSync, unlink, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
+import { readMediaSource, removeConfinedMediaFile } from '@contentfactory/helpers/utils/media.source';
+import { MAX_IMAGE_UPLOAD_SIZE } from './upload.limits';
 import { constants } from 'node:fs';
 import { mkdir, open } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
@@ -123,14 +130,9 @@ export class LocalStorage implements IUploadProvider {
     if (dataUrl) {
       body = dataUrl.buffer;
     } else {
-      if (!(await isSafePublicHttpsUrl(path))) {
-        throw new Error('Unsafe URL');
-      }
-      const loadImage = await fetch(path, {
-        // @ts-ignore — undici option, not in lib.dom fetch types
-        dispatcher: ssrfSafeDispatcher,
-      });
-      body = Buffer.from(await loadImage.arrayBuffer());
+      const media = await readMediaSource(path, { maxBytes: MAX_IMAGE_UPLOAD_SIZE });
+      try { const chunks: Buffer[] = []; for await (const chunk of media.stream) chunks.push(Buffer.from(chunk)); body = Buffer.concat(chunks); }
+      finally { media.close(); }
     }
 
     // Never trust the claimed mime/extension (data URL header, remote
@@ -206,16 +208,47 @@ export class LocalStorage implements IUploadProvider {
     }
   }
 
-  async removeFile(filePath: string): Promise<void> {
-    // Logic to remove the file from the filesystem goes here
-    return new Promise((resolve, reject) => {
-      unlink(filePath, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
+  async uploadFileFromDiskV1(input: DiskUploadFileV1): Promise<DiskUploadResultV1> {
+    const source = await openDiskUploadV1(input);
+    let directory: FileHandle | undefined;
+    let target: FileHandle | undefined;
+    let staging: string | undefined;
+    let published: string | undefined;
+    let completed = false;
+    try {
+      directory = await openDirectory(this.uploadDirectory);
+      const date = new Date().toISOString().slice(0,10).replace(/-/g,'/');
+      for (const part of date.split('/')) {
+        const path = `/proc/self/fd/${directory.fd}/${part}`;
+        try { await mkdir(path); } catch(error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+        const child = await open(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+        await directory.close(); directory = child;
+      }
+      const filename = `${randomUUID().replace(/-/g,'')}.${source.extension}`;
+      const destination = `/proc/self/fd/${directory.fd}/${filename}`;
+      staging = `/proc/self/fd/${directory.fd}/.${filename}.pending`;
+      target = await open(staging, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+      await pipeline(source.stream, createWriteStream(`/proc/self/fd/${target.fd}`, {flags:'r+',start:0,autoClose:true,highWaterMark:64*1024}));
+      if ((await target.stat()).size !== source.size) throw new Error('DISK_UPLOAD_SIZE_MISMATCH');
+      await source.assertUnchanged();
+      await target.chmod(0o644); await target.sync();
+      await link(staging,destination); published = destination;
+      await unlink(staging); staging = undefined;
+      completed = true;
+      return {filename,originalname:filename,path:`${process.env.FRONTEND_URL}/uploads/${date}/${filename}`,mimetype:source.mimetype};
+    } finally {
+      try {
+        if (staging) await unlink(staging).catch(()=>{});
+        if (!completed && published) await unlink(published).catch(()=>{});
+      } finally {
+        try { await target?.close(); } finally {
+          try { await directory?.close(); } finally { await source.close(); }
         }
-      });
-    });
+      }
+    }
+  }
+
+  async removeFile(filePath: string): Promise<void> {
+    await removeConfinedMediaFile(filePath, this.uploadDirectory);
   }
 }

@@ -1,3 +1,4 @@
+import { PostActivityV110 } from './activities/post.activity.v110';
 import { HggPilotStageActivityV1 } from './activities/hgg-pilot-stage.activity.v1';
 import {LocalCompositionActivityV2} from './activities/local-composition.activity.v2';
 import { VideoProductionActivityV1 } from './activities/video-production.activity.v1';
@@ -26,6 +27,7 @@ import { VideoModule } from '@contentfactory/nestjs-libraries/videos/video.modul
 import { VideoGenerationActivityV1 } from './activities/video-generation.activity.v1';
 
 const activities = [
+  PostActivityV110,
   LocalCompositionActivityV2,
   HggPilotStageActivityV1,
   VideoProductionActivityV1,

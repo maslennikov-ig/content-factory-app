@@ -64,26 +64,24 @@ const plan = (state, extra = {}) => ({
   },
 });
 
-const setup = ({ ok = true, body = {}, pieces: loaded = {} } = {}) => {
-  const calls = [];
-  const mutated = [];
-  const reads = [];
-  const cards = loadWithMocks('apps/frontend/src/components/agents/agent.plan-card.tsx', {
+const prepareFixture = () => {
+  const fixture = { ok: true, body: {}, loaded: {}, calls: [], mutated: [], reads: [] };
+  fixture.cards = loadWithMocks('apps/frontend/src/components/agents/agent.plan-card.tsx', {
     react: React,
     swr: {
       __esModule: true,
       // The piece as the page's key holds it (kcxz.34, F1); `loaded` is keyed
       // by that key and read on every render, so a test can change it.
       default: (key, _fetcher, options) => {
-        reads.push([key, options]);
-        return { data: key ? loaded[key] : undefined };
+        fixture.reads.push([key, options]);
+        return { data: key ? fixture.loaded[key] : undefined };
       },
-      useSWRConfig: () => ({ mutate: (key) => mutated.push(key) }),
+      useSWRConfig: () => ({ mutate: (key) => fixture.mutated.push(key) }),
     },
     '@contentfactory/helpers/utils/custom.fetch': {
       useFetch: () => async (url, init) => {
-        calls.push([url, init]);
-        return { ok, json: async () => body };
+        fixture.calls.push([url, init]);
+        return { ok: fixture.ok, json: async () => fixture.body };
       },
     },
     'next/link': {
@@ -91,7 +89,19 @@ const setup = ({ ok = true, body = {}, pieces: loaded = {} } = {}) => {
       default: ({ href, prefetch: _prefetch, children, ...rest }) => h('a', { href, ...rest }, children),
     },
   });
-  return { cards, calls, mutated, reads };
+  return fixture;
+};
+
+// Load a fresh module graph during preparation, before the async behavior's
+// deadline starts. Each case still owns its mocks, calls and component state.
+let preparedFixture;
+beforeEach(() => {
+  preparedFixture = prepareFixture();
+});
+
+const setup = ({ ok = true, body = {}, pieces: loaded = {} } = {}) => {
+  Object.assign(preparedFixture, { ok, body, loaded });
+  return preparedFixture;
 };
 
 const renderPlan = async (artifact, options) => {

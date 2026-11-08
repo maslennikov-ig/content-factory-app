@@ -12,8 +12,10 @@ import {
   UploadedFile,
   UseInterceptors,
   UsePipes,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { safeMediaObjectKey } from '@contentfactory/helpers/utils/media.source';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
 import {
   AuthorizationActions,
@@ -188,10 +190,20 @@ export class MediaController {
     if (!name) {
       return false;
     }
-    return this._mediaService.saveFile(
+    let key: string;
+    try { key = safeMediaObjectKey(name); } catch { throw new BadRequestException('Invalid media object name'); }
+    const bucketUrl = process.env.CLOUDFLARE_BUCKET_URL;
+    if (!bucketUrl) throw new BadRequestException('Media storage is not configured');
+    let target: URL;
+    try {
+      const base = new URL(bucketUrl.replace(/\/$/, '') + '/');
+      target = new URL(key.split('/').map(encodeURIComponent).join('/'), base);
+      if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash || target.origin !== base.origin || !target.pathname.startsWith(base.pathname)) throw new Error();
+    } catch { throw new BadRequestException('Invalid media storage configuration'); }
+    return this._mediaService.saveRegisteredObjectV1(
       org.id,
-      name,
-      process.env.CLOUDFLARE_BUCKET_URL + '/' + name,
+      key,
+      target.toString(),
       originalName || undefined
     );
   }

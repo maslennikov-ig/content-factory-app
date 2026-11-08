@@ -1,3 +1,5 @@
+const {Readable}=require('node:stream');
+const providerDiagnostic=require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/provider-error-diagnostic.ts');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const fs = require('node:fs');
@@ -15,10 +17,12 @@ class TelegramBot { _request = request; sendMessage = sendMessage; sendPhoto = s
 const filename = path.resolve(__dirname, '../libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts');
 const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021, esModuleInterop: true } }).outputText;
 const mocks = {
+    './provider-error-diagnostic':providerDiagnostic,
+    './media-upload-sources':{openMediaUploadStreams:async paths=>({sources:paths.map(()=>({stream:Readable.from(['synthetic-media'])})),close:()=>{}})},
   '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface': {},
   '@contentfactory/nestjs-libraries/services/make.is': { makeId: () => 'id' },
   '@contentfactory/nestjs-libraries/services/redact.sensitive': { redactSensitive: (x) => x },
-  '@contentfactory/nestjs-libraries/integrations/social.abstract': { SocialAbstract: class {} },
+  '@contentfactory/nestjs-libraries/integrations/social.abstract': { SocialAbstract: class {}, BadBody:class extends Error{constructor(id,json,body,message){super(message);}},RefreshToken:class extends Error{} },
   'node-telegram-bot-api': { __esModule: true, default: TelegramBot },
 };
 const loaded = { exports: {} };
@@ -66,14 +70,14 @@ test('structured text is sent once through rich messages with sanitized HTML', a
 
 test('a failed rich request is propagated without an uncertain retry', async () => {
   request.mockRejectedValueOnce(new Error('network failure'));
-  await expect(new TelegramProvider().post('channel', '-100123', [{ id: 'p', message: html, media: [] }])).rejects.toThrow('network failure');
+  await expect(new TelegramProvider().post('channel', '-100123', [{ id: 'p', message: html, media: [] }])).rejects.toThrow('результат запроса не подтверждён');
   expect(request).toHaveBeenCalledTimes(1);
   expect(sendMessage).not.toHaveBeenCalled();
 });
 
 test('media retains its caption and readable structure without a second post', async () => {
   await new TelegramProvider().post('channel', '-100123', [{ id: 'p', message: html, media: [{ path: 'https://cdn.example/a.jpg' }] }]);
-  expect(sendPhoto).toHaveBeenCalledWith('-100123', 'https://cdn.example/a.jpg', expect.objectContaining({ caption: '<b>Заголовок</b>\n\nПервый абзац\nВторая строка\n\n• <b>Один</b>\n• Два\n\n1. Первый\n2. Второй\n' }), expect.anything());
+  expect(sendPhoto).toHaveBeenCalledWith('-100123', expect.any(Readable), expect.objectContaining({ caption: '<b>Заголовок</b>\n\nПервый абзац\nВторая строка\n\n• <b>Один</b>\n• Два\n\n1. Первый\n2. Второй\n' }), expect.anything());
   expect(request).not.toHaveBeenCalled();
 });
 

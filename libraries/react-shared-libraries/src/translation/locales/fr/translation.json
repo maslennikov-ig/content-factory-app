@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "Les paramètres du compte TikTok sont indisponibles. Réessayez ou reconnectez le canal.",
   "validation_tiktok_interactions_changed": "Les paramètres d’interaction TikTok ont changé. Vérifiez les commentaires, Duet et Stitch avant de publier.",
   "validation_tiktok_disclosure_invalid": "Avant la publication, la déclaration commerciale TikTok doit correspondre aux marques et à la confidentialité sélectionnées.",
-  "validation_tiktok_duration_invalid": "La durée de la vidéo TikTok est indisponible ou dépasse la limite actuelle du compte. Vérifiez la vidéo avant de publier."
+  "validation_tiktok_duration_invalid": "La durée de la vidéo TikTok est indisponible ou dépasse la limite actuelle du compte. Vérifiez la vidéo avant de publier.",
+  "media_settings_save_failed": "Impossible d’enregistrer les paramètres du média. Vérifiez vos droits d’accès et réessayez.",
+  "media_settings_provider_support": "Reels et YouTube acceptent les images de couverture ; Reels et TikTok permettent de choisir une image extraite de la vidéo. Chaque plateforme applique les réglages qu’elle prend en charge.",
+  "comment": "Commentaire",
+  "youtube_thumbnail_overrides_media": "Cette miniature propre à YouTube remplace la couverture définie dans les paramètres du média."
 }

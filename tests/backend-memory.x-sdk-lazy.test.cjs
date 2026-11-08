@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { tmpdir } = require('node:os');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 const SOURCE =
   'libraries/nestjs-libraries/src/integrations/social/x.provider.ts';
@@ -88,6 +89,8 @@ function harness(options = {}) {
           data: { public_metrics: metrics },
         }),
         uploadMedia: operation('uploadMedia', 'synthetic-media-id'),
+        post: operation('mediaUploadPost', (url) => url === 'media/upload/initialize'
+          ? {data:{id:'synthetic-video-id'}} : {data:{}}),
       };
       this.generateAuthLink = operation('generateAuthLink', {
         url: 'https://example.test/auth',
@@ -102,6 +105,13 @@ function harness(options = {}) {
     }
   }
   const mocks = {
+    '@contentfactory/helpers/utils/media.source': {
+      spoolMediaSource: async source => {
+        calls.events.push(['spool', source]);
+        if (!options.spool) throw new Error('Synthetic video spool was not supplied');
+        return options.spool;
+      },
+    },
     '@contentfactory/nestjs-libraries/integrations/social.abstract': {
       SocialAbstract: class {
         assetBoolean(value) {
@@ -735,13 +745,23 @@ test('synthetic public cached settings/custom logger and mutations during await 
   expect(run.calls.loads).toBe(1);
 });
 
+async function withOwnedSpool(work) {
+  const directory = await fs.promises.mkdtemp(path.join(tmpdir(), 'cf-x-lazy-spool-'));
+  const file = path.join(directory, 'video');
+  const bytes = Buffer.alloc(1024 * 1024 + 7, 9);
+  await fs.promises.writeFile(file, bytes);
+  const dispose = jest.fn(async () => fs.promises.rm(directory, {recursive:true,force:true}));
+  try { return await work({path:file,size:bytes.length,dispose}, bytes); }
+  finally { await fs.promises.rm(directory, {recursive:true,force:true}); }
+}
+
 test.each([
   ['post', undefined],
   ['comment', 'synthetic-parent'],
 ])(
-  '%s still uses new client then original media/request path with synthetic transport',
-  async (method, parent) => {
-    const run = harness();
+  '%s creates the SDK client before bounded video/GIF transport and retains its receipt',
+  async (method, parent) => withOwnedSpool(async (spool, bytes) => {
+    const run = harness({spool});
     const provider = providerOf(run);
     const posts = [
       {
@@ -773,21 +793,29 @@ test.each([
     const uploads = run.calls.operations.filter(
       (o) => o.method === 'uploadMedia'
     );
-    expect(uploads).toHaveLength(2);
+    expect(run.calls.events.slice(0,2)).toEqual([['load',1],['construct',1]]);
+    expect(run.calls.events).toContainEqual(['spool','https://media.example.test/video.mp4']);
+    expect(run.calls.events).toContainEqual(['media','https://media.example.test/image.gif']);
+    expect(uploads).toHaveLength(1);
     expect(uploads.map((o) => o.args[1])).toEqual([
-      { media_type: 'video/mp4' },
       { media_type: 'image/gif' },
     ]);
     expect(uploads.map((o) => o.args[0].toString())).toEqual([
-      'synthetic-media',
       'synthetic-converted',
     ]);
+    const video = run.calls.operations.filter(o => o.method === 'mediaUploadPost');
+    expect(video.map(o => o.args[0])).toEqual(['media/upload/initialize','media/upload/synthetic-video-id/append','media/upload/synthetic-video-id/append','media/upload/synthetic-video-id/finalize']);
+    expect(video[0].args[1]).toEqual({media_type:'video/mp4',media_category:'tweet_video',total_bytes:bytes.length});
+    expect(video.slice(1,3).map(o => [o.args[1].segment_index,o.args[1].media.length,o.args[2]])).toEqual([[0,1024*1024,{forceBodyMode:'form-data'}],[1,7,{forceBodyMode:'form-data'}]]);
+    expect(Buffer.concat(video.slice(1,3).map(o => o.args[1].media)).equals(bytes)).toBe(true);
+    expect(spool.dispose).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(spool.path)).toBe(false);
     const request = run.calls.operations.find((o) => o.method === 'fetch');
     expect(request.args[0]).toBe('https://api.x.com/2/tweets');
     const body = JSON.parse(request.args[1].body);
     expect(body).toMatchObject({
       text: 'Synthetic post',
-      media: { media_ids: ['synthetic-media-id', 'synthetic-media-id'] },
+      media: { media_ids: ['synthetic-video-id', 'synthetic-media-id'] },
     });
     if (method === 'comment')
       expect(body.reply).toEqual({ in_reply_to_tweet_id: parent });
@@ -800,8 +828,21 @@ test.each([
         status: 'posted',
       },
     ]);
-  }
+  })
 );
+
+test.each(['post','comment'])('%s does not publish or finalize after a failed append and releases its spool', async method => withOwnedSpool(async spool => {
+  const failure = new Error('synthetic append failure');
+  const run = harness({spool,onOperation:async (operation,args) => {if(operation==='mediaUploadPost' && args[0].endsWith('/append'))throw failure;}});
+  const provider = providerOf(run);
+  const posts = [{...details[0],media:[{path:'https://media.example.test/video.mp4'}]}];
+  await expect(method === 'post'
+    ? provider.post('synthetic-user','synthetic-access:synthetic-secret',posts,ownedIntegration)
+    : provider.comment('synthetic-user','synthetic-post',undefined,'synthetic-access:synthetic-secret',posts,ownedIntegration)).rejects.toBe(failure);
+  expect(run.calls.loads).toBe(1);expect(run.calls.constructs).toEqual([tokenOptions]);
+  expect(run.calls.operations.map(operation => operation.args[0])).toEqual(['media/upload/initialize','media/upload/synthetic-video-id/append']);
+  expect(spool.dispose).toHaveBeenCalledTimes(1);expect(fs.existsSync(spool.path)).toBe(false);
+}));
 
 test.each(cases)(
   '%s constructor failure keeps original uncaught boundary',

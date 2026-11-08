@@ -16,10 +16,12 @@ import {
 import { TikTokDto, validTikTokDisclosure, TIKTOK_DISCLOSURE_MESSAGE, type TikTokCreatorInfo } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/tiktok.dto';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
-import { createReadStream, statSync } from 'fs';
+import { createReadStream } from 'node:fs';
+import { spoolMediaSource } from '@contentfactory/helpers/utils/media.source';
+import { mediaUploadFetch } from './media-upload-sources';
 import { Integration } from '@prisma/client';
 import { Rules } from '@contentfactory/nestjs-libraries/chat/rules.description.decorator';
-import { inspectTikTokOwnedVideo } from './tiktok-video-inspection';
+import { inspectTikTokOwnedVideo, inspectTikTokVideoSpool } from './tiktok-video-inspection';
 
 @Rules(
   [
@@ -569,6 +571,9 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
                   firstPost.settings.video_made_with_ai
                 ),
               }),
+          ...(!isPhoto && firstPost.media?.[0]?.thumbnailTimestamp != null
+            ? { video_cover_timestamp_ms: firstPost.media[0].thumbnailTimestamp }
+            : {}),
           brand_content_toggle: this.assetBoolean(
             firstPost.settings.brand_content_toggle
           ),
@@ -704,45 +709,23 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  // Resolves the total byte size of the media without loading it into memory:
-  // a HEAD request for remote URLs, statSync for local files.
   private async tiktokMediaSize(path: string): Promise<number> {
-    if (path.indexOf('http') === 0) {
-      const head = await fetch(path, { method: 'HEAD' });
-      const length = head.headers.get('content-length');
-      if (!length) {
-        throw new BadBody(
-          'tiktok-error-upload',
-          '{}',
-          Buffer.from('{}'),
-          'Could not determine the video size for TikTok upload'
-        );
-      }
-      return Number(length);
-    }
-
-    return statSync(path).size;
+    const source = await spoolMediaSource(path);
+    try { return source.size; } finally { await source.dispose(); }
   }
 
-  private inspectVideoForTikTok(path: string) { return inspectTikTokOwnedVideo(path); }
+  private inspectVideoForTikTok(path: string, source?: {path:string;size:number}) {
+    return source ? inspectTikTokVideoSpool(source) : inspectTikTokOwnedVideo(path);
+  }
 
-  // Returns a streaming body for the [start, end] byte range of the media so we
-  // never hold the whole file in memory: a ranged GET for remote URLs, a ranged
-  // read stream for local files.
-  private async tiktokChunkStream(path: string, start: number, end: number) {
-    if (path.indexOf('http') === 0) {
-      const response = await fetch(path, {
-        headers: { Range: `bytes=${start}-${end}` },
-      });
-      return response.body;
-    }
-
+  // path is a descriptor-owned spool created by post(), never the caller's path.
+  private tiktokChunkStream(path: string, start: number, end: number) {
     return createReadStream(path, { start, end });
   }
 
   // Streams the video bytes to the upload_url returned by the init call.
-  // We use the global fetch (not this.fetch) because chunked uploads answer
-  // with 206 (Partial Content), which this.fetch would treat as an error.
+  // The guarded upload helper accepts 206 (Partial Content) and never retries
+  // a write whose remote outcome is unknown.
   private async uploadTikTokVideoBytes(
     uploadUrl: string,
     path: string,
@@ -759,7 +742,9 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
 
       const body = await this.tiktokChunkStream(path, start, end);
 
-      const upload = await fetch(uploadUrl, {
+      let upload: Response;
+      try {
+      upload = await mediaUploadFetch(uploadUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': contentType,
@@ -770,6 +755,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         // Required by undici when streaming a request body.
         duplex: 'half',
       } as any);
+      } finally { body.destroy(); }
 
       if (
         upload.status !== 200 &&
@@ -785,6 +771,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
           handleError?.value || 'Failed to upload the video to TikTok'
         );
       }
+      await upload.body?.cancel();
     }
   }
 
@@ -852,17 +839,19 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     }
     const videoPath = firstPost?.media?.[0]?.path!;
 
+    const videoSource = !isPhoto ? await spoolMediaSource(videoPath) : undefined;
+    try {
     let videoSize: number | undefined;
     if (!isPhoto) {
       if (creator) {
         let inspected;
-        try {inspected = await this.inspectVideoForTikTok(videoPath);}
+        try {inspected = await this.inspectVideoForTikTok(videoPath, videoSource);}
         catch {throw new BadBody('tiktok-video-inspection-unavailable', '{}', '{}',
           'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.');}
         if (inspected.durationSeconds > creator.maxVideoDurationSeconds) throw new BadBody('tiktok-video-too-long', '{}', '{}',
           'TikTok video duration is unavailable or exceeds the current account limit. Check the video before publishing.');
         videoSize = inspected.size;
-      } else videoSize = await this.tiktokMediaSize(videoPath);
+      } else videoSize = videoSource!.size;
     }
 
     const {
@@ -891,7 +880,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     if (!isPhoto && upload_url && videoSize) {
       await this.uploadTikTokVideoBytes(
         upload_url,
-        videoPath,
+        videoSource!.path,
         videoSize,
         'video/mp4'
       );
@@ -911,6 +900,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         status: 'success',
       },
     ];
+    } finally { await videoSource?.dispose(); }
   }
 
   async analytics(

@@ -1,4 +1,5 @@
 import type { Type } from '@nestjs/common';
+import { setMcpAppPrivateResult } from './mcp-app-result';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import { createTool, validateToolInput } from '@mastra/core/tools';
 import { toStandardSchema } from '@mastra/core/schema';
@@ -545,6 +546,7 @@ export const buildCapabilityTool = (
     const runContext: CapabilityRunContext = {
       ...identity,
       entrance: options.entrance,
+      ...(options.entrance === 'mcp' ? { setMcpAppPrivateResult } : {}),
       service: options.services,
       ...(options.entrance === 'chat' ? {
         resolveAuthorRequest: authorRequestResolver(identity, context?.requestContext, options.services),
@@ -730,6 +732,7 @@ export const buildCapabilityTool = (
         }
       : {}),
     mcp: {
+      ...(options.entrance === 'mcp' && capability.mcpApp ? { _meta: { ui: capability.mcpApp } } : {}),
       annotations: {
         title: capability.label[options.language],
         ...MCP_ANNOTATIONS[capability.risk],
@@ -786,7 +789,7 @@ export const buildMastraCapabilityTools = (
   options: Omit<CapabilityToolOptions, 'entrance'>
 ): CapabilityTools =>
   Object.fromEntries(
-    capabilities.map((capability) => [
+    capabilities.filter(capability => !capability.entrances || capability.entrances.includes('chat')).map((capability) => [
       toolNameOf(capability.id),
       buildCapabilityTool(capability, { ...options, entrance: 'chat' }),
     ])
@@ -801,5 +804,6 @@ export const activeCapabilityToolNames = (
   role: OrganizationRole
 ): string[] =>
   capabilities
+    .filter(capability => !capability.entrances || capability.entrances.includes('chat'))
     .filter((capability) => roleMayUse(capability, role))
     .map((capability) => toolNameOf(capability.id));

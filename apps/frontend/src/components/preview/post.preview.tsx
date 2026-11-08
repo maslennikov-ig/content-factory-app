@@ -6,16 +6,20 @@ import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
 import Link from 'next/link';
 import { CommentsComponents } from '@contentfactory/frontend/components/preview/comments.components';
-import { VideoOrImage } from '@contentfactory/react/helpers/video.or.image';
 import { CopyClient } from '@contentfactory/frontend/components/preview/copy.client';
 import { RenderPreviewDateClient } from '@contentfactory/frontend/components/preview/render.preview.date.client';
 import { CreationMethodBadge } from '@contentfactory/frontend/components/launches/creation.method.badge';
 import { PreviewSurface } from './preview.surface';
+import { PreviewReviewProviderV1 } from './preview.review.context';
+import { PostReviewContentV1 } from './post.review.content';
+import { SecurePreviewMediaV1 } from './secure.preview.media';
 
 export type PublicPreviewPost = {
   id: string;
   publishDate: string;
   content: string;
+  reviewText?: string;
+  reviewRevision?: string;
   image?: string | null;
   creationMethod?: string | null;
   integration: {
@@ -33,16 +37,19 @@ export const PostPreview = ({
   publicationDateLabel,
   showCopy = false,
   wordmarkHref = '/',
+  reviewToken,
 }: {
   postId: string;
   posts: PublicPreviewPost[];
   publicationDateLabel: string;
   showCopy?: boolean;
   wordmarkHref?: string | null;
+  reviewToken?: string;
 }) => {
   const integration = posts[0].integration;
 
   return (
+    <PreviewReviewProviderV1 postId={postId} grantToken={reviewToken}>
     <PreviewSurface state="default">
     <div>
       <div className="mx-auto w-full max-w-[1346px] py-3 text-cf-ink">
@@ -114,24 +121,20 @@ export const PostPreview = ({
                       )}
                     </div>
                     <div className="flex flex-col gap-[20px]">
-                      <div
+                      {post.reviewText !== undefined && post.reviewRevision ? <PostReviewContentV1 postId={post.id} text={post.reviewText} revision={post.reviewRevision} /> : <div
                         className="text-sm whitespace-pre-wrap"
                         dangerouslySetInnerHTML={{
                           __html: sanitizePostContent(post.content),
                         }}
-                      />
+                      />}
                       <div className="flex w-full gap-[10px]">
                         {JSON.parse(post.image || '[]').map(
-                          (media: { name: string; path: string }) => (
+                          (media: { name: string; path: string; type?: string; alt?: string; thumbnail?: string }) => (
                             <div
                               key={media.name}
                               className="flex-1 rounded-[10px] max-h-[500px] overflow-hidden"
                             >
-                              <VideoOrImage
-                                isContain={true}
-                                src={media.path}
-                                autoplay={true}
-                              />
+                              <SecurePreviewMediaV1 media={media} />
                             </div>
                           )
                         )}
@@ -151,5 +154,6 @@ export const PostPreview = ({
       </div>
     </div>
     </PreviewSurface>
+    </PreviewReviewProviderV1>
   );
 };

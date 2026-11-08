@@ -1,0 +1,38 @@
+{
+  "license": "AGPL-3.0",
+  "target": "a5affe62c74e39c1e7ac960d50d8418b807d532c",
+  "patches": [
+    {
+      "pr": 2013,
+      "url": "https://github.com/gitroomhq/postiz-app/pull/2013",
+      "head": "3e6206f7b3a7116031054a40647ebceb765bdafe",
+      "merge": "36d5fc7b3ac3f17178b1589cf7a7337523017a41",
+      "sha256": "346e2e82b879fe24bcda77056adfa6f6ba4934b2bdd4a3409c658009d19aad68",
+      "privatePatch": "/home/me/.local/share/content-factory-orchestration/postiz-remaining-20261107/upstream/pr-2013.patch"
+    },
+    {
+      "pr": 2183,
+      "url": "https://github.com/gitroomhq/postiz-app/pull/2183",
+      "head": "9cc6bf213658f234cc68a09d5706d1cc403c6a36",
+      "merge": "496c3804c419efcd27494fc4fcdde7c1d77ad773",
+      "sha256": "92b02e3eeca7ab8b2c5f7e9332dd335eab4c210960439a915fab803525bcff13",
+      "privatePatch": "/home/me/.local/share/content-factory-orchestration/postiz-remaining-20261107/upstream/pr-2183.patch"
+    },
+    {
+      "pr": 2190,
+      "url": "https://github.com/gitroomhq/postiz-app/pull/2190",
+      "head": "bb2e01760d5460601222d20748b0f673c994039d",
+      "merge": "1af2885b106a2bc0c8bac576e9b68ce1d58ca18f",
+      "sha256": "f4f3e88cc1265d459c5337f2d4ed3cbd775f76b6ed36c68db27a87c7812315e8",
+      "privatePatch": "/home/me/.local/share/content-factory-orchestration/postiz-remaining-20261107/upstream/pr-2190.patch"
+    },
+    {
+      "pr": 2205,
+      "url": "https://github.com/gitroomhq/postiz-app/pull/2205",
+      "head": "2a2c85c496ec5968ce2350fc0f28cb3b53b2d76d",
+      "merge": "86ba0f47b67391c83a5fa8958974712fbd7f0f69",
+      "sha256": "9d6536ac748a61c9fb13ce85d400375584cc68c012a4d3546eda113d8819f4a5",
+      "privatePatch": "/home/me/.local/share/content-factory-orchestration/postiz-remaining-20261107/upstream/pr-2205.patch"
+    }
+  ]
+}

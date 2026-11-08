@@ -3997,12 +3997,34 @@ export class PieceService {
           trimmed(input.image?.id)
         );
         if (!media) throw workspaceError('ADAPTATION_MEDIA_UNKNOWN', language);
+        let thumbnail = media.thumbnail;
+        if (input.image.thumbnailMediaId !== undefined) {
+          if (input.image.thumbnailMediaId === null) thumbnail = null;
+          else {
+            const cover = await this.pieces.findMedia(organizationId, trimmed(input.image.thumbnailMediaId));
+            if (!cover || cover.type !== 'image' || !/\.(?:jpe?g|png)(?:[?#]|$)/i.test(cover.path)) {
+              throw workspaceError('ADAPTATION_MEDIA_UNKNOWN', language);
+            }
+            thumbnail = cover.path;
+          }
+        } else if (typeof input.image.thumbnailTimestamp === 'number') thumbnail = null;
+        const timestamp = input.image.thumbnailTimestamp !== undefined
+          ? input.image.thumbnailTimestamp : media.thumbnailTimestamp;
+        if (timestamp !== null && timestamp !== undefined &&
+            (!Number.isInteger(timestamp) || timestamp < 0 || timestamp > 2147483647)) {
+          throw workspaceError('ADAPTATION_MEDIA_UNKNOWN', language);
+        }
+        const alt = input.image.alt !== undefined ? input.image.alt : media.alt;
+        if (alt !== null && alt !== undefined && (typeof alt !== 'string' || alt.length > 1000)) {
+          throw workspaceError('ADAPTATION_MEDIA_UNKNOWN', language);
+        }
         change.image = JSON.stringify([
           {
             id: media.id,
             path: media.path,
-            ...(media.alt ? { alt: media.alt } : {}),
-            ...(media.thumbnail ? { thumbnail: media.thumbnail } : {}),
+            ...(alt ? { alt } : {}),
+            ...(thumbnail ? { thumbnail } : {}),
+            ...(timestamp !== null && timestamp !== undefined ? { thumbnailTimestamp: timestamp } : {}),
           },
         ]);
         change.mediaId = media.id;

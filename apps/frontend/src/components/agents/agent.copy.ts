@@ -1320,6 +1320,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Картинка не получилась — в медиатеку ничего не легло.',
           next: 'Попросите ещё раз чуть позже.',
         },
+        MCP_APP_TRANSPORT_REQUIRED: {
+          what: 'В этом приложении недоступен виджет загрузки.',
+          next: 'Загрузите файл в медиатеке и выберите его по имени.',
+        },
         ADAPTATION_MEDIA_UNKNOWN: {
           what: 'Такой картинки в медиатеке пространства нет — к посту ничего не поставили.',
           next: 'Приложите картинку к сообщению или выберите из медиатеки.',
@@ -2271,6 +2275,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         MEDIA_IMAGE_FAILED: {
           what: 'The picture did not come out — nothing went into the media library.',
           next: 'Ask again a little later.',
+        },
+        MCP_APP_TRANSPORT_REQUIRED: {
+          what: 'The upload widget is unavailable in this application.',
+          next: 'Upload the file in the media library and select it by name.',
         },
         ADAPTATION_MEDIA_UNKNOWN: {
           what: 'There is no such picture in the workspace media library — nothing was put on the post.',

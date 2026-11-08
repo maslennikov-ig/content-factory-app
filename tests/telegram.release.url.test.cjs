@@ -1,3 +1,5 @@
+const {Readable}=require('node:stream');
+const providerDiagnostic=require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/provider-error-diagnostic.ts');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
@@ -40,6 +42,8 @@ class TelegramBot {
 const { TelegramProvider } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts',
   {
+    './provider-error-diagnostic':providerDiagnostic,
+    './media-upload-sources':{openMediaUploadStreams:async paths=>({sources:paths.map(()=>({stream:Readable.from(['synthetic-media'])})),close:()=>{}})},
     '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface':
       {},
     '@contentfactory/nestjs-libraries/services/make.is': { makeId: () => 'id' },
@@ -49,7 +53,7 @@ const { TelegramProvider } = loadTypeScriptModule(
       redactSensitive: (value) => value,
     },
     '@contentfactory/nestjs-libraries/integrations/social.abstract': {
-      SocialAbstract: class {},
+      SocialAbstract: class {}, BadBody:class extends Error{constructor(id,json,body,message){super(message);}},RefreshToken:class extends Error{},
     },
     'node-telegram-bot-api': { __esModule: true, default: TelegramBot },
   }
@@ -110,7 +114,7 @@ describe('Telegram text budget', () => {
 
     expect(sendPhoto).toHaveBeenCalledWith(
       '-1001234567890',
-      'https://cdn.example/photo.jpg',
+      expect.any(Readable),
       expect.objectContaining({ caption: 'Caption text' }),
       expect.anything()
     );

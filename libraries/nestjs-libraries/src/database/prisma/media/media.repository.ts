@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/media/save.media.information.dto';
 import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 
@@ -82,6 +82,18 @@ export class MediaRepository {
     });
   }
 
+  /** Legacy/transloadit object names are public, but cannot mint another workspace's library ownership. */
+  saveRegisteredObjectV1(org: string, fileName: string, filePath: string, originalName?: string) {
+    return serializableWithRetry(this._media.model, async tx => {
+      const existing = await tx.media.findMany({ where: { path: filePath } });
+      if (existing.some(row => row.organizationId !== org || row.deletedAt)) {
+        throw new ForbiddenException('This media object cannot be registered in this workspace');
+      }
+      if (existing.length) return existing[0];
+      return tx.media.create({ data: { organizationId: org, name: fileName, path: filePath, originalName: originalName || null } });
+    }, 'Media registration is busy. Please retry.');
+  }
+
   /**
    * The organisation is a filter, not decoration. A post's image list is
    * whatever the person submitting it sent, so an id in there can name another
@@ -94,6 +106,7 @@ export class MediaRepository {
       where: {
         id,
         organizationId: org,
+        deletedAt: null,
       },
     });
   }
@@ -116,6 +129,15 @@ export class MediaRepository {
     });
   }
 
+  getLiveMediaByPath(org: string, path: string) {
+    return this._media.model.media.findFirst({ where: { organizationId: org, path, deletedAt: null } });
+  }
+
+  /** Existence only, for legacy external-attachment labels; never exposes another tenant's data. */
+  async hasMediaId(id: string) {
+    return !!await this._media.model.media.findUnique({ where: { id }, select: { id: true } });
+  }
+
   deleteMedia(org: string, id: string) {
     return this._media.model.media.update({
       where: {
@@ -133,6 +155,7 @@ export class MediaRepository {
       where: {
         id: data.id,
         organizationId: org,
+        deletedAt: null,
       },
       data: {
         alt: data.alt,

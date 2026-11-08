@@ -275,6 +275,22 @@ const CI = 'libraries/nestjs-libraries/src/content-intelligence';
  */
 const ALLOWED = new Map([
   [
+    `${PRISMA}/media/media.repository.ts media.findUnique in hasMediaId`,
+    'Owner-approved media attachment boundary: tests only the existence of a supplied opaque ID, including foreign/deleted IDs, so they cannot become external attachment labels. It selects only id and returns a boolean; actual media reads still require the workspace.',
+  ],
+  [
+    `${LIBRARY}/preview-review/v1/preview-review.repository.ts media.findMany in registeredMediaIds`,
+    'Owner-approved scoped preview boundary: returns only which caller-supplied IDs are registered, so foreign/deleted library IDs cannot acquire external-label authority. It projects no foreign media content or storage metadata.',
+  ],
+  [
+    `${LIBRARY}/preview-review/v1/preview-review.repository.ts post.findFirst in postScope`,
+    'Preview authentication bootstrap selects only the organizationId of the supplied live post. PreviewReviewServiceV1.authorize must then prove active membership before any team content query; this lookup is never the public preview response.',
+  ],
+  [
+    `${LIBRARY}/preview-review/v1/preview-review.repository.ts previewReviewGrantV1.findFirst in grant`,
+    'Guest authentication bootstrap uses the random bearer hash plus exact postId, live post, expiry and revocation predicates. Composite foreign keys bind the returned organization to that post; every following content query uses that verified organization.',
+  ],
+  [
     `${PRISMA}/users/users.repository.ts videoSubscriptionOAuthAttempt.updateMany in deleteAccount`,
     'Account deletion revokes pending personal OAuth verifiers in every workspace, filtered by the deleted actorId. Limiting this to one organisation would leave another workspace holding the deleted person\'s verifier.',
   ],

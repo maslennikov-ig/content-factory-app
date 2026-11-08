@@ -1,3 +1,4 @@
+import { withIntegrationDisplayName } from './integration-name';
 // Key mappings for minifying post list/calendar responses to reduce payload size.
 // Both backend (minify) and frontend (expand) import from here.
 
@@ -71,7 +72,7 @@ function minifyPostItem(post: any) {
     {
       ...post,
       integration: post.integration
-        ? mapKeys(post.integration, INTEGRATION_KEYS)
+        ? mapKeys(withIntegrationDisplayName(post.integration), INTEGRATION_KEYS)
         : post.integration,
       tags: post.tags?.map((tagWrapper: any) =>
         mapKeys(

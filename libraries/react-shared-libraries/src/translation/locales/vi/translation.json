@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "Không thể truy cập cài đặt tài khoản TikTok. Hãy thử lại hoặc kết nối lại kênh.",
   "validation_tiktok_interactions_changed": "Cài đặt tương tác TikTok đã thay đổi. Hãy kiểm tra bình luận, Duet và Stitch trước khi đăng.",
   "validation_tiktok_disclosure_invalid": "Trước khi đăng, thông tin công bố thương mại trên TikTok phải phù hợp với thương hiệu và quyền riêng tư đã chọn.",
-  "validation_tiktok_duration_invalid": "Không xác định được thời lượng video TikTok hoặc video vượt quá giới hạn hiện tại của tài khoản. Hãy kiểm tra video trước khi đăng."
+  "validation_tiktok_duration_invalid": "Không xác định được thời lượng video TikTok hoặc video vượt quá giới hạn hiện tại của tài khoản. Hãy kiểm tra video trước khi đăng.",
+  "media_settings_save_failed": "Không thể lưu cài đặt nội dung đa phương tiện. Hãy kiểm tra quyền truy cập rồi thử lại.",
+  "media_settings_provider_support": "Reels và YouTube hỗ trợ ảnh bìa; Reels và TikTok hỗ trợ chọn khung hình video. Mỗi nền tảng chỉ áp dụng các cài đặt mà nền tảng đó hỗ trợ.",
+  "comment": "Bình luận",
+  "youtube_thumbnail_overrides_media": "Ảnh thu nhỏ dành riêng cho YouTube này thay thế ảnh bìa trong cài đặt nội dung đa phương tiện."
 }

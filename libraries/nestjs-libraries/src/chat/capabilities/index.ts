@@ -33,3 +33,4 @@ export * from './catalogue/fact.capabilities';
 export * from './catalogue/text.capabilities';
 export * from './catalogue/analytics.capabilities';
 export * from './catalogue/media.capabilities';
+export * from './catalogue/media-upload.capabilities.v1';

@@ -101,9 +101,9 @@ async function main() {
   const { CAPABILITY_CATALOGUE } = loadCapabilityModule('capability.registry.ts');
   const common = { group: 'content', label: { ru: 'Проверка кэша', en: 'Cache fixture' }, description: 'Native cache fixture.', input: z.object({}),
     untrusted: [], beforeApproval: undefined, approvalContent: undefined, describeApproval: undefined, summarize: (result) => result };
-  const read = { ...CAPABILITY_CATALOGUE.find((entry) => entry.risk === 'read'), ...common, id: 'cache.read', risk: 'read',
+  const read = { ...CAPABILITY_CATALOGUE.find((entry) => entry.risk === 'read' && (!entry.entrances || entry.entrances.includes('chat'))), ...common, id: 'cache.read', risk: 'read',
     run: async () => { deniedDomainCalls++; return { answer: 'unexpected domain read' }; } };
-  const question = { ...CAPABILITY_CATALOGUE.find((entry) => entry.risk === 'input'), ...common, id: 'cache.question', risk: 'input',
+  const question = { ...CAPABILITY_CATALOGUE.find((entry) => entry.risk === 'input' && (!entry.entrances || entry.entrances.includes('chat'))), ...common, id: 'cache.question', risk: 'input',
     suspendSchema: z.object({ question: z.string() }), resumeSchema: z.object({ answer: z.string() }), run: async (ctx) => {
       if (!ctx.resumeData?.answer) return ctx.suspend({ question: 'Exact pending cache question?' });
       return { answer: ctx.resumeData.answer };

@@ -99,6 +99,7 @@ module.exports = {
         at: '2031-03-04T07:00:00.000Z',
         local: 'вт 04.03 10:00 (UTC+3)',
         state: 'DRAFT',
+        error: null,
         plan: 'reserve',
         channel: { id: 'c1', name: 'Канал про работу' },
         piece: { id: 'p1', code: 'cnt-1', title: 'Про созвоны' },

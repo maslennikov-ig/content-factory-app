@@ -1,5 +1,8 @@
+import { transformIntegrationIds } from '@contentfactory/nestjs-libraries/dtos/posts/integration-ids';
 import {
   IsOptional,
+  IsArray,
+  ArrayMaxSize,
   IsString,
   IsNumber,
   Min,
@@ -34,6 +37,13 @@ export class GetPostsListDto {
   @IsOptional()
   @IsString()
   integrationId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @Transform(transformIntegrationIds)
+  integrationIds?: string[];
 
   @IsOptional()
   @IsIn(['all', 'scheduled', 'draft', 'published'])

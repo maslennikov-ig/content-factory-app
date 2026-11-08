@@ -66,7 +66,15 @@
     "POST /user/organizations": "The signed-in person's own account (session, profile, identities, memberships). It names no workspace content, so a workspace role does not apply.",
     "POST /user/personal": "The signed-in person's own account (session, profile, identities, memberships). It names no workspace content, so a workspace role does not apply.",
     "POST /user/switch": "Instance administrator only: the handler refuses anyone without `isSuperAdmin` before it acts. The subject is the instance, not a workspace role.",
-    "PUT /user/password": "The signed-in person's own account (session, profile, identities, memberships). It names no workspace content, so a workspace role does not apply."
+    "PUT /user/password": "The signed-in person's own account (session, profile, identities, memberships). It names no workspace content, so a workspace role does not apply.",
+    "POST /mcp-media/upload": "Purpose-bound single-use upload ticket: McpMediaUploadServiceV1 rechecks the active actor, workspace, editor permission and selected file nonce/size/name. It accepts no ordinary anonymous upload and grants no attachment or publication authority.",
+    "POST /preview-review/v1/posts/:postId/discussions": "The owner-approved guest review boundary authenticates active membership or the exact live post grant on every request; this door creates feedback only, with origin/header and content limits, never content editing or publication.",
+    "POST /preview-review/v1/posts/:postId/discussions/:threadId/replies": "The scoped review service revalidates member or live guest grant, then binds the reply to a thread in that verified post/workspace. Guests have no workspace role; reply authority comes from the limited grant.",
+    "PUT /preview-review/v1/posts/:postId/discussions/:threadId/resolution": "The scoped review service revalidates active workspace membership and rejects every guest actor before resolving/reopening the exact owned thread. Resolution carries no publication approval.",
+    "POST /preview-review/v1/posts/:postId/grants": "The scoped review service requires active team membership for the exact live post before issuing a hashed expiring grant. Guests cannot issue links; the request must pass the application origin/header check.",
+    "DELETE /preview-review/v1/posts/:postId/grants/:grantId": "The scoped review service requires active team membership and binds revocation to the verified post/workspace. Guest grants cannot revoke or manage another grant.",
+    "POST /preview-review/v1/posts/:postId/grants/:grantId/reissue": "The scoped review service requires active team membership, revokes only the matching post/workspace grant and creates a new hashed bearer in the same transaction. Guests cannot replace links.",
+    "POST /preview-review/v1/posts/:postId/session": "A valid exact-post member/grant is revalidated before a short post-scoped HttpOnly media cookie is issued. The exchange adds no commenting, editing, grant-management or publication authority beyond the original credential."
   },
   "sideEffectGets": {
     "_about": "GET doors that act rather than read (content-factory-next-zg8w, review F5 of the fifteenth walk). The changing-door scan above skips GET, so each one is named here and must carry @CheckPolicies; tests/roles-matrix.guard.test.cjs holds it.",

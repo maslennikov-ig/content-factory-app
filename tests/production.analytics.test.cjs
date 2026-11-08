@@ -38,6 +38,9 @@ const loadPostsRepository = () =>
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
     {
     './publication-store.v106': { PublicationStoreV106: class {} },
+    './publication-diagnostic.v110': require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/database/prisma/posts/publication-diagnostic.v110.ts'),
+    '@contentfactory/nestjs-libraries/dtos/posts/integration-ids': require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/dtos/posts/integration-ids.ts'),
+
       // Правило держателя слота (`97dq.57`): без вытесненных версий.
       '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan': {
         supersededDraftPostIds: async (...args) => {

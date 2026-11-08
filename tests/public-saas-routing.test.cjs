@@ -113,6 +113,12 @@ const inviteToken =
   'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6ImludjEyIiwib3JnSWQiOiJvcmcifQ.c2lnbmF0dXJlLXZhbHVl';
 
 describe('public SaaS route boundary', () => {
+  const previousFrontendUrl = process.env.FRONTEND_URL;
+  beforeEach(() => { process.env.FRONTEND_URL = 'http://localhost:4200'; });
+  afterEach(() => {
+    if (previousFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = previousFrontendUrl;
+  });
   test.each([
     'sa', 'bd', 'de', 'gb', 'es', 'fr', 'il', 'it',
     'jp', 'ge', 'kr', 'pt', 'ru', 'tr', 'vn', 'cn',

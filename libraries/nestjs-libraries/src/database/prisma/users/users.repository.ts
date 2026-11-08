@@ -53,6 +53,8 @@ function identityError(code: string, message: string, status: number) {
 const EMPTY_ORGANIZATION_RELATIONS: Prisma.OrganizationWhereInput = {
   autoPost: { none: {} },
   Comments: { none: {} },
+  previewReviewGrantsV1: { none: {} },
+  previewReviewThreadsV1: { none: {} },
   credits: { none: {} },
   customers: { none: {} },
   errors: { none: {} },

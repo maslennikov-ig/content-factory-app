@@ -460,6 +460,24 @@ export class IntegrationService {
     return this._integrationRepository.updateExtensionIntegration(snapshot, data);
   }
 
+  updateDisplayName(org: string, id: string, name: string) {
+    return this._integrationRepository.updateDisplayName(org, id, name);
+  }
+
+  async updateCustomerName(orgId: string, id: string, input: string) {
+    const name = input.trim();
+    if (!name || name.length > 100) {
+      throw new HttpException('Invalid group name', HttpStatus.BAD_REQUEST);
+    }
+    const customer = await this._integrationRepository.getCustomerById(orgId, id);
+    if (!customer) throw new HttpException('Group not found', HttpStatus.NOT_FOUND);
+    const exists = await this._integrationRepository.getCustomerByName(orgId, name);
+    if (exists && exists.id !== id) {
+      throw new HttpException('A group with this name already exists', HttpStatus.BAD_REQUEST);
+    }
+    return this._integrationRepository.updateCustomerName(orgId, id, name);
+  }
+
   updateOnCustomerName(org: string, id: string, name: string) {
     return this._integrationRepository.updateOnCustomerName(org, id, name);
   }

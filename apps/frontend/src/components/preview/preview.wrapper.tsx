@@ -13,12 +13,12 @@ import { ToolTip } from '@contentfactory/frontend/components/layout/top.tip';
  * пользователь, всплывающие подсказки и уведомления. `<CopilotKit>`, который
  * стоял здесь раньше, ушёл вместе с библиотекой (`content-factory-next-kcxz.28`).
  */
-export const PreviewWrapper = ({ children }: { children: ReactNode }) => {
+export const PreviewWrapper = ({ children, loadUser = true }: { children: ReactNode; loadUser?: boolean }) => {
   const fetch = useFetch();
   const load = useCallback(async (path: string) => {
     return await (await fetch(path)).json();
   }, []);
-  const { data: user } = useSWR('/user/self', load, {
+  const { data: user } = useSWR(loadUser ? '/user/self' : null, load, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,

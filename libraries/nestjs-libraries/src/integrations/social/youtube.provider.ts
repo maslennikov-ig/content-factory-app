@@ -1,3 +1,4 @@
+import { providerErrorDiagnostic } from './provider-error-diagnostic';
 import type { ProductionAssetV1, JsonValueV1 } from '../../content-intelligence/social-factory/contracts/social-factory.v1';
 import { normalizeAnalytics } from './analytics.data';
 import {
@@ -10,7 +11,7 @@ import {
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { youtube_v3 } from 'googleapis';
 import type { OAuth2Client } from 'google-auth-library/build/src/auth/oauth2client';
-import axios from 'axios';
+import { readMediaSource } from '@contentfactory/helpers/utils/media.source';
 import { YoutubeSettingsDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/youtube.settings.dto';
 import {
   BadBody,
@@ -95,7 +96,11 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
     return true;
   }
 
-  override handleErrors(body: string):
+  override handleErrors(body: string, status = 0) {
+    return providerErrorDiagnostic('youtube', body, status, this.legacyErrors(body));
+  }
+
+  private legacyErrors(body: string):
     | {
         type: 'refresh-token' | 'bad-body';
         value: string;
@@ -431,15 +436,15 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
     client.setCredentials({ access_token: accessToken });
     const youtubeClient = youtube(client);
 
-    const { settings }: { settings: YoutubeSettingsDto } = firstPost;
+    const settings = { ...firstPost.settings,
+      thumbnail: firstPost.settings?.thumbnail?.path ? firstPost.settings.thumbnail
+        : firstPost.media?.[0]?.thumbnail ? { path: firstPost.media[0].thumbnail } : undefined };
 
-    const response = await axios({
-      url: firstPost?.media?.[0]?.path,
-      method: 'GET',
-      responseType: 'stream',
-    });
+    const source = await readMediaSource(firstPost.media[0].path);
 
-    const all: GaxiosResponse<Schema$Video> = await this.runInConcurrent(
+    let all: GaxiosResponse<Schema$Video>;
+    try {
+      all = await this.runInConcurrent(
       async () =>
         youtubeClient.videos.insert({
           part: ['id', 'snippet', 'status'],
@@ -449,7 +454,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
               title: settings.title,
               description: firstPost?.message,
               ...(settings?.tags?.length
-                ? { tags: settings.tags.map((p) => p.label) }
+                ? { tags: settings.tags.map((p: {label: string}) => p.label) }
                 : {}),
             },
             status: {
@@ -459,11 +464,12 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
             },
           },
           media: {
-            body: response.data,
+            body: source.stream,
           },
         }),
       true
     );
+    } finally { source.close(); }
 
     const videoId = all?.data?.id;
     if (typeof videoId !== 'string' || !videoId.trim() || videoId === 'missing') {
@@ -472,20 +478,13 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
     let status = 'success';
     if (settings?.thumbnail?.path) {
       try {
-        await this.runInConcurrent(async () =>
-          youtubeClient.thumbnails.set({
-            videoId,
-            media: {
-              body: (
-                await axios({
-                  url: settings?.thumbnail?.path,
-                  method: 'GET',
-                  responseType: 'stream',
-                })
-              ).data,
-            },
-          })
-        );
+        const coverSource = await readMediaSource(settings.thumbnail.path, {maxBytes: 10 * 1024 * 1024});
+        try {
+          await this.runInConcurrent(async () => youtubeClient.thumbnails.set({
+            videoId, media: {body: coverSource.stream},
+          }));
+        } finally { coverSource.close(); }
+
       } catch {
         // The upload already has an accepted id. Record the optional failure without retrying the upload.
         status = YOUTUBE_THUMBNAIL_FAILED_STATUS;

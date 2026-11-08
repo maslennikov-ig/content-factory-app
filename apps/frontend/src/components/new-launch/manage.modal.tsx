@@ -1,4 +1,5 @@
 'use client';
+import { MediaSettingsSection, useMediaSettingsValues } from './media.settings.section';
 import { SplitButton } from '../ui/split-button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -287,6 +288,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     ? composeCopy[voiceLocale].keepScheduledAt(date.local().format('HH:mm'))
     : composeCopy[voiceLocale].addToCalendarHint;
 
+
+  const hasMediaSettings = useMediaSettingsValues().some(value => value.media?.length);
 
   const currentIntegrationText = useMemo(() => {
     if (current === 'global') {
@@ -874,7 +877,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 className={clsx(
                   'pb-[20px] px-[20px] select-none',
                   showSettings && 'flex-1 flex pt-[20px]',
-                  current === 'global' && 'hidden'
+                  current === 'global' && !hasMediaSettings && 'hidden'
                 )}
               >
                 <div className="flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-cf-surface-subtle">
@@ -902,6 +905,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     )}
                   >
                     <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto">
+                      <MediaSettingsSection disabled={!canWritePosts}/>
                       <div
                         id="social-settings"
                         className="flex flex-col gap-[20px] bg-cf-canvas"

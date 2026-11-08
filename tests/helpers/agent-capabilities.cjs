@@ -34,6 +34,7 @@ const serviceClass = (name) =>
 
 /** Service tokens by module path; the suite supplies the instances. */
 const SERVICE_MODULES = {
+  '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1': 'McpMediaUploadServiceV1',
   '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-preproduction.service.v1':'NativeClipPreproductionServiceV1',
   '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-production.service.v1':'NativeClipProductionServiceV1',
   '@contentfactory/nestjs-libraries/content-intelligence/social-factory/source-artifact.service':'SourceArtifactServiceV1',
@@ -1064,7 +1065,14 @@ const fixtures = () => ({
  * the stored name and the style.
  */
 const mediaFixtures = () => {
+  const sessionId = '11111111-0000-4000-8000-000000000002';
   const media = {
+    McpMediaUploadServiceV1: {
+      create: async () => ({sessionId,state:'waiting',manualUploadUrl:'https://frontend.example/media'}),
+      ticket: async () => ({ticket:'host-only-fixture-ticket',uploadUrl:'https://backend.example/mcp-media/upload'}),
+      status: async () => ({sessionId,state:'ready',media:{mediaId:sessionId,name:INJECTION,previewUrl:'https://backend.example/private-preview'}}),
+      metadata: async () => ({mediaId:sessionId,name:INJECTION,previewUrl:'https://backend.example/private-preview'}),
+    },
     MediaService: {
       recentMedia: async (organizationId) => {
         if (organizationId !== 'org-1') throw new Error('not found');
@@ -1096,6 +1104,10 @@ const mediaFixtures = () => {
     },
   };
   return {
+    'media.upload': { input:{}, services:media },
+    'media.upload_ticket': { input:{sessionId,file:{name:'fixture.png',size:1,nonce:'11111111-0000-4000-8000-000000000003'}}, services:media },
+    'media.upload_status': { input:{sessionId}, services:media },
+    'media.inspect': { input:{mediaId:sessionId}, services:media },
     'media.library': { input: {}, services: media },
     'media.generate': { input: { pieceId: 'p1', adaptationId: 'a1' }, services: media },
     // The browser answered the card with the library id of the picture it

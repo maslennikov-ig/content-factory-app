@@ -5,6 +5,7 @@ class BadBody extends Error {
   constructor(identifier, _json, _body, message) { super(message); this.identifier = identifier; }
 }
 const {TiktokProvider} = loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/tiktok.provider.ts', {
+  '@contentfactory/helpers/utils/media.source': {spoolMediaSource:async path=>({path,size:123,dispose:async()=>{}})},
   '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/tiktok.dto': actualDto,
   '@contentfactory/nestjs-libraries/integrations/social.abstract': {SocialAbstract: class {
     assetBoolean(value) { return value === true || value === 'true'; }
@@ -12,7 +13,7 @@ const {TiktokProvider} = loadTypeScriptModule('libraries/nestjs-libraries/src/in
   '@contentfactory/nestjs-libraries/chat/rules.description.decorator': {Rules: () => () => {}},
 }, {sources: {'@contentfactory/helpers/utils/has.extension': 'libraries/helpers/src/utils/has.extension.ts'},
   resolve: request => request.startsWith('@contentfactory/') && !request.endsWith('/social.abstract') &&
-    !request.endsWith('/rules.description.decorator') && !request.endsWith('/has.extension') && !request.endsWith('/tiktok.dto') ? {} : undefined});
+    !request.endsWith('/rules.description.decorator') && !request.endsWith('/has.extension') && !request.endsWith('/tiktok.dto') && !request.endsWith('/media.source') ? {} : undefined});
 
 function fixture(path, settings) {
   const provider = new TiktokProvider();
@@ -136,7 +137,7 @@ test('the initialized video and inspected path stay bound if caller media change
     return {durationSeconds: 5, size: 123};
   });
   await f.send();
-  expect(f.provider.inspectVideoForTikTok).toHaveBeenCalledWith('https://example.com/owned.mp4');
+  expect(f.provider.inspectVideoForTikTok).toHaveBeenCalledWith('https://example.com/owned.mp4', expect.objectContaining({path:'https://example.com/owned.mp4',size:123}));
   const body = JSON.parse(f.provider.fetch.mock.calls[0][1].body);
   expect(body.source_info).toMatchObject({source: 'FILE_UPLOAD', video_size: 123});
   expect(body.media_type).toBeUndefined();

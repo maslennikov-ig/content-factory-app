@@ -1,5 +1,9 @@
+import { transformIntegrationIds } from '@contentfactory/nestjs-libraries/dtos/posts/integration-ids';
+import { Transform } from 'class-transformer';
 import {
   IsOptional,
+  IsArray,
+  ArrayMaxSize,
   IsString,
   IsDateString,
   IsIn,
@@ -29,6 +33,13 @@ export class GetPostsDto {
   @IsOptional()
   @IsString()
   integrationId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @Transform(transformIntegrationIds)
+  integrationIds?: string[];
 
   // Editorial process stage, NOT the post's delivery `state`. Optional: most
   // callers still filter only by date/customer, and unfiltered means "every

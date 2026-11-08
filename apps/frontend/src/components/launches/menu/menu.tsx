@@ -21,6 +21,7 @@ import {
   useCalendar,
 } from '@contentfactory/frontend/components/launches/calendar.context';
 import { BotPicture } from '@contentfactory/frontend/components/launches/bot.picture';
+import { ChannelNameForm } from '@contentfactory/frontend/components/channels/channel-name.form';
 import { CustomerModal } from '@contentfactory/frontend/components/launches/customer.modal';
 import { Integration } from '@prisma/client';
 import { SettingsModal } from '@contentfactory/frontend/components/launches/settings.modal';
@@ -449,6 +450,29 @@ export const Menu: FC<{
     });
     setShow(false);
   }, [integrations, t]);
+  const rename = useCallback((group = false) => {
+    const integration = integrations.find((one) => one.id === id);
+    if (!manageChannel || !integration || (group && !integration.customer?.id)) return;
+    const ru = language.startsWith('ru');
+    modal.openModal({
+      title: group ? (ru ? 'Переименовать группу' : 'Rename group') : (ru ? 'Название в рабочем пространстве' : 'Workspace channel name'),
+      withCloseButton: true,
+      children: <ChannelNameForm
+        id={group ? integration.customer!.id! : id}
+        name={group ? integration.customer!.name || '' : integration.displayName || integration.name}
+        originalName={integration.originalName || integration.name}
+        group={group}
+        onSaved={() => {
+          modal.closeAll();
+          mutate();
+          reloadCalendarView();
+          toast.show(ru ? 'Название сохранено' : 'Name saved', 'success');
+        }}
+      />,
+    });
+    setShow(false);
+  }, [integrations, id, manageChannel, language, modal, mutate, reloadCalendarView, toast]);
+
   const updateCredentials = useCallback(() => {
     modal.openModal({
       title: t('custom_url', 'Custom URL'),
@@ -633,6 +657,8 @@ export const Menu: FC<{
               </div>
             </MenuAction>
           )}
+          {manageChannel && <MenuAction onClick={() => rename()}><span className="cf-body-sm">{language.startsWith('ru') ? 'Название в рабочем пространстве' : 'Workspace channel name'}</span></MenuAction>}
+          {manageChannel && findIntegration?.customer?.id && <MenuAction onClick={() => rename(true)}><span className="cf-body-sm">{language.startsWith('ru') ? 'Переименовать группу' : 'Rename group'}</span></MenuAction>}
           {manageChannel && (canChangeProfilePicture || canChangeNickName) && (
             <MenuAction
               onClick={changeBotPicture}

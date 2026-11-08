@@ -1,3 +1,5 @@
+import { openMediaUploadStreams } from './media-upload-sources';
+import { providerErrorDiagnostic } from './provider-error-diagnostic';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -8,22 +10,14 @@ import {
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { redactSensitive } from '@contentfactory/nestjs-libraries/services/redact.sensitive';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
+import { BadBody, RefreshToken, SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
 //@ts-ignore
 import mime from 'mime';
 import TelegramBot from 'node-telegram-bot-api';
 import { Integration } from '@prisma/client';
 import striptags from 'striptags';
-import { existsSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
 
 const telegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!);
-// Added to support local storage posting
-const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5000';
-const mediaStorage = process.env.STORAGE_PROVIDER || 'local';
-const uploadDirectory = process.env.UPLOAD_DIRECTORY || '';
-// LocalStorage always publishes under this prefix, see local.storage.ts.
-const publicUploadPrefix = '/uploads/';
 
 /**
  * A post's HTML as Telegram's `parse_mode: 'HTML'` accepts it.
@@ -169,7 +163,6 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
   }) {
     const chat = await telegramBot.getChat(params.code);
 
-    console.log(JSON.stringify(chat));
     if (!chat?.id) {
       return 'No chat found';
     }
@@ -232,48 +225,9 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     return [{ metric: 'Subscribers', value: total }];
   }
 
-  /**
-   * Telegram can only fetch media from a URL it can reach itself, which is
-   * never true for a locally served instance and is not something we want to
-   * depend on once the product moves to its own domain either: the upload path
-   * may then sit behind a CDN, a private network or basic auth.
-   *
-   * Upstream worked around this by stripping FRONTEND_URL and handing the bot
-   * API `/uploads/<file>`, which node-telegram-bot-api reads as an on-disk
-   * path. That only resolves when UPLOAD_DIRECTORY happens to be exactly
-   * `/uploads`, as in the upstream Docker image. Resolve the real path from
-   * UPLOAD_DIRECTORY instead and let the bot API upload the bytes; when the
-   * file is not ours to read, keep the original absolute URL so a publicly
-   * reachable deployment can still let Telegram fetch it.
-   */
-  private resolveLocalUpload(url: string): string | null {
-    if (mediaStorage !== 'local' || !uploadDirectory) {
-      return null;
-    }
-
-    if (!url.startsWith(frontendURL)) {
-      return null;
-    }
-
-    const publicPath = url.slice(frontendURL.length);
-    if (!publicPath.startsWith(publicUploadPrefix)) {
-      return null;
-    }
-
-    // resolve() collapses any `..` segments, so a crafted media path cannot
-    // reach outside the upload directory.
-    const base = resolve(uploadDirectory);
-    const filePath = resolve(base, publicPath.slice(publicUploadPrefix.length));
-    if (filePath !== base && !filePath.startsWith(base + sep)) {
-      return null;
-    }
-
-    return existsSync(filePath) ? filePath : null;
-  }
-
-  private processMedia(mediaFiles: PostDetails['media']) {
-    return (mediaFiles || []).map((media) => {
-      const mediaUrl = this.resolveLocalUpload(media.path) || media.path;
+  private processMedia(mediaFiles: PostDetails['media'], sources: Awaited<ReturnType<typeof openMediaUploadStreams>>['sources']) {
+    return (mediaFiles || []).map((media, index) => {
+      const mediaUrl = media.path;
       //get mime type to pass contentType to telegram api.
       //some photos and videos might not pass telegram api restrictions, so they are sent as documents instead of returning errors
       const mimeType = mime.getType(mediaUrl); // Detect MIME type
@@ -289,7 +243,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
 
       return {
         type: mediaType,
-        media: mediaUrl,
+        media: sources[index].stream,
         fileOptions: {
           filename: media.path.split('/').pop(),
           contentType: mimeType || 'application/octet-stream',
@@ -298,7 +252,25 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     });
   }
 
-  private async sendMessage(
+  override handleErrors(body: string, status = 0) {
+    return providerErrorDiagnostic('telegram', body, status);
+  }
+
+  private async sendMessage(accessToken: string, message: PostDetails, replyToMessageId?: number): Promise<number> {
+    try {
+      const id = await this.sendMessageRequest(accessToken, message, replyToMessageId);
+      if (!Number.isInteger(id) || Number(id) <= 0) throw new Error('Missing receipt');
+      return id!;
+    } catch (error) {
+      const diagnostic = providerErrorDiagnostic('telegram', error);
+      // SDK error objects include the bot URL and message text. Never serialize them.
+      if (diagnostic.type === 'refresh-token') throw new RefreshToken(this.identifier, '{}', '{}', diagnostic.value);
+      // A media group may have partially succeeded. Do not replay the whole post.
+      throw new BadBody(this.identifier, '{}', '{}', diagnostic.value);
+    }
+  }
+
+  private async sendMessageRequest(
     accessToken: string,
     message: PostDetails,
     replyToMessageId?: number
@@ -307,7 +279,9 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     const mediaFiles = message.media || [];
     const text = telegramHtml(message.message || '');
 
-    const processedMedia = this.processMedia(mediaFiles);
+    const opened = await openMediaUploadStreams(mediaFiles.map(media => media.path));
+    try {
+    const processedMedia = this.processMedia(mediaFiles, opened.sources);
 
     // if there's no media, bot sends a text message only
     if (processedMedia.length === 0) {
@@ -364,6 +338,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
         const mediaGroup = mediaGroups[i].map((m, index) => ({
           type: m.type === 'document' ? 'document' : m.type, // Documents are not allowed in media groups
           media: m.media,
+          fileOptions: m.fileOptions,
           caption: i === 0 && index === 0 ? text : undefined,
           parse_mode: 'HTML',
         }));
@@ -384,6 +359,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     }
 
     return messageId;
+    } finally { opened.close(); }
   }
 
   async post(
@@ -442,7 +418,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     return [];
   }
   // chunkMedia is used to split media into groups of "size". 10 is used here because telegram api allows a maximum of 10 media per group
-  private chunkMedia(media: { type: string; media: string }[], size: number) {
+  private chunkMedia(media: ReturnType<TelegramProvider['processMedia']>, size: number) {
     const result = [];
     for (let i = 0; i < media.length; i += size) {
       result.push(media.slice(i, i + size));

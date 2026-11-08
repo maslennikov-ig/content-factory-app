@@ -1,3 +1,4 @@
+import { providerErrorDiagnostic } from './provider-error-diagnostic';
 import {
   AuthTokenDetails,
   PostDetails,
@@ -6,11 +7,9 @@ import {
 } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
+import { BadBody, RefreshToken, SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
 import { createHash, randomBytes } from 'crypto';
-import axios from 'axios';
-import FormDataNew from 'form-data';
-import mime from 'mime-types';
+import { openMediaUploadBlobs } from './media-upload-sources';
 import { Integration } from '@prisma/client';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 
@@ -45,7 +44,7 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     formData.append('scope', this.scopes.join(' '));
 
     const { access_token, refresh_token, expires_in } = await (
-      await this.fetch('https://id.vk.com/oauth2/auth', {
+      await this.fetch('https://id.vk.ru/oauth2/auth', {
         method: 'POST',
         body: formData,
       })
@@ -58,7 +57,7 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     const {
       user: { user_id, first_name, last_name, avatar },
     } = await (
-      await this.fetch('https://id.vk.com/oauth2/user_info', {
+      await this.fetch('https://id.vk.ru/oauth2/user_info', {
         method: 'POST',
         body: newFormData,
       })
@@ -88,7 +87,7 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
 
     return {
       url:
-        'https://id.vk.com/authorize' +
+        'https://id.vk.ru/authorize' +
         `?response_type=code` +
         `&client_id=${process.env.VK_ID}` +
         `&code_challenge_method=S256` +
@@ -122,7 +121,7 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     );
 
     const { access_token, scope, refresh_token, expires_in } = await (
-      await this.fetch('https://id.vk.com/oauth2/auth', {
+      await this.fetch('https://id.vk.ru/oauth2/auth', {
         method: 'POST',
         body: formData,
       })
@@ -135,7 +134,7 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     const {
       user: { user_id, first_name, last_name, avatar },
     } = await (
-      await this.fetch('https://id.vk.com/oauth2/user_info', {
+      await this.fetch('https://id.vk.ru/oauth2/user_info', {
         method: 'POST',
         body: newFormData,
       })
@@ -152,70 +151,73 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  override handleErrors(body: string, status = 0) {
+    return providerErrorDiagnostic('vk', body, status);
+  }
+
+  private checkApiError(all: any) {
+    if (!all?.error) return;
+    const diagnostic = providerErrorDiagnostic('vk', all);
+    // Retain only a numeric code; VK request_params can contain the access token.
+    const safe = JSON.stringify({ error: { error_code: Number(all.error.error_code) || 0 } });
+    if (diagnostic.type === 'refresh-token') throw new RefreshToken(this.identifier, safe, '{}', diagnostic.value);
+    if (diagnostic.type === 'retry') throw new Error(diagnostic.value);
+    throw new BadBody(this.identifier, safe, '{}', diagnostic.value);
+  }
+
+  private requireReceipt(value: unknown) {
+    if (!/^[1-9]\d*$/.test(String(value ?? ''))) {
+      throw new BadBody(this.identifier, '{}', '{}', providerErrorDiagnostic('vk', {}).value);
+    }
+    return String(value);
+  }
+
   private async uploadMedia(
     userId: string,
     accessToken: string,
     post: PostDetails
-  ): Promise<{ id: string; type: string }[]> {
-    return await Promise.all(
-      (post?.media || []).map(async (media) => {
-        const all = await (
-          await this.fetch(
-            hasExtension(media.path, 'mp4')
-              ? `https://api.vk.com/method/video.save?access_token=${accessToken}&v=5.251`
-              : `https://api.vk.com/method/photos.getWallUploadServer?owner_id=${userId}&access_token=${accessToken}&v=5.251`
-          )
-        ).json();
-
-        const { data } = await axios.get(media.path!, {
-          responseType: 'stream',
-        });
-
-        const slash = media.path.split('/').at(-1);
-
-        const formData = new FormDataNew();
-        formData.append('photo', data, {
-          filename: slash,
-          contentType: mime.lookup(slash!) || '',
-        });
-        const value = (
-          await axios.post(all.response.upload_url, formData, {
-            headers: {
-              ...formData.getHeaders(),
-            },
-          })
-        ).data;
-
-        if (hasExtension(media.path, 'mp4')) {
-          return {
-            id: all.response.video_id,
-            type: 'video',
-          };
-        }
-
-        const formSend = new FormData();
-        formSend.append('photo', value.photo);
-        formSend.append('server', value.server);
-        formSend.append('hash', value.hash);
-
-        const { id } = (
-          await (
-            await fetch(
-              `https://api.vk.com/method/photos.saveWallPhoto?access_token=${accessToken}&v=5.251`,
-              {
-                method: 'POST',
-                body: formSend,
-              }
-            )
-          ).json()
-        ).response[0];
-
-        return {
-          id,
-          type: 'photo',
-        };
-      })
-    );
+  ): Promise<{ id: string; ownerId: string; type: string }[]> {
+    return await Promise.all((post.media || []).map(async media => {
+      const video = hasExtension(media.path, 'mp4');
+      const all = await (await this.fetch(video
+        ? `https://api.vk.ru/method/video.save?access_token=${accessToken}&v=5.251`
+        : `https://api.vk.ru/method/photos.getWallUploadServer?owner_id=${userId}&access_token=${accessToken}&v=5.251`)).json();
+      this.checkApiError(all);
+      if (!all.response?.upload_url) this.requireReceipt(undefined);
+      const opened = await openMediaUploadBlobs([{path: media.path}]);
+      const filename = media.path.split('/').at(-1);
+      const form = new FormData();
+      form.append(video ? 'video_file' : 'photo', opened.files[0].blob, filename);
+      let value: any;
+      try {
+        value = await (await this.fetch(all.response.upload_url, { method: 'POST', body: form })).json();
+      } catch {
+        throw new BadBody(this.identifier, '{}', '{}', providerErrorDiagnostic('vk', {}).value);
+      } finally {
+        await opened.close();
+      }
+      this.checkApiError(value);
+      if (video) {
+        // Both reservation and upload must confirm the same video before wall.post.
+        const id = this.requireReceipt(value?.video_id);
+        if (String(all.response.video_id) !== id) this.requireReceipt(undefined);
+        const ownerId = String(value?.owner_id ?? all.response.owner_id ?? '');
+        if (!/^-?[1-9]\d*$/.test(ownerId)) this.requireReceipt(undefined);
+        return { id, ownerId, type: 'video' };
+      }
+      if (!value?.photo || !value?.server || !value?.hash) this.requireReceipt(undefined);
+      const formSend = new FormData();
+      formSend.append('photo', value.photo);
+      formSend.append('server', String(value.server));
+      formSend.append('hash', value.hash);
+      const saved = await (await this.fetch(`https://api.vk.ru/method/photos.saveWallPhoto?access_token=${accessToken}&v=5.251`, { method: 'POST', body: formSend })).json();
+      this.checkApiError(saved);
+      const photo = saved.response?.[0];
+      const id = this.requireReceipt(photo?.id);
+      const ownerId = String(photo?.owner_id ?? userId);
+      if (!/^-?[1-9]\d*$/.test(ownerId)) this.requireReceipt(undefined);
+      return { id, ownerId, type: 'photo' };
+    }));
   }
 
   async post(
@@ -234,19 +236,22 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     if (mediaList.length) {
       body.append(
         'attachments',
-        mediaList.map((p) => `${p.type}${userId}_${p.id}`).join(',')
+        mediaList.map((p) => `${p.type}${p.ownerId}_${p.id}`).join(',')
       );
     }
 
-    const { response } = await (
+    const all = await (
       await this.fetch(
-        `https://api.vk.com/method/wall.post?v=5.251&access_token=${accessToken}&client_id=${process.env.VK_ID}`,
+        `https://api.vk.ru/method/wall.post?v=5.251&access_token=${accessToken}&client_id=${process.env.VK_ID}`,
         {
           method: 'POST',
           body,
         }
       )
     ).json();
+    this.checkApiError(all);
+    const { response } = all;
+    this.requireReceipt(response?.post_id);
 
     return [
       {
@@ -278,19 +283,22 @@ export class VkProvider extends SocialAbstract implements SocialProvider {
     if (mediaList.length) {
       body.append(
         'attachments',
-        mediaList.map((p) => `${p.type}${userId}_${p.id}`).join(',')
+        mediaList.map((p) => `${p.type}${p.ownerId}_${p.id}`).join(',')
       );
     }
 
-    const { response } = await (
+    const all = await (
       await this.fetch(
-        `https://api.vk.com/method/wall.createComment?v=5.251&access_token=${accessToken}&client_id=${process.env.VK_ID}`,
+        `https://api.vk.ru/method/wall.createComment?v=5.251&access_token=${accessToken}&client_id=${process.env.VK_ID}`,
         {
           method: 'POST',
           body,
         }
       )
     ).json();
+    this.checkApiError(all);
+    const { response } = all;
+    this.requireReceipt(response?.comment_id);
 
     return [
       {

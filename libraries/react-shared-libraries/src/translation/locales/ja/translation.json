@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "TikTokアカウント設定を取得できません。再試行するか、チャンネルを再接続してください。",
   "validation_tiktok_interactions_changed": "TikTokの交流設定が変更されました。公開前にコメント、Duet、Stitchを確認してください。",
   "validation_tiktok_disclosure_invalid": "公開前に、TikTokの商用コンテンツの開示を、選択したブランドとプライバシー設定に合わせてください。",
-  "validation_tiktok_duration_invalid": "TikTok動画の長さを取得できないか、アカウントの現在の上限を超えています。公開前に動画を確認してください。"
+  "validation_tiktok_duration_invalid": "TikTok動画の長さを取得できないか、アカウントの現在の上限を超えています。公開前に動画を確認してください。",
+  "media_settings_save_failed": "メディア設定を保存できませんでした。アクセス権を確認して、もう一度お試しください。",
+  "media_settings_provider_support": "ReelsとYouTubeはカバー画像に、ReelsとTikTokは動画のフレーム指定に対応しています。各プラットフォームで対応する設定のみが適用されます。",
+  "comment": "コメント",
+  "youtube_thumbnail_overrides_media": "このYouTube専用のサムネイルは、メディア設定のカバー画像より優先されます。"
 }

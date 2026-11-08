@@ -63,3 +63,10 @@ test('a lost YouTube upload response stays uncertain in V106 and cannot re-uploa
  expect(youtube.insert).toHaveBeenCalledTimes(1);expect(f.client.row.releaseId).toBeNull();
  expect(f.client.row.publicationJournal.attempts[0].status).toBe('pending');
 });
+
+test('media-settings cover is used only when no YouTube-specific thumbnail is stored',async()=>{
+ const inherited=youtubeFixture();delete inherited.details.settings.thumbnail;inherited.details.media[0].thumbnail='https://media.invalid/inherited.png';
+ await expect(call(inherited)).resolves.toHaveLength(1);expect(inherited.fetch.mock.calls.map(([{url}])=>url)).toContain('https://media.invalid/inherited.png');
+ const overridden=youtubeFixture();overridden.details.media[0].thumbnail='https://media.invalid/inherited.png';
+ await call(overridden);expect(overridden.fetch.mock.calls.map(([{url}])=>url)).toContain('https://media.invalid/cover.png');expect(overridden.fetch.mock.calls.map(([{url}])=>url)).not.toContain('https://media.invalid/inherited.png');
+});

@@ -2203,5 +2203,9 @@
   "validation_tiktok_account_unavailable": "Le impostazioni dell’account TikTok non sono disponibili. Riprova o riconnetti il canale.",
   "validation_tiktok_interactions_changed": "Le impostazioni di interazione di TikTok sono cambiate. Controlla commenti, Duet e Stitch prima di pubblicare.",
   "validation_tiktok_disclosure_invalid": "Prima della pubblicazione, la dichiarazione commerciale di TikTok deve corrispondere ai marchi e alla privacy selezionati.",
-  "validation_tiktok_duration_invalid": "La durata del video TikTok non è disponibile o supera il limite attuale dell’account. Controlla il video prima di pubblicare."
+  "validation_tiktok_duration_invalid": "La durata del video TikTok non è disponibile o supera il limite attuale dell’account. Controlla il video prima di pubblicare.",
+  "media_settings_save_failed": "Impossibile salvare le impostazioni multimediali. Verifica i permessi di accesso e riprova.",
+  "media_settings_provider_support": "Reels e YouTube supportano le immagini di copertina; Reels e TikTok supportano la scelta di un fotogramma del video. Ogni piattaforma applica soltanto le impostazioni supportate.",
+  "comment": "Commento",
+  "youtube_thumbnail_overrides_media": "Questa miniatura specifica per YouTube sostituisce la copertina delle impostazioni multimediali."
 }

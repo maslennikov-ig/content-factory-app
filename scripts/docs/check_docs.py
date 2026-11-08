@@ -29,7 +29,9 @@ def github_slug(text: str) -> str:
     text = HTML_TAG_PATTERN.sub("", text)
     text = re.sub(r"[`*_~]", "", text).strip().lower()
     text = re.sub(r"[^\w\- ]", "", text, flags=re.UNICODE)
-    return re.sub(r"\s+", "-", text)
+    # GitHub replaces each space; punctuation removal must not collapse its neighbors.
+    # https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links
+    return text.replace(" ", "-")
 
 
 def heading_anchors(path: Path) -> set[str]:

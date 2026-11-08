@@ -3,12 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpException,
   Param,
   Post,
   Put,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
@@ -33,6 +35,9 @@ import {
   ChangeDateBodyDto,
   ReleaseIdBodyDto,
 } from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
+import { LegacyPreviewCommentDtoV1 } from '@contentfactory/nestjs-libraries/preview-review/v1/preview-review.dto';
+import { PreviewReviewRateGuardV1 } from './preview-review.v1.guard';
+import { Throttle } from '@nestjs/throttler';
 
 /**
  * Same reading as `safeHttpError` in `content-lead.controller.ts`: a refusal
@@ -107,11 +112,14 @@ export class PostsController {
   }
 
   @Post('/:id/comments')
+  @UseGuards(PreviewReviewRateGuardV1)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Header('Cache-Control', 'private, no-store, max-age=0')
   async createComment(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
     @Param('id') id: string,
-    @Body() body: { comment: string }
+    @Body() body: LegacyPreviewCommentDtoV1
   ) {
     return this._postsService.createComment(org.id, user.id, id, body.comment);
   }

@@ -301,23 +301,24 @@ describe('stopping a post workflow (F2 termination)', () => {
     expect(errors.join('\n')).toContain('post_p1_abc was not terminated: search terminate failed');
   });
 
-  test.each([[false, 'postWorkflowV108'], [true, 'postWorkflowV109']])('a queued post with campaign binding %s restarts under the same id using %s', async (campaignBound, workflow) => {
+  test.each([false, true])('a queued post with campaign binding %s restarts under the common guarded V110 workflow', async campaignBound => {
     const terminated = [];
     const temporal = temporalWith({ terminate: (id) => terminated.push(id) });
     const posts = service(temporal, campaignBound);
     expect(await posts.startWorkflow('telegram', 'p1', 'org-a', 'QUEUE')).toBe(true);
     expect(terminated).toEqual(['post_p1']);
-    expect(posts._postRepository.isSocialFactoryPublication).toHaveBeenCalledWith('org-a', 'p1');
-    expect(temporal.calls.starts).toEqual([[workflow, 'post_p1']]);
+    expect(posts._postRepository.isSocialFactoryPublication).not.toHaveBeenCalled();
+    expect(temporal.calls.starts).toEqual([['postWorkflowV110', 'post_p1']]);
   });
 
-  test('a failed binding lookup refuses to start a queued post through either workflow', async () => {
+  test('enqueue does not classify campaign bindings; the V110 activity checks binding authority before claiming or sending', async () => {
     const temporal = temporalWith({ terminate: () => undefined });
     const posts = service(temporal);
-    posts._postRepository.isSocialFactoryPublication = async () => { throw new Error('binding database unavailable'); };
-    expect(await posts.startWorkflow('telegram', 'p1', 'org-a', 'QUEUE')).toBe(false);
-    expect(temporal.calls.starts).toEqual([]);
-    expect(errors.join('\n')).toContain('binding database unavailable');
+    posts._postRepository.isSocialFactoryPublication.mockRejectedValue(new Error('binding database unavailable'));
+    expect(await posts.startWorkflow('telegram', 'p1', 'org-a', 'QUEUE')).toBe(true);
+    expect(posts._postRepository.isSocialFactoryPublication).not.toHaveBeenCalled();
+    expect(temporal.calls.starts).toEqual([['postWorkflowV110', 'post_p1']]);
+    expect(errors).toEqual([]);
   });
 });
 

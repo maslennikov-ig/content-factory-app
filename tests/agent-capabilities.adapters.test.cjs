@@ -391,7 +391,7 @@ describe('native Mastra tools', () => {
 
   test('the confirm class, and a write one that asks in the web chat (kcxz.45), ask for approval; every input and a paid one with a mid-run choice suspend', () => {
     const calls = fixtures();
-    for (const capability of catalogue) {
+    for (const capability of catalogue.filter(entry => !entry.entrances || entry.entrances.includes('chat'))) {
       const tool = tools[registry.toolNameOf(capability.id)];
       expect(typeof tool.requireApproval).toBe('function');
       expect({ id: capability.id, approval: tool.requireApproval(calls[capability.id].input) }).toEqual({
@@ -865,6 +865,7 @@ describe('MCP tools from the same registry', () => {
   test('confirm, input and secret never reach MCP — but scheduling and moving, asked in the conversation (kcxz.49)', () => {
     const names = Object.keys(mcpTools('ADMIN'));
     expect(names).toEqual([
+      'media_upload', 'media_upload_ticket', 'media_upload_status', 'media_inspect',
       'campaign_create', 'campaign_open', 'campaign_list', 'campaign_stop', 'campaign_revoke', 'campaign_reconcile',
       'channel_editorial_profile', 'channel_editorial_profile_save', 'source_permission_revoke', 'channel_discover', 'campaign_decide_editorial', 'campaign_measure', 'campaign_findings', 'campaign_finding_review',
       'source_resolve_artifact', 'source_edit_draft_artifact', 'campaign_draft_destination_create', 'campaign_render_local_reel', 'campaign_compose_local_video', 'campaign_local_video_open', 'campaign_local_video_stop', 'campaign_plan_materials', 'campaign_prepare', 'campaign_edit', 'campaign_reinspect', 'campaign_revise', 'campaign_bind_video', 'campaign_finalize_video', 'video_production_create', 'video_production_open', 'video_production_preflight', 'video_production_stop', 'video_production_retry_save', 'campaign_optional_evidence', 'campaign_tracking_link', 'campaign_tracking_clicks', 'campaign_finding_feedback', 'campaign_experiment', 'campaign_evaluate_experiment', 'helixa_read',
@@ -967,6 +968,7 @@ describe('MCP tools from the same registry', () => {
 
   test('a USER token lists only the reads', () => {
     expect(Object.keys(mcpTools('USER'))).toEqual([
+      'media_upload_status', 'media_inspect',
       ...VIDEO_READ_TOOLS.filter(name => !['video_personal_assets', 'video_personal_readiness'].includes(name)),
       'workspace_snapshot',
       'channels_list',
