@@ -1245,6 +1245,52 @@ test('new cache identity preserves assessment and isolates reader, consumer and 
   expect(h.calls.search).toHaveLength(3);
 });
 
+test('scoped reader cache preserves leading whitespace in the exact question', async () => {
+  const withWhitespace = sample('Article context is available.', ' x');
+  const withoutWhitespace = sample('Article context is available.', 'x');
+  const service = new h.WebResearchService(h.aiUsage);
+  const options = { language: 'ru', readerResponse: true };
+
+  h.set(withWhitespace, 'Ignore provider summary.', simpleOutput(withWhitespace));
+  const first = await service.research('fixture-organization', withWhitespace.subject, options);
+  expect(first.readerAssessment.coverage[0].question).toBe(' x');
+
+  h.set(withoutWhitespace, 'Ignore provider summary.', simpleOutput(withoutWhitespace));
+  const second = await service.research('fixture-organization', withoutWhitespace.subject, options);
+  expect(second.fromCache).toBeFalsy();
+  expect(second.readerAssessment.coverage[0].question).toBe('x');
+
+  const repeated = await service.research('fixture-organization', withoutWhitespace.subject, options);
+  expect(repeated.fromCache).toBe(true);
+  expect(repeated.readerAssessment).toEqual(second.readerAssessment);
+  expect(h.calls.search).toHaveLength(2);
+});
+
+test('scoped reader cache distinguishes a date qualifier after a shared 5,000-character prefix', async () => {
+  const prefix = 'Explain the product. '.padEnd(5_000, 'x');
+  const firstInput = sample('Article context is available.', prefix);
+  const secondInput = sample(
+    'Article context is available.',
+    prefix + ' Restrict to facts effective on 1 October 2026.'
+  );
+  const service = new h.WebResearchService(h.aiUsage);
+  const options = { language: 'ru', readerResponse: true };
+
+  h.set(firstInput, 'Ignore provider summary.', {
+    ...simpleOutput(firstInput),
+    answer: 'Первый ответ.',
+  });
+  const first = await service.research('fixture-organization', firstInput.subject, options);
+  expect(first.readerAssessment.status).toBe('supported');
+
+  h.set(secondInput, 'Ignore provider summary.', simpleOutput(secondInput));
+  const second = await service.research('fixture-organization', secondInput.subject, options);
+  expect(second.fromCache).toBeFalsy();
+  expect(second.readerAssessment.status).toBe('review_unavailable');
+  expect(second.summary).toBe('');
+  expect(h.calls.search).toHaveLength(2);
+});
+
 test.each(['model-resolution', 'structured-output', 'invocation', 'validation'])('reader failure at %s keeps one paid operation and no internal retry', async (phase) => {
   h.set(sample(), 'Не возвращать непроверенный ответ.', simpleOutput());
   const error = new Error('SENSITIVE_READER_OUTPUT'); error.name = 'SyntaxError';

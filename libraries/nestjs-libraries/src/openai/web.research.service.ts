@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { researchEventMaterial } from '@contentfactory/nestjs-libraries/openai/research-event-material';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -1940,6 +1941,10 @@ Untrusted research data: {evidence}`
       options.readerResponse === true &&
       !!options.language &&
       task !== 'discovery';
+    // The reader evaluates the original subject, including whitespace and scope.
+    const cacheSubject = scopedReader
+      ? createHash('sha256').update(subject, 'utf16le').digest('hex')
+      : subject.trim().slice(0, CLASSIFIER_SUBJECT_CHARS);
     const key = `${organizationId}|retained-source-v1|${searchRouteFingerprint(
       config.search
     )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${JSON.stringify(options.researchIntent ?? null)}${options.researchIntent?.eventInterval ? '|event-material-v2' : ''}|${
@@ -1950,9 +1955,7 @@ Untrusted research data: {evidence}`
           ? READER_SUMMARY_CACHE_VERSION
           : 'reader'
         : 'consumer'
-    }|${callerQueries(options, level).join('\n')}|${subject
-      .trim()
-      .slice(0, CLASSIFIER_SUBJECT_CHARS)}`;
+    }|${callerQueries(options, level).join('\n')}|${cacheSubject}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);

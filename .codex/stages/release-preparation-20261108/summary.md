@@ -102,7 +102,7 @@ Private `main` advanced to `a75673ac7`, which contains the tested source
 `c5ef8ab7a`. The exact prepared public commit and image were published without
 rebuilding. Public Build and CodeQL passed before the production switch. The
 owner approved the 23-statement migration after the fresh live diff matched the
-prepared SQL. Backup and release details are in the [production runbook](../../../docs/operations/production-deploy.md#current-release-11-november-2026-588bb1fa244c).
+prepared SQL. Backup and release details are in the [production runbook](../../../docs/operations/production-deploy.md#previous-release-11-november-2026-588bb1fa244c).
 
 Local cleanup removed three inactive build worktrees with commits reachable
 from `main` and retained their release receipts. Free space increased by

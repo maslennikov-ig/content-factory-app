@@ -30,12 +30,41 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 11 November 2026: `588bb1fa244c`
+## Current release 11 November 2026: `71d44fed1588`
+
+Public source `71d44fed1588343fe5b02d189d331923740cd877` corresponds to private
+source `d0a9589f019ce746e80620acd202e74f39b43638`. The release delivers the
+owner-approved native HeyGen presenter profiles, saved looks, voice setup,
+per-video review and their native chat controls.
+
+The local release receipt covers 16,835 Jest, 351 Node and 51 Python passes.
+Public CI passed all four ordinary and both calendar-shifted Jest jobs, the
+complete suite and CodeQL on the published commit. The candidate includes the
+fix for the Stop checkpoint cleanup races found by the previous public run.
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43023417984),
+[CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43023417901).
+
+Image digest `sha256:6b03c19fdb8859ebfa4174fa9fba219d308b5d39990eca4b9757acacc5b59c96`.
+The switch completed at 13:28:54 UTC. The read-only schema comparison returned
+zero SQL lines before and after switching. The API, login and source page
+returned HTTP 200. The source version reported the exact public commit and
+the 16,642,137-byte archive matched SHA-256
+`190dc154e7b07ad87c91f0eb26eb2e5f1f8c3f94b7cf613992948ee5e642fcd4`.
+The container and all three PM2 processes had zero restarts and worker readiness
+returned `ok`. The release verification used fixtures for paid provider actions.
+
+Host retention kept `71d44fed1588` and the verified previous image
+`588bb1fa244c`. Before rollback, review new HeyGen presenter and look records,
+video production revisions, pending video jobs and native chat workflow
+checkpoints for compatibility with the previous image. Preserve those records
+and their histories.
+[Delivery record](../../.codex/stages/heygen-release-20261111/summary.md).
+
+## Previous release 11 November 2026: `588bb1fa244c`
 
 Public source `588bb1fa244c1fd3126a3d117d9c9b821082a708` corresponds to private
 source `c5ef8ab7a794bd01ef02bc2a4bd53471e1356d03`. The release includes the selected
-Postiz media, preview review and publication recovery changes. The active HeyGen
-work remains in its own worktree.
+Postiz media, preview review and publication recovery changes.
 
 The local release receipt covers Jest 16,153, Node 343 and Python 51 passing
 tests. Public CI independently passed Build and CodeQL on the deployed commit.
@@ -5166,8 +5195,8 @@ CREATE INDEX "AiUsageRecord_createdAt_idx" ON "AiUsageRecord"("createdAt");
 `CF_DEPLOY_HOST` и обычной процедурой выпуска. Скрипт согласованно задаёт `CF_IMAGE`
 и `CONTENT_FACTORY_RELEASE`, ждёт здоровье и сверяет реально запущенный образ и
 маркер. Отдельная правка `.env` и самостоятельный `docker compose up` не заменяют
-эту процедуру. Для текущего выпуска сохранён кандидат `9c88a65a368b`; его откат
-не выполнялся и не тестировался.
+эту процедуру. Текущий образ и кандидат для отката указаны в разделе текущего
+выпуска в начале этого документа.
 
 Штатное [удержание](#после-переключения-удержать-на-хосте-только-нужное) оставляет
 текущий и предыдущий образ. Если совместимого образа на хосте нет, его доставка

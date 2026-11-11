@@ -3,7 +3,7 @@
   "stage_id": "heygen-release-20261111",
   "goal_id": "content-factory-next-ekqe.22.5",
   "profile_at_creation": "balanced-v2.20",
-  "status": "internal_ready",
+  "status": "accepted",
   "sequence": 1,
   "acceptance_boundary_id": "owner-accepted-heygen-production-delivery",
   "acceptance_owner": "root",

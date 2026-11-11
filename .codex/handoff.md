@@ -2,45 +2,42 @@
 
 Current stage id: heygen-release-20261111
 
-The owner approved the HeyGen preview and authorized production delivery.
-The integrated candidate is tracked by `content-factory-next-ekqe.22.5`.
-[Release scope](stages/heygen-release-20261111/summary.md).
+The owner-approved native HeyGen release is running on production. Public
+`71d44fed1588` was built from private `d0a9589f0`. The local release suite,
+public Build and CodeQL passed. The Prisma comparison was empty before and
+after the switch. The serving image, source archive, API, login and worker
+were verified. The host retains `588bb1fa244c` for rollback. Review new HeyGen
+records and in-flight work for compatibility before switching back.
+[Production release](../docs/operations/production-deploy.md#current-release-11-november-2026-71d44fed1588).
 
-## Current production baseline
+Release task `content-factory-next-ekqe.22.5` / HONEY-6420.
+[HeyGen delivery record](stages/heygen-release-20261111/summary.md).
+The owner confirmed acceptance of the HeyGen epic after delivery.
+[HeyGen epic](https://github.com/maslennikov-ig/content-factory-next/issues/1280).
+The preceding Postiz release and its guarded schema backup and apply are recorded
+under `content-factory-next-2fcd` / HONEY-6368.
+[Postiz delivery record](stages/release-preparation-20261108/summary.md#production-delivery-and-cleanup--11-november-2026).
 
-Production serves `588bb1fa244c` from private source `c5ef8ab7a`. The release
-candidate and preparation record were fast-forwarded into private `main` at
-`a75673ac7`. Public Build and CodeQL passed, all 23 schema operations were
-applied after verified backup `20261111T072117Z`, and host and HTTPS checks passed.
-The previous image `3d6b8c326e0e` is retained. Check workflow compatibility before
-rollback. [Production runbook](../docs/operations/production-deploy.md#current-release-11-november-2026-588bb1fa244c).
-
-Release task `content-factory-next-2fcd` / HONEY-6368. See the [stage record](stages/release-preparation-20261108/summary.md#production-delivery-and-cleanup--11-november-2026)
-for verification and cleanup details. The prepared public checkout, archive and
-private evidence remain under `/home/me/.local/share/content-factory-orchestration/release-preparation-20261108`.
-
-Both canonical checkouts were fast-forwarded after preserving their original
-local changes in verified private copies. Their local hook overrides were kept.
-Three retired build worktrees were removed while preserving branch references,
-commits and suite receipts. The retained worktrees hold active work, local
-settings or private evidence. The HONEY-6013 worktree's product code is already
-represented in `main` history. Its only unmatched source or test file was an
-older loopback test helper for which `main` has stricter input validation.
+The release-owned diagnostics, build clone and test fixtures were removed.
+The original owner preview and other dirty worktrees hold independent work or
+private material. Both canonical checkouts retain their local hook overrides.
+The historical reader branch remains available. Its task was delivered through
+the accepted alternative on `main`.
+[Reader task](https://github.com/maslennikov-ig/content-factory-next/issues/1015).
 
 ## Explicit defers
 
-The owner preview, original worktree and private reports are preserved. New paid
-calls, account changes and creative experiments are outside this release.
-Existing epic criteria beyond this verified delivery remain tracked separately.
+New paid provider calls, account changes and live social publication require
+separate scope. The deferred HeyGen speech-markup task stays outside the
+accepted epic. [Deferred task](https://github.com/maslennikov-ig/content-factory-next/issues/1282).
 
 ## Next recommended
 
-Next stage id: heygen-release-20261111
+Next stage id: none
 
-Recommended action: Finish the exact release verification, publish the accepted
-public tree and image, and verify the serving version.
+Recommended action: Select the next scoped task in Hoba.
 
 ## Starter prompt for next orchestrator
 
-Use $orchestrator-stage to resume the native HeyGen delivery from the current
-candidate and its recorded checks. Preserve the original owner preview.
+Use $orchestrator-stage for the next selected Hoba task. Start from the
+production release record and preserve the owner preview and rollback image.
