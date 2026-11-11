@@ -206,79 +206,65 @@ export async function cancelNativeRunSnapshots(
   const workflows = await storage.getStore('workflows');
   if (!workflows) throw new Error('Native Stop storage is unavailable.');
   const names = [NATIVE_ROOT_WORKFLOW, NATIVE_NESTED_WORKFLOW];
-  let rows = await Promise.all(
-    names.map((workflowName) =>
+  const readCheckpoints = async () => {
+    const rows = await Promise.all(names.map(workflowName =>
       workflows.getWorkflowRunById({ workflowName, runId: binding.runId })
-    )
-  );
-  const owner = await workflows.getRunOwnership({ runId: binding.runId });
-  const sameOwner = async () => {
-    const current = await workflows.getRunOwnership({ runId: binding.runId });
-    if (
-      current?.ownerId !== owner?.ownerId ||
-      current?.generation !== owner?.generation
-    )
-      return false;
-    return !current?.live;
+    ));
+    for (const [index, row] of rows.entries()) {
+      if (!row) continue;
+      const actual = snapshotBinding(row);
+      const snapshot = nativeSnapshot(row);
+      if (!actual || Object.entries(binding).some(([key, value]) => actual[key as keyof NativeStopBinding] !== value) ||
+          index === 1 && (snapshot.parentWorkflow?.runId !== binding.runId ||
+            snapshot.parentWorkflow?.workflowId !== NATIVE_ROOT_WORKFLOW ||
+            snapshot.parentWorkflow?.stepId !== NATIVE_NESTED_WORKFLOW)) {
+        throw new Error('Native Stop checkpoint ownership changed.');
+      }
+    }
+    return rows;
   };
+  const owner = await workflows.getRunOwnership({ runId: binding.runId });
+  const requireOwnership = async () => {
+    if (!await stillOwned()) throw new Error('Native Stop task changed.');
+    const current = await workflows.getRunOwnership({ runId: binding.runId });
+    if (owner?.live || current?.live || current?.ownerId !== owner?.ownerId || current?.generation !== owner?.generation) {
+      throw new Error('Native Stop still has an active or changed native owner.');
+    }
+  };
+  type Checkpoints = Awaited<ReturnType<typeof readCheckpoints>>;
+  const waitForCheckpoints = async (rows: Checkpoints, pending: (rows: Checkpoints) => boolean) => {
+    // SDK abort removes the two checkpoints separately. A read between the
+    // removals can see an orphan even after its execution fence has settled.
+    for (let attempt = 0; pending(rows) && attempt < 20; attempt++) {
+      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 100));
+      rows = await readCheckpoints();
+      await requireOwnership();
+    }
+    return rows;
+  };
+
+  let rows = await readCheckpoints();
   if (!rows[0] && rows[1]) {
-    const observed = snapshotBinding(rows[1]), nested = nativeSnapshot(rows[1]);
-    if (!observed || Object.entries(binding).some(([key, value]) => observed[key as keyof NativeStopBinding] !== value) ||
-        nested.parentWorkflow?.runId !== binding.runId || nested.parentWorkflow?.workflowId !== NATIVE_ROOT_WORKFLOW ||
-        nested.parentWorkflow?.stepId !== NATIVE_NESTED_WORKFLOW)
-      throw new Error('Native Stop checkpoint ownership changed.');
-    // SDK abort deletes root/nested rows separately. Parallel reads can see
-    // the deleted root and a nested row read just before its deletion.
-    rows = await Promise.all(names.map(workflowName => workflows.getWorkflowRunById({workflowName, runId: binding.runId})));
-    if (!(await stillOwned())) throw new Error('Native Stop task changed.');
-    if (owner?.live || !(await sameOwner())) throw new Error('Native Stop still has an active or changed native owner.');
+    rows = await waitForCheckpoints(rows, ([root, nested]) => !root && !!nested);
+    if (!rows[0]) {
+      if (rows[1]) throw new Error('Native Stop root ownership is unavailable.');
+      return;
+    }
   }
-  if (!rows[0]) {
-    if (rows[1]) throw new Error('Native Stop root ownership is unavailable.');
-    return;
+  await requireOwnership();
+  if (!rows[0]) return;
+  for (const [index, row] of rows.entries()) {
+    if (!row || nativeSnapshotTerminal(row)) continue;
+    await requireOwnership();
+    const definitions = cancellationWorkflows(storage);
+    await (await (index === 0 ? definitions.root : definitions.nested).createRun({
+      runId: binding.runId,
+    })).cancel();
   }
-  for (let index = 0; index < rows.length; index++) {
-    const row = rows[index];
-    if (!row) continue;
-    const actual = snapshotBinding(row),
-      snapshot = nativeSnapshot(row);
-    if (
-      !actual ||
-      Object.entries(binding).some(
-        ([key, value]) => actual[key as keyof NativeStopBinding] !== value
-      ) ||
-      (index === 1 &&
-        (snapshot.parentWorkflow?.runId !== binding.runId ||
-          snapshot.parentWorkflow?.workflowId !== NATIVE_ROOT_WORKFLOW ||
-          snapshot.parentWorkflow?.stepId !== NATIVE_NESTED_WORKFLOW))
-    )
-      throw new Error('Native Stop checkpoint ownership changed.');
-  }
-  const definitions = cancellationWorkflows(storage);
-  for (let index = 0; index < rows.length; index++) {
-    if (!rows[index] || nativeSnapshotTerminal(rows[index])) continue;
-    if (!(await stillOwned())) throw new Error('Native Stop task changed.');
-    if (!(await sameOwner()))
-      throw new Error(
-        'Native Stop still has an active or changed native owner.'
-      );
-    await (
-      await (index === 0 ? definitions.root : definitions.nested).createRun({
-        runId: binding.runId,
-      })
-    ).cancel();
-  }
-  // Run.cancel swallows storage failures and does not cascade. Its Promise is
-  // not a receipt: reread every checkpoint that actually existed before Stop.
-  const after = await Promise.all(
-    names.map((workflowName) =>
-      workflows.getWorkflowRunById({ workflowName, runId: binding.runId })
-    )
-  );
-  if (
-    !(await stillOwned()) ||
-    !(await sameOwner()) ||
-    rows.some((row, index) => row && !nativeSnapshotTerminal(after[index]))
-  )
-    throw new Error('Native Stop cancellation was not persisted.');
+  // Run.cancel can swallow storage failures. Under the unchanged fence every
+  // checkpoint must be terminal or positively absent before Stop can succeed.
+  const pending = (observed: Checkpoints) => observed.some(row => row && !nativeSnapshotTerminal(row));
+  const observed = await waitForCheckpoints(await readCheckpoints(), pending);
+  await requireOwnership();
+  if (pending(observed)) throw new Error('Native Stop cancellation was not persisted.');
 }

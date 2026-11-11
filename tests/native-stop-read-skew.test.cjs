@@ -1,9 +1,10 @@
 'use strict';
 
 // Actual Stop guard with a controlled storage read schedule. No workflow or
-// provider runs; a cancellation request is observable and must remain zero.
+// provider runs. The controlled store exposes every cancellation attempt.
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 let cancellations = 0;
+let expectedCancellations = 0;
 const createRun = async () => ({cancel: async () => { cancellations++; }});
 const { cancelNativeRunSnapshots } = loadTypeScriptModule('libraries/nestjs-libraries/src/chat/conductor/native-stop.ts', {
   '@mastra/core/mastra': {Mastra: class {}},
@@ -20,12 +21,12 @@ const snapshot = (nested, status = 'suspended') => ({resourceId: binding.resourc
 }});
 function fixture(options = {}) {
   const firstNested = options.firstNested ?? snapshot(true);
-  const fresh = options.fresh ?? [null, null];
+  const pairs = options.pairs ?? [[null, firstNested], options.fresh ?? [null, null]];
   const reads = [], counts = [0, 0]; let ownerReads = 0;
   const workflows = {
     getWorkflowRunById: async input => {
       const slot = input.workflowName === 'durable-agentic-loop' ? 0 : 1;
-      const row = counts[slot]++ === 0 ? [null, firstNested][slot] : fresh[slot];
+      const row = pairs[Math.min(counts[slot]++, pairs.length - 1)][slot];
       reads.push({workflowName: input.workflowName, row: structuredClone(row)});
       return structuredClone(row);
     },
@@ -35,8 +36,8 @@ function fixture(options = {}) {
   const run = () => cancelNativeRunSnapshots({getStore: async () => workflows}, binding, stillOwned);
   return {run, reads, stillOwned};
 }
-beforeEach(() => { cancellations = 0; });
-afterEach(() => { expect(cancellations).toBe(0); });
+beforeEach(() => { cancellations = 0; expectedCancellations = 0; });
+afterEach(() => { jest.useRealTimers(); expect(cancellations).toBe(expectedCancellations); });
 
 test('one bounded fresh read recognizes SDK cleanup after root-null / stale nested-present observations', async () => {
   const f = fixture();
@@ -53,8 +54,11 @@ test('a consistent reappearing root is adopted only with matching owned terminal
 
 test.each(['suspended', 'canceled'])('a truly missing root with a persistent %s nested checkpoint stays refused', async status => {
   const nested = snapshot(true, status), f = fixture({firstNested: nested, fresh: [null, nested]});
-  await expect(f.run()).rejects.toThrow('Native Stop root ownership is unavailable.');
-  expect(f.reads).toHaveLength(4);
+  jest.useFakeTimers();
+  const refused = expect(f.run()).rejects.toThrow('Native Stop root ownership is unavailable.');
+  await jest.runAllTimersAsync();
+  await refused;
+  expect(f.reads).toHaveLength(42);
 });
 
 test.each(['resource', 'actor', 'thread', 'request', 'run', 'parent-run', 'parent-workflow', 'parent-step'])(
@@ -89,4 +93,27 @@ test('a newly visible foreign root remains refused after the bounded refresh', a
   const root = snapshot(false, 'canceled'); root.snapshot.requestContext['cf.requestId'] = 'foreign-request';
   const f = fixture({fresh: [root, snapshot(true, 'canceled')]});
   await expect(f.run()).rejects.toThrow('Native Stop checkpoint ownership changed.');
+});
+
+
+test('a nested checkpoint can outlive the first fresh read while SDK cleanup is in progress', async () => {
+  const nested = snapshot(true);
+  const f = fixture({pairs: [[null, nested], [null, nested], [null, null]]});
+  await expect(f.run()).resolves.toBeUndefined();
+  expect(f.reads).toHaveLength(6);
+});
+
+test('same-owner SDK deletion after cancellation is a verified terminal result', async () => {
+  expectedCancellations = 2;
+  const f = fixture({pairs: [[snapshot(false), snapshot(true)], [null, null]]});
+  await expect(f.run()).resolves.toBeUndefined();
+});
+
+test('a nonterminal checkpoint left by Run.cancel still refuses Stop', async () => {
+  expectedCancellations = 2;
+  const f = fixture({pairs: [[snapshot(false), snapshot(true)], [snapshot(false, 'canceled'), snapshot(true)]]});
+  jest.useFakeTimers();
+  const refused = expect(f.run()).rejects.toThrow('Native Stop cancellation was not persisted.');
+  await jest.runAllTimersAsync();
+  await refused;
 });
