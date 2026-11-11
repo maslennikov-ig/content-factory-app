@@ -210,6 +210,7 @@ describe('D2 — a card further up answers while the server waits for it', () =>
     const block = { runId: 'run-1', toolCallId: 'call-1', cardId: 'card-old' };
     expect(contract.questionWaits(PENDING, block)).toBe(false);
     expect(contract.questionWaits(PENDING, { ...block, cardId: 'card-1' })).toBe(true);
+    expect(contract.questionWaits(PENDING, { ...block, runId: 'other-run', cardId: 'card-1' })).toBe(false);
     expect(contract.questionWaits(PENDING, { ...block, runId: null })).toBe(false);
   });
 
@@ -621,7 +622,7 @@ describe('D1, D11 — the refusal words', () => {
     await drawConversation({ messages: [refused], pending: [], request: async () => ({ ok: false }) });
     expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
     expect(document.body.textContent).toContain(
-      'Вопросы заготовки — ваши: ответьте в чате или на карточке, или скажите «Решите за меня».'
+      'Вопросы черновика — ваши: ответьте в чате или на карточке, или скажите «Решите за меня».'
     );
   });
 

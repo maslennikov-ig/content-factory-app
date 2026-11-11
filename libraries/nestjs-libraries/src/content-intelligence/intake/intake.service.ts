@@ -2522,7 +2522,8 @@ export class IntakeService {
     const selection = this.researchContinuationChoices('model', selectedKeys);
     const choices = material ? JSON.stringify({ selection, material }) : selection;
     const state = await this.readSnapshot(organizationId, actorUserId, snapshotKey);
-    if (!state?.resumePlan) throw new Error('The saved intake result is unavailable; research was not replayed');
+    if (!state?.resumePlan) throw researchReuseError('INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE',
+      'The saved intake result expired or is unavailable to this person in this workspace; no search or write was started.');
     if (state.modelContinuation && state.modelContinuation.choices !== choices) throw this.researchContinuationConflict();
     try { this.assertModelResearchSelection(state, selectedKeys); }
     catch (error) {

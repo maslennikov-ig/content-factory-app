@@ -5,6 +5,8 @@ import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } fro
 import { TemporalService } from 'nestjs-temporal-core';
 import { WorkflowExecutionAlreadyStartedError } from '@temporalio/client';
 import { VideoSubscriptionJobService, SUBSCRIPTION_PENDING } from './video-subscription-job.service';
+import { HEYGEN_NATIVE_REQUEST_KIND_V1 } from './video-heygen-avatar-admission.v1';
+import { HEYGEN_NATIVE_REQUEST_KIND_V2, isHeygenAvatarRequest } from './video-heygen-avatar-request.v2';
 @Injectable()
 export class VideoSubscriptionExecution {
   constructor(readonly temporal: TemporalService) {}
@@ -20,8 +22,8 @@ export class VideoSubscriptionRecovery implements OnApplicationBootstrap, OnAppl
   async recover() {
     if (this.running) return; this.running = true;
     try {
-      const jobs = await this.jobs.repository.db.videoSubscriptionJob.findMany({where: {OR:[{state:{in:SUBSCRIPTION_PENDING}},{state:'submission_unknown',request:{path:['kind'],equals:HGG_PILOT_STAGE_KIND_V1}},{state:'completed',request:{path:['kind'],equals:HGG_PILOT_STAGE_KIND_V1},providerResult:{path:['continuationDelivered'],equals:false}}]}, orderBy: {updatedAt: 'asc'}, take: 500});
-      for (const job of jobs) {if((job.request as any)?.kind===HGG_PILOT_STAGE_KIND_V1){if(job.state==='submission_unknown'){if(!(job.receipt as any)?.raw)continue;await this.pilotJobs.runStep(job.organizationId,job.id);const recovered=await this.jobs.repository.db.videoSubscriptionJob.findUniqueOrThrow({where:{id:job.id,organizationId:job.organizationId,actorId:job.actorId}});if(['queued','running'].includes(recovered.state))await this.pilot.dispatch(recovered);}else await this.pilot.dispatch(job);}else await this.jobs.dispatch(job);}
+      const jobs = await this.jobs.repository.db.videoSubscriptionJob.findMany({where: {OR:[{state:{in:SUBSCRIPTION_PENDING}},{state:'submission_unknown',request:{path:['kind'],equals:HGG_PILOT_STAGE_KIND_V1}},...[HEYGEN_NATIVE_REQUEST_KIND_V1,HEYGEN_NATIVE_REQUEST_KIND_V2].map(kind=>({state:'submission_unknown',request:{path:['kind'],equals:kind}})),{state:'completed',request:{path:['kind'],equals:HGG_PILOT_STAGE_KIND_V1},providerResult:{path:['continuationDelivered'],equals:false}}]}, orderBy: {updatedAt: 'asc'}, take: 500});
+      for (const job of jobs) {if((job.request as any)?.kind===HGG_PILOT_STAGE_KIND_V1){if(job.state==='submission_unknown'){if(!(job.receipt as any)?.raw)continue;await this.pilotJobs.runStep(job.organizationId,job.id);const recovered=await this.jobs.repository.db.videoSubscriptionJob.findUniqueOrThrow({where:{id:job.id,organizationId:job.organizationId,actorId:job.actorId}});if(['queued','running'].includes(recovered.state))await this.pilot.dispatch(recovered);}else await this.pilot.dispatch(job);}else if(isHeygenAvatarRequest(job.request) && job.state==='submission_unknown'){if(!(job.receipt as any)?.raw)continue;await this.jobs.runStep(job.organizationId,job.id);const recovered=await this.jobs.repository.db.videoSubscriptionJob.findUniqueOrThrow({where:{id:job.id,organizationId:job.organizationId,actorId:job.actorId}});if(['queued','running'].includes(recovered.state))await this.jobs.dispatch(recovered);}else await this.jobs.dispatch(job);}
     } catch { this.logger.warn('VIDEO_SUBSCRIPTION_RECOVERY_UNAVAILABLE'); }
     finally { this.running = false; }
   }

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import { z } from 'zod';
+import { HeygenVideoProposalSchemaV2 } from './subscriptions/video-heygen-settings.v2';
 import type { VideoSettingsV1 } from './video-provider.v1';
 import { selectedFactsBrief } from '../content-intelligence/pieces/piece-facts.v2';
 import { SourceArtifactRefSchemaV1, ResolvedSourceArtifactSchemaV1, type ResolvedSourceArtifactV1 } from '../content-intelligence/social-factory/contracts/source-artifact.v1';
@@ -9,9 +10,10 @@ const text = z.string().trim().max(12000);
 export const VideoSettingsSchemaV1 = z.object({
   provider: z.enum(['higgsfield', 'heygen']), model: z.string().min(1).max(80),
   mode: z.enum(['clip', 'presenter']), locale: z.string().min(2).max(60),
-  duration: z.number().finite().min(2).max(300), aspectRatio: z.enum(['9:16', '16:9', '1:1']),
+  duration: z.number().finite().min(2).max(300), aspectRatio: z.enum(['9:16', '16:9', '1:1', '4:5', '5:4', 'auto']),
   resolution: z.string().max(30).optional(), audio: z.boolean(), captions: z.boolean(),
   avatarId: z.string().min(1).max(200).optional(), voiceId: z.string().min(1).max(200).optional(), engine: z.string().min(1).max(60).optional(),
+  heygenV2: HeygenVideoProposalSchemaV2.optional(),
 }).strict();
 export const VideoPrepareSchemaV1 = z.object({
   pieceId: z.string().uuid(), settings: VideoSettingsSchemaV1,
@@ -46,6 +48,15 @@ export function videoSettingsV1(input: unknown): VideoSettingsV1 {
   const value = parseVideoV1(VideoSettingsSchemaV1, input);
   value.locale = canonicalVideoLocaleV1(value.locale);
   if ((value.mode === 'presenter') !== (value.provider === 'heygen')) return videoErrorV1('VIDEO_PROVIDER_MODE_MISMATCH');
+  if (!value.heygenV2 && !['9:16', '16:9', '1:1'].includes(value.aspectRatio)) return videoErrorV1('VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE', 409);
+  if (value.heygenV2) {
+    const inner = value.heygenV2.settings;
+    if (value.provider !== 'heygen' || value.model !== 'heygen-avatar' || value.mode !== 'presenter' ||
+      value.avatarId !== inner.appearanceLookId || value.voiceId !== inner.voiceId || value.engine !== inner.engine.type ||
+      value.duration !== inner.durationSeconds || value.resolution !== inner.resolution || value.aspectRatio !== inner.aspectRatio ||
+      value.locale !== inner.voiceSettings?.locale || !value.audio || value.captions !== (inner.captions !== 'none'))
+      return videoErrorV1('VIDEO_HEYGEN_SETTINGS_MISMATCH', 409);
+  }
   return value as VideoSettingsV1;
 }
 export const videoSourceRevisionV1 = (piece: {title: string; body: string; brief: unknown; language: string; updatedAt: Date}) =>
@@ -55,21 +66,24 @@ const plain = (text: string) => text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g,
 export function compileVideoBriefV1(piece: {id: string; title: string; body: string; brief: unknown; language: string}, input: z.output<typeof VideoPrepareSchemaV1>, sourceArtifact?: ResolvedSourceArtifactV1): VideoBriefV1 {
   const core = piece.brief as any;
   const selected = Array.isArray(core?.brief?.facts) ? selectedFactsBrief(core.brief).facts : [];
-  const facts: VideoFactV1[] = sourceArtifact ? [{text: plain(sourceArtifact.text), sourceId: `artifact:${sourceArtifact.ref.kind}:${sourceArtifact.ref.kind === 'adaptation' ? sourceArtifact.ref.adaptationId : sourceArtifact.ref.pieceId}:${sourceArtifact.ref.revision}`, policy: 'must_include'}] : selected.length
+  const facts: VideoFactV1[] = sourceArtifact ? [{text: plain(sourceArtifact.text), sourceId: `artifact:${sourceArtifact.ref.kind}:${sourceArtifact.ref.kind === 'adaptation' ? sourceArtifact.ref.adaptationId : sourceArtifact.ref.pieceId}:${sourceArtifact.ref.revision}`, policy: input.scriptPolicy === 'adaptable' ? 'context_only' : 'must_include'}] : selected.length
     ? selected.slice(0, 50).map((fact, index) => ({text: String(fact.statement || '').trim(), sourceId: String(fact.evidenceId || fact.factId || `${piece.id}:${index}`), policy: 'context_only' as const})).filter(f => f.text)
     : [{text: plain(piece.body), sourceId: piece.id, policy: 'must_include'}];
   if (!facts.length || !facts[0].text) return videoErrorV1('VIDEO_SOURCE_EMPTY');
   // The first selected factual statement is the starting message; the person can
   // choose additional mandatory facts without altering their source identity.
-  facts[0].policy = 'must_include';
+  if (!sourceArtifact || input.scriptPolicy !== 'adaptable') facts[0].policy = 'must_include';
   const mandatory = facts.filter(f => f.policy === 'must_include').map(f => f.text).join('\n');
+  // An adaptable artifact is grounding context, not a demand to speak every
+  // archival number. Keep its full text in the initial editable draft anyway.
+  const initialScript = mandatory || (sourceArtifact ? plain(sourceArtifact.text) : '');
   const visual = input.visualIntent || input.intent || piece.title;
   return {
     intent: input.intent, audience: input.audience, keyMessage: input.keyMessage || sourceArtifact?.title || piece.title,
     visualIntent: input.visualIntent, sourceLocale: sourceArtifact?.locale ?? piece.language, outputLocale: input.settings.locale,
     facts, avoidImplications: [], referenceMediaIds: input.referenceMediaIds,
-    scriptPolicy: input.scriptPolicy, script: mandatory,
-    prompt: [visual, mandatory].filter(Boolean).join('\n\n'),
+    scriptPolicy: input.scriptPolicy, script: initialScript,
+    prompt: [visual, initialScript].filter(Boolean).join('\n\n'),
     ...(sourceArtifact ? {sourceArtifact} : {}),
   };
 }

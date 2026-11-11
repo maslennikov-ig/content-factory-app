@@ -25,7 +25,7 @@ async function phase(action, mode, schemaName, auditPath) {
     serviceFor: token => token.name === 'PieceService' ? { detail: async () => ({ piece: { id: 'owned-piece', title: 'Локальный источник' }, core: { text: 'READ-MATERIAL-SENTINEL' } }) } : {},
     modelFactory: modelId => new MockLanguageModelV3({ modelId, async doStream(args) {
       const prompt = JSON.stringify(args.prompt);
-      assert.ok(prompt.includes('A «заготовка» is the core text'), 'Bundled instructions must survive cold recovery without activation.');
+      assert.ok(prompt.includes('A «черновик» is the core text'), 'Bundled instructions must survive cold recovery without activation.');
       assert.equal((args.tools ?? []).some(tool => tool.name === 'skill'), false);
       console.error('MODEL', action, mode, modelId, prompt.includes('checkpoint-written'), prompt.includes('READ-MATERIAL-SENTINEL'));
       const calls = !prompt.includes('checkpoint-written')

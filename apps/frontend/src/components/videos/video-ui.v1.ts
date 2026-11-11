@@ -9,9 +9,11 @@ export interface VideoBriefUiV1 {
   avoidImplications: string[]; referenceMediaIds: string[];
 }
 export interface VideoDraftUiV1 {
+  title?: string;
   id: string; version: number; pieceId: string; pieceRevision: string;
   brief: VideoBriefUiV1; settings: VideoSettingsV1; preflightId?: string;
 }
+export interface VideoDraftMetadataUiV1 {id: string; title: string; pieceId: string; version: number; settings: {provider: string; mode: string; locale: string}}
 export interface VideoApprovalScopeV1 { draftId: string; version: number; preflightId: string; accessVersion?: 2 }
 export function videoApprovalScopeV1(value: unknown): VideoApprovalScopeV1 | null {
   const row = value as Partial<VideoApprovalScopeV1> | null;

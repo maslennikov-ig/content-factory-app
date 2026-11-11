@@ -7,7 +7,7 @@ import { videoErrorV1 } from '../video-brief.v1';
 export type SubscriptionProvider = 'higgsfield' | 'heygen';
 export type PersonalVideoOperation = 'presenter' | 'generated_clip' | 'narration' | 'captions' | 'final_composition';
 export const personalVideoOperations: PersonalVideoOperation[] = ['presenter', 'generated_clip', 'narration', 'captions', 'final_composition'];
-export type VideoQualificationPhase = 'initialize' | 'notifications/initialized' | 'tools/list' | 'close' | 'qualification/read' | 'qualification/quote' | 'pilot/workspace' | 'pilot/submit' | 'pilot/poll';
+export type VideoQualificationPhase = 'initialize' | 'notifications/initialized' | 'tools/list' | 'close' | 'qualification/read' | 'qualification/quote' | 'pilot/workspace' | 'pilot/submit' | 'pilot/poll' | 'consent/issue';
 /** Internal operator-only policy. Neither a request field nor provider configuration. */
 export interface VideoQualificationResponsePolicy {phase: VideoQualificationPhase; signal: AbortSignal; read?: true}
 const QUALIFICATION_BYTES = 8 * 1024 * 1024;
@@ -24,6 +24,8 @@ export interface SubscriptionEndpoint {
   /** First-party OAuth discovery is independent of reviewed paid tool schemas. */
   connectEnabled?: boolean;
   ownedAssetProfile?: 'scoped_owned_v1';
+  /** Fixed authenticated private catalog reads, independent of wallet/priced rendering. */
+  ownedAssetReadProfile?: 'heygen_private_catalog_v1';
   /** Only a reviewed, authenticated account endpoint can establish wallet identity. */
   identityEndpoint?: string;
   schemaDigests: string[];
@@ -44,7 +46,8 @@ export class VideoSubscriptionRuntime {
     // The advertised protected resource is canonical without a trailing slash.
     if (provider === 'heygen') return {provider, resource: 'https://mcp.heygen.com/mcp/v1', transportEndpoint: 'https://mcp.heygen.com/mcp/v1/', issuer: 'https://api2.heygen.com',
       resourceMetadata: 'https://mcp.heygen.com/.well-known/oauth-protected-resource/mcp/v1',
-      origins: ['https://mcp.heygen.com', 'https://api2.heygen.com'], connectEnabled: true, enabled: false, schemaDigests: []};
+      origins: ['https://mcp.heygen.com', 'https://api2.heygen.com'], connectEnabled: true, enabled: false,
+      ownedAssetReadProfile: 'heygen_private_catalog_v1', schemaDigests: []};
     return videoErrorV1('VIDEO_PROVIDER_INVALID');
   }
   now() { return new Date(); }

@@ -1,3 +1,4 @@
+import { AGENT_CHAT_MODE_CONTEXT_KEY, isAgentChatMode } from './chat-mode';
 import { Agent } from '@mastra/core/agent';
 import { AgentController } from '@mastra/core/agent-controller';
 import { resolveAgentSkills } from '@mastra/core/skills';
@@ -45,6 +46,7 @@ import {
 import { readWorkspaceSnapshot } from '../capabilities/catalogue/overview.capabilities';
 import {
   CONDUCTOR_AGENT_ID,
+  CONDUCTOR_EXECUTOR_MODEL_ID_KEY,
   CONDUCTOR_MAX_RETRIES,
   CONDUCTOR_MAX_STEPS,
   conductorContextSchema,
@@ -122,6 +124,8 @@ export const recordConductorModelSelectionDecision = (
 ) => {
   if (!requestContext || typeof requestContext !== 'object') return;
   modelSelectionDecisionByContext.set(requestContext, decision);
+  const modelId = typeof decision.model === 'string' ? decision.model : (decision.model as {modelId?: unknown} | undefined)?.modelId;
+  if (typeof modelId === 'string') (requestContext as unknown as {set?: (key:string,value:string)=>unknown}).set?.(CONDUCTOR_EXECUTOR_MODEL_ID_KEY, modelId);
 };
 
 export const readConductorModelSelectionDecision = (
@@ -394,6 +398,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
       role: identity.role,
       now: now(),
       timeZone: identity.timeZone,
+      chatMode: isAgentChatMode(requestContext.get(AGENT_CHAT_MODE_CONTEXT_KEY)) ? requestContext.get(AGENT_CHAT_MODE_CONTEXT_KEY) : 'collaborative',
       snapshot: await snapshotOf(requestContext as object, identity),
       workContext: (() => {
         const selected = requestContext.get(AGENT_WORK_CONTEXT_KEY);
@@ -500,6 +505,7 @@ export const buildConductorAgent = (deps: ConductorDependencies) => {
         preserveModelOutput: true,
       }),
       new ConductorPromptBudget(CONDUCTOR_PROMPT_TOKEN_LIMIT, async ({ model, requestContext }) => {
+        (requestContext as unknown as {set?: (key:string,value:string)=>unknown} | undefined)?.set?.(CONDUCTOR_EXECUTOR_MODEL_ID_KEY, model.modelId);
         const identity = readCapabilityIdentity(requestContext as any);
         return identity && deps.promptTokenLimit
           ? deps.promptTokenLimit(identity, model.modelId)

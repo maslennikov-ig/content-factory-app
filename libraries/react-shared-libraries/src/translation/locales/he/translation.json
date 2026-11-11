@@ -735,6 +735,8 @@
   "assistant_context": "הקשר",
   "assistant_context_help_label": "מה עושה הבחירה הזו?",
   "assistant_context_help": "האובייקט הזה נכלל בהודעה הבאה לעוזר. ניתוקו מסיר את הקישור; היסטוריית הצ׳אט והאובייקט נשמרים.",
+  "assistant_draft_waiting_review": "הטיוטה ממתינה לבדיקה שלך. יש לבדוק אותה בכרטיס לפני אישור שינויים.",
+  "assistant_review_draft": "בדיקת הטיוטה",
   "assistant_draft_review_title": "טיוטה מוצעת",
   "assistant_accept_draft": "אישור",
   "assistant_keep_draft": "שמירת הטיוטה הקיימת",

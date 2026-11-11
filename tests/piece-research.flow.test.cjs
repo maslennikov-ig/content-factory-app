@@ -104,12 +104,41 @@ test('model-selected partial evidence reaches the existing-core writer with its 
   const input = { snapshotKey: preview.snapshotKey, selectedKeys: preview.facts.filter(f => f.verified && f.status === 'confirmed').map(f => f.factKey) };
   await service.acceptCoreResearchForModel('org', 'p', 'user', input);
   const prompt = modelCalls.find(call => call.role === 'draft').prompt;
-  expect(prompt).toContain('PROMPT VERSION: core-write/v21');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v22');
   expect(prompt).toContain('Research assessment and limitations');
   expect(prompt).toContain('Полнота наблюдений не подтверждена.');
   expect(piece.brief.researchSummary.status).toBe('partial');
   expect(piece.brief.revisions.at(-1).text).toBe(original);
   await service.acceptCoreResearchForModel('org', 'p', 'user', input);
+  expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
+});
+
+test('person-selected research retains source quotes and material gaps in the saved parent draft', async () => {
+  responses[0].assessment = { status: 'partial', summary: 'Подтверждён основной результат.', coveredNeeds: ['Результат исследования'],
+    gaps: ['Размер выборки не установлен.'], suggestedQueries: [] };
+  const body = `Кратко для руководителя: производительность сохранилась или выросла.\n\nФакты: [Исследование](${url}) сообщает: «${excerpt}»\n\nНеизвестно: размер выборки не установлен.`;
+  responses[1] = { text: body };
+  const original = piece.body;
+  const preview = await start();
+  await accept(preview);
+  const prompt = modelCalls.find(call => call.role === 'draft').prompt;
+  expect(prompt).toContain('PROMPT VERSION: core-write/v22');
+  expect(prompt).toContain('short executive summary');
+  expect(prompt).toContain('substantial standalone parent draft');
+  expect(prompt).toContain('Selected source-grounded evidence');
+  expect(prompt).toContain(url);
+  expect(prompt).toContain(excerpt);
+  expect(prompt).toContain('Размер выборки не установлен.');
+  const saved = await repo.getPiece('org', 'p');
+  expect(saved.id).toBe('p');
+  expect(saved.body).toBe(body);
+  expect(saved.brief.researchSummary.status).toBe('partial');
+  expect(saved.brief.researchSelection.origin).toBe('person');
+  expect(saved.brief.brief.facts).toEqual(expect.arrayContaining([expect.objectContaining({
+    sourceUrl: url, quote: excerpt, verified: true, selected: true,
+  })]));
+  expect(saved.brief.revisions.at(-1).text).toBe(original);
+  expect(research.research).toHaveBeenCalledTimes(1);
   expect(repo.acceptCoreReview).toHaveBeenCalledTimes(1);
 });
 
@@ -230,7 +259,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v16');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v22');
   expect(prompt).toContain('A separate rule about enrichment');
   expect(prompt).toContain('gets a sentence of its own');
   expect(prompt).toContain('carry its number, date, name and unit over verbatim');
@@ -839,7 +868,7 @@ test('one dated overview request accepts selected events into the standalone wri
   await accept(preview);
   expect(modelCalls.map(call => call.role)).toEqual(['extract', 'review', 'draft']);
   const draftPrompt = modelCalls.find(call => call.role === 'draft').prompt;
-  expect(draftPrompt).toContain('PROMPT VERSION: core-write/v19');
+  expect(draftPrompt).toContain('PROMPT VERSION: core-write/v22');
   expect(draftPrompt).toContain('Update the overview for 9–16 October 2026.');
   expect(draftPrompt).toContain('SELECTED CONFIRMED EVENTS IN THE INTERVAL');
   expect(draftPrompt).toContain(source);

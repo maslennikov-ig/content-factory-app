@@ -54,7 +54,7 @@ module.exports = {
     ]);
     const approval = run.turns[3].approvals[0];
     expect(approval.toolName).toBe('adaptation_delete');
-    expect(approval.reason).toBe('Удалить адаптацию заготовки cnt-1 для канала «Канал про работу» вместе с её черновиком');
+    expect(approval.reason).toBe('Удалить адаптацию черновика cnt-1 для канала «Канал про работу» вместе с её черновиком');
     expect(run.writes).toEqual([
       ['piece.review.accepted', 'p1', ['w1']],
       ['adaptation.edited', 'a1'],

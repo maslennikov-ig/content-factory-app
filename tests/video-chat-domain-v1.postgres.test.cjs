@@ -86,6 +86,10 @@ integration('Video V1 shared chat capability -> Prisma domain -> owned media', (
       });
       const mocks = {'@contentfactory/nestjs-libraries/videos/video-job.service': {VideoJobService: f.service.constructor}};
       for (const [path, exported] of [
+        ['content-intelligence/social-factory/social-factory.service', 'SocialFactoryService'],
+        ['content-intelligence/social-factory/source-artifact.service', 'SourceArtifactServiceV1'],
+        ['content-intelligence/social-factory/native-clip-preproduction.service.v1', 'NativeClipPreproductionServiceV1'],
+        ['content-intelligence/pieces/piece.repository', 'PieceRepository'],
         ['content-intelligence/pieces/piece.service', 'PieceService'],
         ['content-intelligence/brand-voice/voice.service', 'VoiceService'],
         ['database/prisma/integrations/integration.service', 'IntegrationService'],

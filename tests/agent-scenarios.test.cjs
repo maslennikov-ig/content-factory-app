@@ -23,20 +23,18 @@ const scenarios = loadScenarios();
 let report;
 
 beforeAll(() => {
-  // The runner plays every scenario in one child process: ~80 s alone, over
-  // 240 s when the machine is busy (the release receipt of 28.09 timed out
-  // while another project was building). Generous, because a timeout here is
-  // the host's load, not a defect.
-  report = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [path.join(__dirname, 'helpers', 'agent-scenarios.runner.cjs'),
-        // Pair with Jest's testNamePattern for a bounded scenario rerun. The
-        // ordinary suite still plays and asserts every scenario by default.
-        ...(process.env.CF_AGENT_SCENARIO_IDS ? [process.env.CF_AGENT_SCENARIO_IDS] : [])],
-      { encoding: 'utf8', timeout: 900_000, maxBuffer: 64 * 1024 * 1024 }
-    )
-  );
+  const runner = path.join(__dirname, 'helpers', 'agent-scenarios.runner.cjs');
+  // Bound the number of independent native stores and agents per child.
+  // Every scenario still runs and is asserted by default.
+  const ids = process.env.CF_AGENT_SCENARIO_IDS?.split(',') ?? scenarios.map(scenario => scenario.id);
+  const batchSize = 24;
+  report = {};
+  for (let offset = 0; offset < ids.length; offset += batchSize) {
+    const batch = ids.slice(offset, offset + batchSize);
+    Object.assign(report, JSON.parse(execFileSync(process.execPath, [runner, batch.join(',')], {
+      encoding: 'utf8', timeout: 240_000, maxBuffer: 64 * 1024 * 1024,
+    })));
+  }
 }, 960_000);
 
 describe.each(scenarios.map((scenario) => [scenario.id, scenario]))('scenario %s', (id, scenario) => {
@@ -167,7 +165,7 @@ describe('kcxz.29 D5 — one approval card, live and reloaded', () => {
     const liveCard = live.find((block) => block.type === 'approval');
     const reloadedCard = again.find((block) => block.type === 'approval');
     expect(liveCard).toEqual(
-      expect.objectContaining({ title: 'Удалить заготовку', state: 'asked' })
+      expect.objectContaining({ title: 'Удалить черновик', state: 'asked' })
     );
     expect(reloadedCard).toEqual(expect.objectContaining({ title: liveCard.title }));
     expect(live.filter((block) => block.type === 'done')).toEqual([]);

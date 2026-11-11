@@ -20,13 +20,13 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
   const update = memoryStore.updateThreadMetadata.bind(memoryStore);
   const report = {};
   const executionKeys = [];
-  async function seed(kind, saveTail = true) {
+  async function seed(kind, saveTail = true, announceResponse = true) {
     const threadId = `${runtime.schemaName}-${kind}`, requestId = `${threadId}-request`, runId = `${threadId}-run`;
     await runtime.memory.createThread({threadId, resourceId, title: 'Owned orphan Stop proof', metadata: {unrelated: {keep: true}}});
     const lifecycle = await threads.startTurn(IDENTITY, threadId, requestId, async () => {});
     executionKeys.push(`agent-execution:${requestId}`);
     await threads.rememberNativeRun(IDENTITY, threadId, runId, requestId);
-    await threads.rememberNativeResponse(IDENTITY, threadId, runId, `${threadId}-answer`);
+    if (announceResponse) await threads.rememberNativeResponse(IDENTITY, threadId, runId, `${threadId}-answer`);
     if (saveTail) await runtime.memory.saveMessages({messages: [{id: `${threadId}-answer`, role: 'assistant', threadId, resourceId,
       createdAt: new Date('2026-10-25T00:00:00Z'), type: 'text', content: {format: 2, parts: [{type: 'text', text: 'Preserved partial draft.'}]}}]});
     return {threadId, requestId, runId, lifecycle};
@@ -84,6 +84,8 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
       })});
       assert.equal(await runtime.service.settleStoppedNativeRun({threadId: target.threadId, requestId: target.requestId,
         runId: target.runId, resourceId}), false, `Uncanceled target/nonterminal ancestor ${status} must stay protected`);
+      assert.equal(await runtime.service.stoppedNativeDriverAbsent({threadId: target.threadId, requestId: target.requestId,
+        runId: target.runId, resourceId}), false, `Stored target/nonterminal ancestor ${status} is not an absent driver`);
     }
     report.nonterminalAncestorsProtected = activeAncestors.length;
     report.uncanceledTargetProtected = true;
@@ -96,6 +98,33 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
     const missing = await seed('missing-tail', false);
     await assert.rejects(stop(missing), /saved response/);
     report.missingTailRejected = (await history(missing)).execution.state !== 'settled';
+
+    const unannounced = await seed('unannounced', false, false);
+    const unannouncedReceipt = await stop(unannounced);
+    const unannouncedThread = await runtime.memory.getThreadById({threadId: unannounced.threadId});
+    assert.equal(unannouncedReceipt.requestId, unannounced.requestId);
+    assert.equal((await history(unannounced)).execution.outcome, 'interrupted');
+    assert.equal((await history(unannounced)).messages.length, 0, 'An interruption receipt cannot invent an assistant.');
+    assert.deepEqual(unannouncedThread.metadata.assistantNativeRun.stopReceipt,
+      {version: 1, runId: unannounced.runId, requestId: unannounced.requestId, reason: 'native-driver-absent'});
+    assert.equal((await stop(unannounced)).requestId, unannounced.requestId);
+    report.unannouncedOrphanInterrupted = true;
+
+    const failedProof = await seed('failed-http-proof', false, false);
+    memoryStore.updateThreadMetadata = async input => update({...input, update: current => {
+      const patch = input.update(current);
+      if (current.id === failedProof.threadId && patch?.assistantNativeRun?.response)
+        throw new Error('Controlled HTTP response proof failure.');
+      return patch;
+    }});
+    try {
+      await assert.rejects(threads.rememberNativeResponse(IDENTITY, failedProof.threadId, failedProof.runId, 'not-saved'), /Controlled HTTP response proof failure/);
+    } finally { memoryStore.updateThreadMetadata = update; }
+    const failedProofPointer = (await runtime.memory.getThreadById({threadId: failedProof.threadId})).metadata.assistantNativeRun;
+    assert.equal(failedProofPointer.response, undefined);
+    assert.equal(failedProofPointer.responseAnnounced, true);
+    await assert.rejects(stop(failedProof), /saved response/);
+    report.failedHttpProofRejected = true;
 
     const failed = await seed('failed-commit');
     memoryStore.updateThreadMetadata = async input => update({...input, update: current => {
@@ -135,6 +164,31 @@ const resourceId = `${IDENTITY.organizationId}:${IDENTITY.userId}`;
     assert.equal(deadlineVerified, true);
     report.liveOwnerDeadlineVerified = true;
     report.liveOwnerProtected = (await history(live)).execution.state !== 'settled';
+
+    const pendingOwner = await seed('pending-http-owner');
+    let releaseOwner;
+    const pendingHandle = threads.registerActiveTurn({identity: IDENTITY, threadId: pendingOwner.threadId,
+      requestId: pendingOwner.requestId, onStop: async () => {},
+      settled: new Promise(resolve => {releaseOwner = resolve;}),
+    });
+    const originalTimeout = global.setTimeout;
+    let boundedWaitObserved = false;
+    global.setTimeout = (callback, delay, ...args) => {
+      if (delay === 35_000) {boundedWaitObserved = true; delay = 20;}
+      return originalTimeout(callback, delay, ...args);
+    };
+    try {
+      await assert.rejects(stop(pendingOwner), error => error.getStatus?.() === 503 &&
+        error.message === 'Native Stop is waiting for its current owner.');
+      assert.equal(boundedWaitObserved, true, 'The HTTP owner wait must retain its bounded production deadline.');
+      assert.notEqual((await history(pendingOwner)).execution.state, 'settled');
+      assert.equal(await threads.activeTurnFor(IDENTITY, pendingOwner.threadId), pendingHandle,
+        'An unresolved owner is preserved after a bounded Stop refusal.');
+      report.pendingHttpOwnerDeadlineProtected = true;
+    } finally {
+      global.setTimeout = originalTimeout;
+      releaseOwner(); pendingHandle.finishStream();
+    }
 
     const replaced = await seed('successor');
     let injected = false, successorBefore;

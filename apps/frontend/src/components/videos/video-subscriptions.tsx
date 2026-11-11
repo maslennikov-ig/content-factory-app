@@ -30,7 +30,7 @@ export function useVideoAccessChoicesV2() {
 }
 
 /** Personal credentials stay behind this person-driven connection action. */
-export function VideoSubscriptions({returnPath = '/third-party', onChanged, canConnect = true, connectBlockedMessage, beforeConnect, managementOnly = false, providerFilter}: {returnPath?: string; onChanged?: () => void; canConnect?: boolean; connectBlockedMessage?: string; beforeConnect?: () => Promise<void>; managementOnly?: boolean; providerFilter?: 'heygen' | 'higgsfield'}) {
+export function VideoSubscriptions({returnPath = '/third-party', onChanged, canConnect = true, connectBlockedMessage, beforeConnect, managementOnly = false, providerFilter, selectedConnection}: {returnPath?: string; onChanged?: () => void; canConnect?: boolean; connectBlockedMessage?: string; beforeConnect?: () => Promise<void>; managementOnly?: boolean; providerFilter?: 'heygen' | 'higgsfield'; selectedConnection?: VideoConnectionUiV2}) {
   const words = useVideoWords(); const accessWords = useVideoAccessWords(); const personal = useVideoPersonalWords(); const request = useFetch(); const user = useUser();
   const choices = useVideoAccessChoicesV2(); const canWrite = isOrganizationEditor(user?.role); const canAdmin = isOrganizationAdmin(user?.role);
   const hubWords = useIntegrationHubWords();
@@ -55,12 +55,17 @@ export function VideoSubscriptions({returnPath = '/third-party', onChanged, canC
     window.location.assign(url.href);
   });
   if (managementOnly) return <section className="flex flex-col gap-[8px]" data-video-integration-link="v1">
+    {providerFilter && choices.data && (selectedConnection ? ['disconnected', 'reauth_required'].includes(selectedConnection.state) : !choices.data.connections.some(item => item.provider === providerFilter && ['connected', 'discovery_required'].includes(item.state))) &&
+      <Button variant="primary" disabled={!canWrite || !canConnect || !!pending || !choices.data.workspaceEnabled || choices.data.providers.find(item => item.provider === providerFilter)?.connectReady !== true} loading={pending === `connect-${providerFilter}`} loadingLabel={accessWords.connecting} onClick={() => connect(providerFilter)}>{selectedConnection?.state === 'reauth_required' ? accessWords.reconnect : accessWords.connect} {providerFilter === 'heygen' ? 'HeyGen' : 'Higgsfield'}</Button>}
+    {selectedConnection && selectedConnection.state === 'discovery_required' && selectedConnection.workspaceGranted && selectedConnection.walletVerified !== true && !choices.data?.providers.find(item => item.provider === selectedConnection.provider)?.blockers?.includes('VIDEO_WALLET_IDENTITY_UNVERIFIED') &&
+      <Button variant="primary" disabled={!canWrite || !!pending} loading={pending === `discover-${selectedConnection.id}`} loadingLabel={personal.discovering} onClick={() => action(`discover-${selectedConnection.id}`, async () => { await mutate(`/media/video-v2/connections/${encodeURIComponent(selectedConnection.id)}/discover`); setNotice(personal.checked); })}>{personal.discover}</Button>}
     <Button variant="secondary" disabled={!canWrite || !canConnect || !!pending || !videoIntegrationHubHrefV1(returnPath)} loading={pending === 'hub'} loadingLabel={words.loading} onClick={() => action('hub', async () => {
       if (beforeConnect) { try { await beforeConnect(); } catch { throw new Error('VIDEO_CHAT_BIND_FAILED'); } }
       const href = videoIntegrationHubHrefV1(returnPath); if (!href) throw new Error('VIDEO_CHAT_BIND_FAILED');
       openVideoIntegrationHubV1(returnPath);
     })}>{hubWords.manage}</Button>
     {!canConnect && <p role="status" className="cf-body-sm text-cf-ink-muted">{connectBlockedMessage ?? `${words.dirty} · ${words.save}`}</p>}
+    {notice && <p role="status" className="cf-body-sm text-cf-accent">{notice}</p>}
     {error && <p role="alert" className="cf-body-sm text-cf-danger">{error === 'VIDEO_CHAT_BIND_FAILED' ? personal.bindFailed : accessWords.loginFailed}</p>}
   </section>;
   return <section className="flex min-w-0 flex-col gap-[16px]" data-video-subscriptions="v2" aria-busy={!!pending}>

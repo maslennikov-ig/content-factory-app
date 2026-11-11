@@ -12,7 +12,7 @@ module.exports = {
       [['tool', 'campaign_open', { campaignId: IDS.campaign }], ['tool', 'campaign_list', {}]],
       [['text', 'План из двух материалов сохранён. Публикаций пока нет.']],
     ] },
-    { say: 'Повтори тот же запрос, затем останови кампанию. Чужая кампания недоступна.', model: [
+    { say: 'Повтори запрос на два поста в том же канале, затем останови кампанию. Чужая кампания недоступна.', model: [
       [['tool', 'campaign_create', CREATION]],
       [['tool', 'campaign_open', { campaignId: 'foreign-campaign' }]],
       [['tool', 'campaign_stop', { campaignId: IDS.campaign }]],
@@ -20,7 +20,7 @@ module.exports = {
     ] },
   ],
   check(run) {
-    expect(summary(run.turns[0], 'campaign_create')).toMatchObject({ id: IDS.campaign, mode: 'prepare_approve', state: 'active', total: 2 });
+    expect(summary(run.turns[0], 'campaign_create')).toMatchObject({ id: IDS.campaign, mode: 'collaborative', state: 'active', total: 2 });
     expect(summary(run.turns[0], 'campaign_open')).toMatchObject({ id: IDS.campaign, total: 2 });
     expect(summary(run.turns[0], 'campaign_list').campaigns).toEqual([expect.objectContaining({ id: IDS.campaign, total: 2 })]);
     expect(run.turns[1].outputs.find((one) => one.toolName === 'campaign_open').output).toMatchObject({ ok: false, code: 'SOCIAL_FACTORY_NOT_FOUND' });

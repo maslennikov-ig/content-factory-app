@@ -132,7 +132,7 @@ test.each(workspaceStatusCases.flatMap(scenario => ['en', 'ru'].map(locale => ({
   await waitFor(() => expect(form.container.querySelector('[data-video-subscription-provider="heygen"]')).toBeTruthy());
   expect(within(form.container).getByText(scenario.status[index], {exact: true})).toBeTruthy();
   if (scenario.grant) expect(within(form.container).getByRole('button', {name: index ? 'Разрешить мой аккаунт в этом пространстве' : 'Allow my account in this workspace'}).disabled).toBe(false);
-  if (scenario.discovery) expect(within(form.container).getByText(index ? 'Аккаунт подключён. Для проверки кошелька и доступных действий требуется проверка у провайдера.' : 'Account connected. Check the provider for wallet and operation availability.')).toBeTruthy();
+  if (scenario.discovery) expect(within(form.container).getByText(index ? 'Аккаунт подключён. Нужно проверить доступные действия у провайдера.' : 'Account connected. Check the provider for available actions.')).toBeTruthy();
   expect(within(form.container).getByText(index ? 'Подключение доступно; создание видео пока не подтверждено.' : 'Connection is available; video generation is not yet verified.')).toBeTruthy();
   expect(form.container.querySelector('[data-video-subscription-provider="higgsfield"]')).toBeNull();
   expect(calls.every(call => call.method === 'GET')).toBe(true);

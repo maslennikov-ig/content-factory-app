@@ -13,6 +13,45 @@ import { CAPABILITY_CONTEXT_KEYS } from '../capabilities/capability.context';
 export const AGENT_NATIVE_RUN_METADATA_KEY = 'assistantNativeRun';
 export const AGENT_NATIVE_CONTINUATION_PART = 'data-native-run-continuation';
 
+/** An absent native producer cannot deliver a deleted terminal replay. */
+export async function readNativeStopTail<T>(
+  reader: ReadableStreamDefaultReader<T>,
+  signal: AbortSignal,
+  stoppedWithoutDriver: () => Promise<boolean>
+): Promise<ReadableStreamReadResult<T>> {
+  const stopped = Symbol('explicit-stop');
+  let onAbort!: () => void;
+  const aborted = new Promise<typeof stopped>(resolve => {
+    onAbort = () => resolve(stopped);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, {once: true});
+  });
+  const next = reader.read();
+  try {
+    const result = await Promise.race([next, aborted]);
+    if (result !== stopped) return result;
+    while (true) {
+      // Timeout is only a chance to inspect ownership, never a terminal proof.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const part = await Promise.race([next, new Promise<typeof stopped>(resolve => {
+        timer = setTimeout(() => resolve(stopped), 250);
+      })]).finally(() => clearTimeout(timer));
+      if (part !== stopped) return part;
+      let absent = false;
+      try { absent = await stoppedWithoutDriver(); }
+      catch { /* Unavailable ownership evidence cannot replace the native tail. */ }
+      if (absent) {
+        // Detach this HTTP observer only. The owning lifecycle still drains
+        // actual capability Promises and persists its interrupted outcome.
+        await reader.cancel();
+        return {done: true, value: undefined};
+      }
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+}
+
 /** Replay belongs to Mastra's shared PubSub; detaching never clears it. */
 export async function observeNativeRun(input: {
   agent: DurableAgent<any, any, any>;

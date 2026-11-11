@@ -92,6 +92,7 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
         call('video.prepare', org, actor, input);
         if (input.pieceId !== IDS.piece || input.prepareWithAi !== false) fail('VIDEO_SCENARIO_RAW_DRAFT_REQUIRED');
         const saved = { ...draft(), settings: copy(input.settings) };
+        if(input.scriptPolicy!==undefined)saved.brief.scriptPolicy=input.scriptPolicy;
         data.drafts.push(saved); writes.push(['video.prepared', saved.id]); return view(saved);
       },
       listDrafts: async (org, pieceId) => { call('video.drafts', org, null, pieceId); return data.drafts.filter((one) => one.organizationId === org && (!pieceId || one.pieceId === pieceId)).map(view); },
@@ -134,6 +135,15 @@ const videoServices = ({ rows, requests, writes, scoped }) => {
       choices: async (org, actor) => { call('video.access-v2', org, actor); return copy(data.accessChoices ?? { workspaceEnabled: true, connections: [{ id: IDS.connection, provider: 'higgsfield', unit: 'higgsfield_credit' }], providers: [] }); },
       apiRepository: { draft: async (org, id) => { call('video.access-draft-v2', org, null, id); return copy(data.drafts.find(one => one.id === id && one.organizationId === org) ?? null); } },
       assets: async (org, actor, connectionId) => { call('video.personal-assets', org, actor, connectionId); return copy(personal(org, actor, connectionId).assets); },
+      presenterPreview: async (org, actor, input) => {
+        call('video.presenter-preview',org,actor,input);
+        const connection=personal(org,actor,input.connectionId);const saved=current(org,input.draftId,input.version);
+        const avatar=connection.assets.avatars.find(row=>row.id===input.avatarId);const voice=connection.assets.voices.find(row=>row.id===input.voiceId);
+        if(!avatar||!voice||saved.brief.scriptPolicy!=='exact')fail('VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE');
+        saved.settings={...saved.settings,provider:'heygen',model:'heygen-avatar',mode:'presenter',avatarId:input.avatarId,voiceId:input.voiceId,engine:input.engine,duration:input.durationSeconds,resolution:'720p',audio:true};
+        saved.version+=1;data.apiPreflight=null;data.accessPreflight=null;writes.push(['video.presenter-preview',saved.id,saved.version]);
+        return {...view(saved),access:{kind:'subscription',connectionId:input.connectionId},selection:{avatar:avatar.name,voice:voice.name,locale:saved.settings.locale},preview:{kind:'script_review',script:saved.brief.script,scriptPolicy:'exact',generated:false,submitted:false,renderReady:false,price:null,blockers:['VIDEO_PRICE_UNAVAILABLE','VIDEO_SCHEMA_UNSUPPORTED']}};
+      },
       personalReadiness: async (org, actor, connectionId) => { call('video.personal-readiness', org, actor, connectionId); return copy(personal(org, actor, connectionId).readiness); },
       discoverPersonal: async (org, actor, connectionId) => {
         call('video.personal-discover', org, actor, connectionId); const connection = personal(org, actor, connectionId);

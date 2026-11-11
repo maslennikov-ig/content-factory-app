@@ -9,13 +9,15 @@ export interface VideoSettingsV1 {
   mode: VideoModeV1;
   locale: string;
   duration: number;
-  aspectRatio: '9:16' | '16:9' | '1:1';
+  aspectRatio: '9:16' | '16:9' | '1:1' | '4:5' | '5:4' | 'auto';
   resolution?: string;
   audio: boolean;
   captions: boolean;
   avatarId?: string;
   voiceId?: string;
   engine?: string;
+  /** Explicit opt-in; historical settings and requests retain their V1 contract. */
+  heygenV2?: import('./subscriptions/video-heygen-settings.v2').HeygenVideoProposalV2;
 }
 
 export interface VideoCredentialV1 {

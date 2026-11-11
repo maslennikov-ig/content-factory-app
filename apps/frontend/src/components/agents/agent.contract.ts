@@ -1,3 +1,5 @@
+import { normalizeAgentChatMode, type AgentChatMode } from '@contentfactory/nestjs-libraries/chat/conductor/chat-mode';
+export type { AgentChatMode } from '@contentfactory/nestjs-libraries/chat/conductor/chat-mode';
 import { writingSettingsSchema, writingSettingsAnswerSchema, writingLengthOptionsSchema, type WritingSettings, type WritingLengthOption } from '@contentfactory/helpers/utils/writing-settings';
 import type { UIMessage } from 'ai';
 import { videoApprovalScopeV1, videoWorkspacePath, type VideoApprovalScopeV1 } from '../videos/video-ui.v1';
@@ -42,6 +44,7 @@ export const CARD_KINDS = [
   'channel-connect',
   'secret',
   'clip-preproduction',
+  'heygen-consent',
   'ideas',
   'facts',
   'media',
@@ -414,10 +417,23 @@ export type AgentMessage = UIMessage;
  * — the Telegram steps or the platform's button — not a thing to look at; so
  * is typing a key into the key card (`kcxz.20`).
  */
-export const INLINE_CARD_KINDS = ['channel-connect', 'secret', 'clip-preproduction'] as const;
+export const INLINE_CARD_KINDS = ['channel-connect', 'secret', 'clip-preproduction', 'heygen-consent'] as const;
+
+/** A browser-only read handle; a one-use provider URL never belongs in chat history. */
+export type AgentHeygenConsentRef = { id: string; threadId: string; name: string; expiresAt: string };
+export const readHeygenConsentRef = (value: unknown): AgentHeygenConsentRef | null => {
+  const row = recordOf(value);
+  if (row.kind !== 'heygen-consent' || Object.keys(row).some(key => !['kind', 'id', 'threadId', 'name', 'expiresAt'].includes(key)) ||
+    ![row.id, row.threadId].every(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(id)) ||
+    typeof row.name !== 'string' || !row.name.trim() || row.name.length > 500 ||
+    typeof row.expiresAt !== 'string' || row.expiresAt.length > 40 || !/^\d{4}-\d\d-\d\dT/.test(row.expiresAt) || !Number.isFinite(Date.parse(row.expiresAt))) return null;
+  return { id: row.id as string, threadId: row.threadId as string, name: row.name, expiresAt: row.expiresAt };
+};
 
 export type AgentClipPreproductionRef = { id: string; pieceId: string; threadId: string };
 export type AgentClipPreproductionView = {
+  reference: AgentClipPreproductionRef;
+  sourceTitle?: string;
   revisionV2?: {version: 2; parentPilotId: string; scope: 'scenario' | 'references'; newImagePair: true};
   executionModeV2?: {version: 2; mode: 'review' | 'autopilot'; canChange: boolean};
   state: 'preparing' | 'reviewed' | 'needs_input' | 'uncertain';
@@ -441,8 +457,9 @@ export const readClipPreproduction = (value: unknown, ref: AgentClipPreproductio
     typeof row.outputLocale !== 'string' || row.outputLocale.length > 60 || !Array.isArray(row.models) || row.models.length > 4) return null;
   try { new Intl.Locale(row.outputLocale); } catch { return null; }
   const bounded = (text: unknown, max = 5000): text is string => typeof text === 'string' && text.length <= max;
-  const result: AgentClipPreproductionView = { state: row.state as AgentClipPreproductionView['state'], sourceCurrent: row.sourceCurrent,
+  const result: AgentClipPreproductionView = { reference: {...ref}, state: row.state as AgentClipPreproductionView['state'], sourceCurrent: row.sourceCurrent,
     independentReviewAccepted: row.independentReviewAccepted === true, outputLocale: row.outputLocale, models: [] };
+  if (typeof row.sourceTitle === 'string') result.sourceTitle = row.sourceTitle.slice(0, 5000);
   if (typeof row.blocker === 'string') result.blocker = row.blocker.slice(0, 128);
   if (row.revisionV2 !== undefined) {
     const revision = recordOf(row.revisionV2);
@@ -530,6 +547,8 @@ export type AgentArtifactRef = {
   adaptationId?: string;
   videoDraftId?: string;
   videoJobId?: string;
+  videoPersonalConnectionId?: string;
+  clipPilotId?: string;
 };
 
 export type AgentWritingSelection = { channelId?: string; avatarId?: string };
@@ -583,13 +602,14 @@ const readArtifactRef = (value: unknown): AgentArtifactRef | null => {
   const row = recordOf(value);
   if (!isArtifactKind(row.kind) || typeof row.id !== 'string' || !WORK_ID.test(row.id)) return null;
   const ref: AgentArtifactRef = { kind: row.kind, id: row.id };
-  for (const key of ['pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId'] as const) {
+  for (const key of ['pieceId', 'channelId', 'adaptationId', 'videoDraftId', 'videoJobId', 'videoPersonalConnectionId', 'clipPilotId'] as const) {
     if (row[key] !== undefined) {
       if (typeof row[key] !== 'string' || !WORK_ID.test(row[key] as string)) return null;
       ref[key] = row[key] as string;
     }
   }
   if ((ref.kind === 'adaptation' || ref.kind === 'plan') && !ref.pieceId) return null;
+  if (ref.clipPilotId && ref.kind !== 'piece') return null;
   return ref;
 };
 
@@ -603,7 +623,7 @@ export const readAgentWorkspace = (value: unknown): AgentWorkspaceV1 | null => {
     workContext: readAgentWorkContext(row.workContext),
     ...(readAgentWritingSelection(row.writingSelection) !== undefined ? { writingSelection: readAgentWritingSelection(row.writingSelection) } : {}),
     artifacts,
-    activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId && ref.videoJobId === active.videoJobId && ref.videoDraftId === active.videoDraftId) ? active : null,
+    activeArtifact: active && artifacts.some((ref) => ref.kind === active.kind && ref.id === active.id && ref.pieceId === active.pieceId && ref.videoJobId === active.videoJobId && ref.videoDraftId === active.videoDraftId && ref.clipPilotId === active.clipPilotId) ? active : null,
   };
 };
 
@@ -617,6 +637,8 @@ export const artifactRefOf = (artifact: AgentArtifact): AgentArtifactRef => ({
   ...(['adaptation', 'plan'].includes(artifact.kind) ? { adaptationId: artifact.id } : {}),
   ...(artifact.kind === 'media' && typeof artifact.data.videoDraftId === 'string' ? { videoDraftId: artifact.data.videoDraftId } : {}),
   ...(artifact.kind === 'media' && typeof artifact.data.videoJobId === 'string' ? { videoJobId: artifact.data.videoJobId } : {}),
+  ...(artifact.kind === 'media' && typeof artifact.data.videoPersonalConnectionId === 'string' ? { videoPersonalConnectionId: artifact.data.videoPersonalConnectionId } : {}),
+  ...(artifact.kind === 'piece' && typeof artifact.data.clipPilotId === 'string' ? {clipPilotId: artifact.data.clipPilotId} : {}),
 });
 
 /** The selected video keeps its identity when it becomes a server-read context. */
@@ -627,7 +649,7 @@ export const artifactContextOf = (artifact: AgentArtifact): AgentWorkContextV1 =
   return {version: 'assistant-work-context/v1', kind: ref.kind === 'channels' ? 'workspace' : ref.kind,
     ...(!section ? {id: ref.id} : {}), ...(ref.pieceId ? {pieceId: ref.pieceId} : {}),
     ...(ref.channelId ? {channelId: ref.channelId} : {}), ...(ref.adaptationId ? {adaptationId: ref.adaptationId} : {}),
-    ...(ref.videoDraftId ? {videoDraftId: ref.videoDraftId} : {}), ...(ref.videoJobId ? {videoJobId: ref.videoJobId} : {})};
+    ...(ref.videoDraftId ? {videoDraftId: ref.videoDraftId} : {}), ...(ref.videoJobId ? {videoJobId: ref.videoJobId} : {}), ...(ref.clipPilotId ? {clipPilotId: ref.clipPilotId} : {})};
 };
 
 /**
@@ -818,6 +840,7 @@ export const connectReturnOf = (search: string): ConnectReturn | null => {
 /* ---- Threads --------------------------------------------------------------- */
 
 export type AgentThreadSummary = {
+  chatMode?: AgentChatMode;
   id: string;
   title: string | null;
   updatedAt: string | null;
@@ -834,6 +857,7 @@ const readThread = (row: unknown): AgentThreadSummary | null => {
   return {
     id,
     title: stringOf(record.title),
+    ...(normalizeAgentChatMode(record.chatMode) ? { chatMode: normalizeAgentChatMode(record.chatMode) } : {}),
     updatedAt: stringOf(record.updatedAt) ?? stringOf(record.createdAt),
     ...(forkedFromThreadId ? { forkedFromThreadId } : {}),
     ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
@@ -1159,6 +1183,8 @@ export const buildChatBody = ({
   resume,
   workContext,
   writingSelection,
+  chatMode,
+  continueFromRequestId,
 }: {
   threadId: string | null;
   messages: readonly AgentMessage[];
@@ -1167,6 +1193,8 @@ export const buildChatBody = ({
   resume?: AgentResume | null;
   workContext?: AgentWorkContextV1 | null;
   writingSelection?: AgentWritingSelection;
+  chatMode?: AgentChatMode;
+  continueFromRequestId?: string;
 }) => {
   const thread = { ...(threadId ? { threadId } : {}), ...(workContext !== undefined ? { workContext } : {}), ...(writingSelection !== undefined ? { writingSelection } : {}) };
   if (resume) {
@@ -1183,7 +1211,8 @@ export const buildChatBody = ({
     ? messages.find((message) => message.id === messageId)
     : undefined;
   const last = answersApproval(named) ? named : messages[messages.length - 1];
-  return { ...thread, messages: last ? [last] : [] };
+  return { ...thread, ...(chatMode && last?.role === 'user' ? { chatMode } : {}),
+    ...(continueFromRequestId && last?.role === 'user' ? { continueFromRequestId } : {}), messages: last ? [last] : [] };
 };
 
 /**
@@ -2037,6 +2066,7 @@ export type AgentSourceReadIssue = {
 
 export type AgentBlock =
   | { type: 'text'; key: string; text: string }
+  | { type: 'heygen-consent'; key: string; consent: AgentHeygenConsentRef }
   | { type: 'clip-preproduction'; key: string; preproduction: AgentClipPreproductionRef }
   | ({ type: 'file'; key: string } & AttachedLine)
   | {
@@ -2074,6 +2104,7 @@ export type AgentBlock =
       stale?: boolean;
     }
   | { type: 'working'; key: string; toolName: string; title: string | null }
+  | { type: 'research-ready'; key: string; toolName: string; title: string | null; retained: boolean }
   | {
       type: 'source-range';
       key: string;
@@ -2102,6 +2133,8 @@ export type AgentBlock =
       toolName: string | null;
       title: string | null;
       code: string | null;
+      canReviseInput?: true;
+      inputRecovered?: true;
       reviewFindings?: AgentAdaptationReviewFindings;
       sourceRead?: AgentSourceReadIssue;
     }
@@ -2133,6 +2166,49 @@ type Part = Record<string, unknown> & { type: string };
 const toolNameOfPart = (part: Part): string | null => {
   if (part.type === 'dynamic-tool') return stringOf(part.toolName);
   return part.type.startsWith('tool-') ? part.type.slice('tool-'.length) : null;
+};
+
+/** Native partial creation is retained evidence, not a completed draft. */
+const savedResearchOf = (part: Part): { snapshotKey: string | null } | null => {
+  if (toolNameOfPart(part) !== 'piece_create' || part.state !== 'output-available') return null;
+  const output = recordOf(part.output);
+  const summary = recordOf(output.summary);
+  if (output.ok !== true || output.capability !== undefined && output.capability !== 'piece.create' ||
+      summary.outcome !== 'research-ready' || stringOf(summary.pieceId)) return null;
+  const snapshotKey = stringOf(summary.snapshotKey);
+  return { snapshotKey: snapshotKey && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(snapshotKey) ? snapshotKey : null };
+};
+
+const latestAssistantTurnParts = (messages: readonly AgentMessage[]): Part[] => {
+  const boundary = messages.map(message => message.role).lastIndexOf('user');
+  return boundary < 0 ? [] : messages.slice(boundary + 1).filter(message => message.role === 'assistant')
+    .flatMap(message => message.parts as unknown as Part[]);
+};
+
+/** Only the exact retained native timeout shape can identify this failure. */
+export const nativeTurnTimedOut = (messages: readonly AgentMessage[]): boolean =>
+  latestAssistantTurnParts(messages).some(part => part.type === 'error' &&
+    recordOf(part.error).name === 'NonReplayableTextAttempt' && recordOf(part.error).message === 'Request timed out.');
+
+/** Prepare a new authored continuation; this never asserts the snapshot is still available. */
+export const savedResearchContinuation = (
+  messages: readonly AgentMessage[], execution: AgentThreadExecution | undefined, pending: readonly AgentPendingRun[]
+): { snapshotKey: string } | null => {
+  if (!execution?.requestId || execution.state !== 'settled' || execution.outcome !== 'failed' || pending.length) return null;
+  const parts = latestAssistantTurnParts(messages);
+  const research = parts.map(savedResearchOf).filter((result): result is { snapshotKey: string | null } => result !== null);
+  if (research.length !== 1 || !research[0].snapshotKey) return null;
+  // A second/uncertain write may already have saved a draft. Never offer a
+  // duplicate creation, even when its response or terminal result was lost.
+  if (parts.filter(part => toolNameOfPart(part) === 'piece_create').length !== 1 ||
+      parts.some(part => toolNameOfPart(part) === 'piece_create_from-research')) return null;
+  const created = parts.some(part => {
+    if (part.type === 'data-piece' && stringOf(recordOf(part.data).id)) return true;
+    if (!['piece_create', 'piece_create_from-research'].includes(toolNameOfPart(part) ?? '') || part.state !== 'output-available') return false;
+    const output = recordOf(part.output);
+    return output.ok === true && (!!stringOf(recordOf(output.summary).pieceId) || recordOf(output.card).kind === 'piece');
+  });
+  return created ? null : { snapshotKey: research[0].snapshotKey };
 };
 
 /** The persisted `channel-connect` card (`kcxz.19`). */
@@ -2189,7 +2265,7 @@ export const questionWaits = (
 ): boolean =>
   question.runId !== null &&
   pending.some((run) => {
-    if (run.kind !== 'question') return false;
+    if (run.kind !== 'question' || run.runId !== question.runId) return false;
     const sameCall = question.toolCallId
       ? run.toolCallId === question.toolCallId
       : run.runId === question.runId;
@@ -2321,9 +2397,10 @@ export const videoTouchesOf = (messages: readonly AgentMessage[]): Array<{key: s
       const card = recordOf(output.card);
       const draftId = stringOf(card.videoDraftId) ?? stringOf(recordOf(part.input).draftId);
       const jobId = stringOf(card.videoJobId) ?? stringOf(recordOf(part.input).jobId);
+      const personalConnectionId = stringOf(card.videoPersonalConnectionId);
       if (!draftId && !jobId) return;
       touches.push({key: `${message.id}:${stringOf(part.toolCallId) ?? index}`, artifact: {kind: 'media', id: 'library', title: null, code: null,
-        data: {...(draftId ? {videoDraftId: draftId} : {}), ...(jobId ? {videoJobId: jobId} : {})}}});
+        data: {...(draftId ? {videoDraftId: draftId} : {}), ...(jobId ? {videoJobId: jobId} : {}), ...(personalConnectionId ? {videoPersonalConnectionId: personalConnectionId} : {})}}});
     });
   }
   return touches;
@@ -2396,6 +2473,17 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'video_access_v2',
   'video_personal_assets',
   'video_personal_readiness',
+  'video_avatar_consent_status',
+  'video_person_profiles',
+  'video_person_profile_resolve',
+  'video_person_profile_propose',
+  'video_heygen_options_v1',
+  'video_performance_v1',
+  'video_performance_scenes_v1',
+  'video_performance_feedback_read_v1',
+  'video_performance_feedback_correction_v1',
+  'video_heygen_style_status',
+  'video_heygen_voice_status',
   'video_jobs_v2',
   'video_status_v2',
   'video_production_open',
@@ -2744,6 +2832,13 @@ export const readMessageBlocks = (
 ): AgentBlock[] => {
   const parts = message.parts as unknown as Part[];
   const blocks: AgentBlock[] = [];
+  const consentCards = new Set<string>();
+  const pushConsentCard = (value: unknown, key: string) => {
+    const consent = readHeygenConsentRef(value);
+    if (!consent || consentCards.has(consent.id)) return;
+    consentCards.add(consent.id);
+    blocks.push({ type: 'heygen-consent', key, consent });
+  };
   const clipCards = new Set<string>();
   const pushClipCard = (value: unknown, key: string) => {
     const ref = readClipPreproductionRef(value);
@@ -2823,12 +2918,12 @@ export const readMessageBlocks = (
   const pushArtifact = (artifact: AgentArtifact | null, key: string) => {
     if (!artifact) return false;
     if (artifact.kind === 'channel' && draftDestinationIds.has(artifact.id)) return false;
-    const identity = `${artifact.kind}:${artifact.id}`;
+    const identity = artifactKey(artifact);
     const seen = seenArtifacts.get(identity);
     if (seen) {
       const merged: AgentArtifact = {
         ...seen,
-        title: seen.title ?? artifact.title,
+        title: artifact.kind === 'media' && artifact.data.videoDraftId ? artifact.title ?? seen.title : seen.title ?? artifact.title,
         code: seen.code ?? artifact.code,
         data: {
           ...artifact.data,
@@ -2844,8 +2939,7 @@ export const readMessageBlocks = (
       const index = blocks.findIndex(
         (block) =>
           block.type === 'artifact' &&
-          block.artifact.kind === artifact.kind &&
-          block.artifact.id === artifact.id
+          artifactKey(block.artifact) === identity
       );
       if (index >= 0) {
         blocks[index] = { ...blocks[index], artifact: merged } as AgentBlock;
@@ -2906,6 +3000,14 @@ export const readMessageBlocks = (
     return true;
   };
 
+  const inputRecoveredAfter = (index: number, toolName: string) => parts.slice(index + 1).some(next => {
+    if (toolNameOfPart(next) !== toolName) return false;
+    if (toolName === 'campaign_plan_materials' && (!stringOf(recordOf(parts[index].input).campaignId) ||
+        recordOf(next.input).campaignId !== recordOf(parts[index].input).campaignId)) return false;
+    if (next.state === 'output-available') return recordOf(next.output).ok === true || toolName === 'ask_user' && !refusalCode(next.output);
+    const call = stringOf(next.toolCallId);
+    return toolName === 'ask_user' && !!call && pending.some(run => run.kind === 'question' && run.toolCallId === call);
+  });
   parts.forEach((part, index) => {
     const key = `${message.id}:${index}`;
 
@@ -2932,6 +3034,11 @@ export const readMessageBlocks = (
 
     if (part.type === 'data-clip-preproduction') {
       pushClipCard(part.data, key);
+      return;
+    }
+
+    if (part.type === 'data-heygen-consent') {
+      pushConsentCard(part.data, key);
       return;
     }
 
@@ -3114,6 +3221,7 @@ export const readMessageBlocks = (
         toolName,
         title,
         code: errorCodeOf(part.errorText),
+        ...(inputRecoveredAfter(index, toolName) ? { inputRecovered: true as const } : {}),
         ...(sourceRead ? { sourceRead } : {}),
         ...(reviewFindingsByIndex.has(index)
           ? { reviewFindings: reviewFindingsByIndex.get(index) }
@@ -3160,6 +3268,8 @@ export const readMessageBlocks = (
         const sourceRead = sourceReadIssueOf(part, refused, parts.slice(index + 1));
         blocks.push({
           type: 'error', key, toolName, title, code: refused,
+          ...(recordOf(part.output).canReviseInput === true ? { canReviseInput: true as const } : {}),
+          ...(inputRecoveredAfter(index, toolName) ? { inputRecovered: true as const } : {}),
           ...(sourceRead ? { sourceRead } : {}),
           ...(reviewFindingsByIndex.has(index)
             ? { reviewFindings: reviewFindingsByIndex.get(index) }
@@ -3170,6 +3280,11 @@ export const readMessageBlocks = (
       const range = recoverableMaterialRange(part.output);
       if (range) {
         blocks.push({ type: 'source-range', key, ...range });
+        return;
+      }
+      const savedResearch = savedResearchOf(part);
+      if (savedResearch) {
+        blocks.push({ type: 'research-ready', key, toolName, title, retained: !!savedResearch.snapshotKey });
         return;
       }
       // Answered after its text changed: nothing applied (`kcxz.32`, N2).
@@ -3210,6 +3325,14 @@ export const readMessageBlocks = (
         });
       }
       const card = recordOf(recordOf(part.output).card);
+      if (card.kind === 'heygen-consent') {
+        // Native history can retain only kind/id. Rebuild the opaque browser
+        // reference from this same result's public summary, never a provider URL.
+        const summary = recordOf(recordOf(part.output).summary);
+        const context = summary.untrustedData === undefined ? summary : recordOf(recordOf(summary.untrustedData).value);
+        if (context.handle === card.id) pushConsentCard({kind: card.kind, id: card.id, threadId: context.ownerThreadId, name: context.name, expiresAt: context.expiresAt}, key);
+        return;
+      }
       if (card.kind === 'clip-preproduction') {
         // The generic adapter's stored card retains only kind/id; recover opaque
         // read context from its owned public summary when the data-part is absent.
@@ -3233,7 +3356,10 @@ export const readMessageBlocks = (
         }
         return;
       }
-      if (!pushArtifact(artifactOf(card.kind, card), key) && !folded) {
+      const legacyDraftId = toolName === 'video_edit' && recordOf(part.output).ok === true && card.kind === 'media' && card.id === 'library' && !card.videoDraftId && !card.videoJobId
+        ? stringOf(recordOf(part.input).draftId) : null;
+      const artifactCard = legacyDraftId && WORK_ID.test(legacyDraftId) ? {...card, videoDraftId: legacyDraftId} : card;
+      if (!pushArtifact(artifactOf(artifactCard.kind, artifactCard), key) && !folded) {
         if (!title && NATIVE_AUTONOMY_TOOLS.has(toolName)) return;
         blocks.push({ type: 'done', key, toolName, title, ...(stale ? { stale: true } : {}) });
       }
@@ -3299,7 +3425,9 @@ export const artifactsOf = (
   messages.flatMap((message) =>
     message.role === 'assistant'
       ? readMessageBlocks(message, [], NOTHING_REMOVED, [], draftDestinationIds).flatMap((block) =>
-          block.type === 'artifact' ? [block.artifact] : []
+          block.type === 'artifact' ? [block.artifact] : block.type === 'clip-preproduction'
+            ? [{kind: 'piece' as const, id: block.preproduction.pieceId, title: null, code: null,
+              data: {pieceId: block.preproduction.pieceId, clipPilotId: block.preproduction.id, clipThreadId: block.preproduction.threadId}}] : []
         )
       : []
   );
@@ -3345,7 +3473,10 @@ export const artifactKey = (artifact: {
   data?: Readonly<Record<string, unknown>>;
   videoDraftId?: string;
   videoJobId?: string;
+  clipPilotId?: string;
 }) => {
+  const clipPilotId = artifact.clipPilotId ?? stringOf(artifact.data?.clipPilotId);
+  if (artifact.kind === 'piece' && clipPilotId) return `${artifact.kind}:${artifact.id}:clip:${clipPilotId}`;
   const jobId = artifact.videoJobId ?? stringOf(artifact.data?.videoJobId);
   const draftId = artifact.videoDraftId ?? stringOf(artifact.data?.videoDraftId);
   return artifact.kind === 'media' && (jobId || draftId)

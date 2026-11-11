@@ -1,3 +1,5 @@
+import { VideoHeygenStyleVoiceControllerV1 } from './routes/video-heygen-style-voice.controller.v1';
+import { VideoHeygenControlsControllerV2 } from './routes/video-heygen-controls.controller.v2';
 import { SocialFactoryController } from './routes/social-factory.controller';
 import { VideoConnectionsController } from './routes/video-connections.controller';
 import { VideoAccessController } from './routes/video-access.controller';
@@ -100,7 +102,7 @@ const authenticatedController = [
   SettingsController,
   PostsController,
   VideoConnectionsController,
-  VideoAccessController,
+  VideoAccessController, VideoHeygenControlsControllerV2, VideoHeygenStyleVoiceControllerV1,
   MediaController,
   BillingController,
   NotificationsController,

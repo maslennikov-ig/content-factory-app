@@ -978,7 +978,7 @@ describe('заготовка появляется первой', () => {
 
     const [failure] = named(events, 'error');
     expect(failure.code).toBe('PIECE_NOT_SAVED');
-    expect(failure.message).toContain('Заготовку не удалось сохранить');
+    expect(failure.message).toContain('Черновик не удалось сохранить');
     // И ни одной генерации после: черновики без заготовки — это та самая
     // библиотека из трёх «текстов» на один, от которой волна и уходила.
     expect(calls.start).toEqual([]);

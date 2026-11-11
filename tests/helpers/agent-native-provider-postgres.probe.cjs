@@ -38,7 +38,7 @@ const { loadTypeScriptModule } = require('./load-ts-module.cjs');
     assert.equal(response.parts().filter(part => part.type === 'text-delta').map(part => part.delta).join(''), 'Нативная задача завершена.', JSON.stringify({ execution: execution?.snapshot(), requests: providerRequests.get(model)?.length, events, parts: response.parts() }));
     assert.equal(response.parts().some(part => part.type === 'data-native-input-wait'), false);
     const initial = providerRequests.get(model)[0];
-    assert.ok(JSON.stringify(initial.messages).includes('A «заготовка» is the core text'), 'Bundled instructions must be present before the first response.');
+    assert.ok(JSON.stringify(initial.messages).includes('A «черновик» is the core text'), 'Bundled instructions must be present before the first response.');
     assert.ok(initial.tools.some(tool => tool.function?.name === 'skill_read'));
     assert.equal(initial.tools.some(tool => tool.function?.name === 'skill'), false);
     assert.ok(events.some(event => event.type === 'tool_end' && typeof event.result === 'string' && event.result.includes(helpFaqMarkdown('ru'))),

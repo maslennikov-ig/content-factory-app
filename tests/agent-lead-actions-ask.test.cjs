@@ -55,6 +55,8 @@ describe('always a card in the web chat, never one of ours over MCP', () => {
   test('the three and paid video launches ask; feed add and check do not (decided for the owner)', () => {
     expect(catalogue.filter((one) => one.asksInWebChat).map((one) => one.id)).toEqual([
       'video.launch',
+      'video.heygen_style_submit',
+      'video.heygen_voice_execute',
       'video.launch_v2',
       ...ASKING,
     ]);

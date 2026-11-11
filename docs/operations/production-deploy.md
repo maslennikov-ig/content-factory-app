@@ -30,7 +30,38 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 6 November 2026: 3d6b8c326e0e
+## Current release 11 November 2026: `588bb1fa244c`
+
+Public source `588bb1fa244c1fd3126a3d117d9c9b821082a708` corresponds to private
+source `c5ef8ab7a794bd01ef02bc2a4bd53471e1356d03`. The release includes the selected
+Postiz media, preview review and publication recovery changes. The active HeyGen
+work remains in its own worktree.
+
+The local release receipt covers Jest 16,153, Node 343 and Python 51 passing
+tests. Public CI independently passed Build and CodeQL on the deployed commit.
+Ordinary and calendar-shifted Jest each covered 946 files. The ordinary public
+run reported 16,151 passes and 278 skips, Node 343 passes and 38 skips, and Python
+51 passes. [Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/42973722818),
+[CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/42973722767).
+
+Image digest `sha256:0a4c464c520f9937bd3a40c54665c99a1b9d4f335b31ca95b6185153ffdb7785`.
+Backup `20261111T072117Z` passed all checksums, five archive inventories and the
+cluster globals completion check. The guarded transaction applied 23 additive
+statements. Product tables went from 90 to 93, the `Comments` relation and the
+47-table Mastra catalog were preserved, and runtime permissions for the three
+new tables were verified. The schema diff was empty before and after switching.
+
+The API, login and public source page returned 200. The source endpoint reported
+the exact public commit and the archive matched the release SHA-256 at 16,269,026
+bytes. The container and all three PM2 processes had zero restarts, and the
+worker readiness endpoint returned `ok`.
+
+Host retention kept `588bb1fa244c` and `3d6b8c326e0e`. Before any rollback, check
+for new V110 publication or V111 recovery histories and follow the compatibility
+procedure. Both active counts were zero at the release readback. Preserve the
+journal, new workflow histories and additive schema. [Publication recovery](publication-recovery-v106.md).
+
+## Previous release 6 November 2026: 3d6b8c326e0e
 
 Production public P `3d6b8c326e0edcdeade35a89996caa6c39f8d2a3` binds immutable
 private C4 `f44f2a6151170c4f92b4c229487827f3c879a6b2`, tree
@@ -3454,13 +3485,11 @@ Evidence: `.codex/stages/content-factory-next-4zul/evidence/release-2026-09-14.j
 пользователь может открыть.
 
 Почему проверяется локально. Полный набор выполняется на точном приватном коммите до публикации;
-24.10.2026 он занял около 41 минуты. Ожидание CI не является условием
-переключения. Это допустимо, потому что публичное дерево отличается от рабочего
-ровно на `.codex/stages/*/evidence/`, а их не читает ни один тест: ссылки на
-«evidence» в наборах ведут в `scripts/evidence`, то есть в инструменты
-измерения, и те едут. CI публичного репозитория подписывает результат
-независимо; если он покраснеет, откат — одна строка
-`CF_IMAGE`.
+24.10.2026 он занял около 41 минуты. Публичное дерево исключает
+`.codex/stages/*/evidence/`. Тесты используют `scripts/evidence`, который
+публикуется вместе с исходниками. Перед переключением проверьте успешное
+завершение Build и CodeQL на точном публичном коммите, как указано в начале
+этого документа.
 
 Квитанция о зелёном наборе называет один коммит, а публичный репозиторий
 нумерует свои отдельно. Поэтому `prepare-public-tree.sh --update` переносит

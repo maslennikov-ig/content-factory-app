@@ -22,6 +22,23 @@ test('complete ordered answers are validated against the suspended questions', (
   expect(batch.createNativeQuestionTool().inputSchema.safeParse({ questions: payload.questions }).success).toBe(true);
 });
 
+test.each(['identity','voice','consent','format','fact'])('protected %s choices reject expert delegation even if requested', purpose => {
+  const question={question:'Choose an option',questionPurpose:purpose,canDecideForPerson:true};
+  expect(batch.nativeQuestionCanDelegate(question)).toBe(false);
+  const payload={kind:'question-batch',questions:[question]};
+  expect(card.questionCardView(payload,'ask_user').questions[0].canDecideForPerson).toBe(false);
+  expect(card.answerFitsCard(payload,{answers:[{decideForPerson:true}]},'ask_user')).toBe(false);
+  expect(card.answerFitsCard(payload,{answers:[{answer:'My actual choice'}]},'ask_user')).toBe(true);
+});
+test.each(['Which voice sounds like me?','Какой голос похож на мой?','Choose the person for this new profile','Даю ли я согласие на клонирование?'])('a creative label never delegates explicit protected selection: %s',question=>{
+  const payload={question,questionPurpose:'creative',canDecideForPerson:true};
+  expect(batch.nativeQuestionCanDelegate(payload)).toBe(false);
+  expect(card.answerFitsCard(payload,{decideForPerson:true},'ask_user')).toBe(false);
+});
+test.each(['Which background is clearest?','Какой темп лучше для этого ролика?','How should the selected approved voice deliver this sentence?'])('ordinary per-video presentation stays creative: %s',question=>{
+  expect(batch.nativeQuestionCanDelegate({question,questionPurpose:'creative',canDecideForPerson:true})).toBe(true);
+});
+
 test('native batch survives cold process recovery and continues once', () => {
   const stdout = execFileSync(process.execPath, [path.join(__dirname, 'helpers/agent-native-question-batch.probe.cjs')], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 100000 });
   expect(JSON.parse(stdout.trim().split('\n').at(-1))).toEqual({ nativePgRedis: true, processRecreated: true, modelCallsBefore: 1, modelCallsAfter: 1,

@@ -1,3 +1,4 @@
+import { AGENT_CHAT_MODE_CONTEXT_KEY, readStoredChatMode } from './chat-mode';
 import type { Session } from '@mastra/core/agent-controller';
 import {
   RequestContext,
@@ -95,6 +96,7 @@ export async function restoreNativeRunContext(
     Object.entries(saved).filter(([key]) => keys.has(key))
   );
   seedCapabilityContext(context, fresh);
+  context.set(AGENT_CHAT_MODE_CONTEXT_KEY, readStoredChatMode(thread.metadata));
   // Native resume permits narrowing the original scopes, never adding new ones.
   const originalScopes = saved[MASTRA_SCOPES_KEY];
   if (originalScopes !== undefined) {

@@ -47,6 +47,7 @@ export const CARD_KINDS = [
   'channel-connect',
   'secret',
   'clip-preproduction',
+  'heygen-consent',
   'ideas',
   'facts',
   'media',
@@ -74,13 +75,15 @@ export type AgentWritingSelection = { channelId?: string; avatarId?: string };
 
 /** Persistent references never copy product text, secrets or another user's history. */
 export type AgentArtifactRef = {
-  kind: Exclude<CardKind, 'channel-connect' | 'secret' | 'clip-preproduction'>;
+  kind: Exclude<CardKind, 'channel-connect' | 'secret' | 'clip-preproduction' | 'heygen-consent'>;
   id: string;
   pieceId?: string;
   channelId?: string;
   adaptationId?: string;
   videoJobId?: string;
   videoDraftId?: string;
+  videoPersonalConnectionId?: string;
+  clipPilotId?: string;
 };
 
 export type AgentWorkspaceV1 = {
@@ -129,6 +132,8 @@ export type BrandVoiceFactScoreSummary = {
  * long texts are never repeated here, the screen reads them by id.
  */
 export type AgentCardPayloads = {
+  /** Only an opaque browser read handle; the one-use provider URL never enters model context. */
+  'heygen-consent': {kind: 'heygen-consent'; id: string; threadId: string; name: string; expiresAt: string};
   campaign: {kind: 'campaign'; id: string};
   'clip-preproduction': {
     kind: 'clip-preproduction';
@@ -201,7 +206,7 @@ export type AgentCardPayloads = {
    * the screen's own — newest first, so a picture the chat generated is the
    * first one there. `id` is always `library`: there is one.
    */
-  media: { kind: 'media'; id: string; videoJobId?: string; videoDraftId?: string; pieceId?: string };
+  media: { kind: 'media'; id: string; videoJobId?: string; videoDraftId?: string; pieceId?: string; videoPersonalConnectionId?: string };
   /**
    * Connecting a channel (`kcxz.19`, spec §6.2 «Channel connect»): `id` is
    * the platform (`telegram`, `linkedin`…). `flow` says what the card draws:
@@ -676,6 +681,7 @@ export const AGENT_THREAD_HEADER = 'x-agent-thread-id' as const;
 export const AGENT_NOT_STARTED_HEADER = 'x-agent-not-started' as const;
 
 export type AgentThreadV1 = {
+  chatMode?: import('../conductor/chat-mode').AgentChatMode;
   id: string;
   title: string;
   createdAt: string;

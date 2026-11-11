@@ -16,15 +16,16 @@ import { ChannelStatus } from '@contentfactory/frontend/components/channels/chan
 import type { ChannelRow } from '@contentfactory/frontend/components/channels/channel-model';
 import { calendarPlanningCopy } from '@contentfactory/frontend/components/launches/calendar-planning.copy';
 import { piecesCopy } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.copy';
-import { AGENT_DOORS, type AgentArtifact } from './agent.contract';
+import { AGENT_DOORS, artifactKey, type AgentArtifact } from './agent.contract';
+import type { VideoDraftMetadataUiV1 } from '../videos/video-ui.v1';
 import type { AgentWords } from './agent.copy';
 import { PIECES_API } from '@contentfactory/frontend/components/content-intelligence/pieces/pieces.adapter';
 import { AgentGlyph } from './agent.icons';
 
-type BrowserKind = 'piece' | 'avatar' | 'channel' | 'plan';
+type BrowserKind = 'piece' | 'avatar' | 'channel' | 'plan' | 'video';
 type BrowserRow = { artifact: AgentArtifact; state: ReactNode };
 const LIMIT = 24;
-const sectionHref: Record<BrowserKind, string> = { piece: '/content?tab=materials', avatar: '/content?tab=avatars', channel: '/channels', plan: '/launches' };
+const sectionHref: Record<BrowserKind, string> = { piece: '/content?tab=materials', avatar: '/content?tab=avatars', channel: '/channels', plan: '/launches', video: '/media?video=1' };
 
 export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'piece' }: { onSelect: (artifact: AgentArtifact) => void; words: AgentWords; initialKind?: BrowserKind }) {
   const t = useT();
@@ -41,6 +42,7 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
     return () => window.clearTimeout(timer);
   }, [query]);
   const url = useMemo(() => {
+    if (kind === 'video') return '/media/video-prompts?metadata=1';
     const params = new URLSearchParams({ limit: String(LIMIT) });
     if (kind !== 'piece') params.set('kind', kind);
     if (search) params.set('q', search);
@@ -52,7 +54,13 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
     if (!response.ok) throw new Error(String(response.status));
     const body = await response.json();
     let rows: BrowserRow[] = [];
-    if (kind === 'avatar') {
+    if (kind === 'video') {
+      if (!Array.isArray(body)) throw new Error('video drafts unavailable');
+      rows = body.map((draft: VideoDraftMetadataUiV1): BrowserRow => ({
+        artifact: {kind: 'media', id: 'library', title: draft.title, code: null, data: {videoDraftId: draft.id, pieceId: draft.pieceId, title: draft.title}},
+        state: `${draft.settings.mode === 'presenter' ? t('video_v1_script', 'Spoken script') : t('video_v1_prompt', 'Video prompt')} · ${draft.settings.locale.toUpperCase()} · v${draft.version}`,
+      }));
+    } else if (kind === 'avatar') {
       if (!Array.isArray(body.items)) throw new Error('avatars unavailable');
       rows = body.items.map((avatar: { id: string; name: string | null; analysed: boolean }): BrowserRow => ({
         artifact: { kind: 'avatar', id: avatar.id, title: avatar.name ?? voiceCopy[locale].avatarsNoName, code: null, data: { id: avatar.id } },
@@ -84,8 +92,8 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
     };
   }, { revalidateOnFocus: false });
   const rows = list.data?.rows ?? [];
-  const visible = rows;
-  const labels: Record<BrowserKind, string> = { piece: t('assistant_pieces', 'Pieces'), avatar: t('assistant_avatars', 'Avatars'), channel: t('channels', 'Channels'), plan: t('calendar', 'Calendar') };
+  const visible = kind === 'video' ? rows.filter(row => !search || row.artifact.title?.toLocaleLowerCase().includes(search.toLocaleLowerCase())) : rows;
+  const labels: Record<BrowserKind, string> = { piece: t('assistant_pieces', 'Pieces'), avatar: t('assistant_avatars', 'Avatars'), channel: t('channels', 'Channels'), plan: t('calendar', 'Calendar'), video: t('video_v1_title', 'Video from a piece') };
   const nextPage = list.data?.hasMore && !!list.data.cursor;
   return <div className="flex min-h-0 min-w-0 flex-col gap-[12px]">
     <Input standalone name="workspace-search" label={t('assistant_workspace_search', 'Search workspace')} value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -95,7 +103,7 @@ export function AgentWorkspaceBrowserContent({ onSelect, words, initialKind = 'p
       </TabList>
     <TabPanel value={kind} className="flex min-h-0 min-w-0 flex-col gap-[12px]">
     {list.isLoading ? <SkeletonRows rows={4} label={words.panel.loading} /> : list.error ? <ErrorState title={/403/.test(String(list.error)) ? t('assistant_access_restricted', 'Access restricted') : words.history.failedTitle} action={<Button type="button" variant="secondary" density="dense" onClick={() => void list.mutate()}>{words.history.retry}</Button>} /> : !visible.length ? <p className="py-[16px] cf-body-sm text-cf-ink-muted">{search ? t('assistant_no_results', 'No matching objects') : t('assistant_workspace_empty', 'No objects in this workspace yet')}</p> : <ul className="max-h-[44dvh] overflow-y-auto">
-      {visible.map(({ artifact, state }) => <li key={`${artifact.kind}:${artifact.id}`} className="border-b border-cf-border last:border-b-0">
+      {visible.map(({ artifact, state }) => <li key={artifactKey(artifact)} className="border-b border-cf-border last:border-b-0">
         <Button type="button" variant="quiet" className="w-full justify-start py-[12px]" innerClassName="min-w-0 flex-1 justify-start" onClick={() => onSelect(artifact)}>
           <span className="flex min-w-0 flex-1 flex-col items-start gap-[4px] text-start"><span className="max-w-full truncate cf-label-md">{artifact.title || labels[kind]}</span><span className="cf-caption text-cf-ink-muted">{state}</span></span>
           <span className="shrink-0 cf-caption">{t('assistant_select', 'Select')}</span>

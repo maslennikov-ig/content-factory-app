@@ -185,6 +185,7 @@ export class VideoConnectionService {
       const def = this.runtime.definition(provider);
       const generationReady = workspaceEnabled && def.enabled && !!def.identityEndpoint && def.schemaDigests.length > 0;
       return {provider, enabled: generationReady, connectReady: workspaceEnabled && (def.connectEnabled ?? def.enabled), generationReady,
+        nativeAvatarPreflightAvailable: workspaceEnabled && provider === 'heygen' && def.ownedAssetReadProfile === 'heygen_private_catalog_v1',
         blockers: [...(!workspaceEnabled ? ['VIDEO_WORKSPACE_SUBSCRIPTION_DISABLED'] : []), ...(!def.identityEndpoint ? ['VIDEO_WALLET_IDENTITY_UNVERIFIED'] : []), ...(!def.enabled || !def.schemaDigests.length ? ['VIDEO_SCHEMA_UNSUPPORTED'] : [])], trial: provider === 'heygen'};
     }),
       connections: rows.map(r => ({id: r.id, provider: r.provider, state: r.state, generation: r.generation, unit: r.unit, perJob: r.perJob?.toFixed() ?? null, perMonth: r.perMonth?.toFixed() ?? null,

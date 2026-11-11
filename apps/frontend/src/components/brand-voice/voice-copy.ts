@@ -413,7 +413,7 @@ export const voiceCopy = {
     avatarReadyTitle: 'Аватар готов',
     avatarReadyBody: (when: string) =>
       `Новые тексты пишутся этим аватаром с ${when}.`,
-    avatarReadyAction: 'К заготовкам',
+    avatarReadyAction: 'К черновикам',
 
     // Screen 05 again, for the path where the five lines are written by hand.
     manualProposalTitle: 'Опишите аватар своими словами',
@@ -505,9 +505,9 @@ export const voiceCopy = {
     materialsTitle: 'Материалы',
     materialsSubtitle: (count: number) =>
       `${count} ${count === 1 ? 'материал' : 'материала'} · переиспользуются в публикациях`,
-    materialsEmptyTitle: 'Заготовок пока нет',
+    materialsEmptyTitle: 'Черновиков пока нет',
     materialsEmptyBody:
-      'Заготовка — суть вашей мысли без площадки: из неё делаются адаптации под каналы. Соберите первую — и она появится здесь.',
+      'Здесь появятся ваши черновики. Из каждого можно подготовить материалы для нескольких каналов.',
     materialsColumnCode: 'Код',
     materialsColumnTitle: 'Название',
     materialsColumnFormat: 'Формат',

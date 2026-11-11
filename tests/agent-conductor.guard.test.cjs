@@ -75,7 +75,8 @@ describe('the web agent is the conductor, with the hooks', () => {
   });
 
   test('the editorial auxiliary admits one configured-model decision without tools or a second executor', () => {
-    const code = withoutComments(read(EDITORIAL_AUXILIARY));
+    const source = withoutComments(read(EDITORIAL_AUXILIARY));
+    const code = source.slice(source.indexOf('  async answer('), source.indexOf('  private async authority('));
     expect(code.match(/new Agent\(/g)).toHaveLength(1);
     expect(code.match(/agent\.generate\(/g)).toHaveLength(1);
     expect(code).toMatch(/this\.usage\.executeAiOperation\(org,\s*'agent',\s*async/);
@@ -85,7 +86,21 @@ describe('the web agent is the conductor, with the hooks', () => {
     expect(code).toContain('if (!modelNotFound(error, models.provider, candidate.model.modelId)) throw error');
     expect(code).toMatch(/agent\.generate\(prompt,\s*\{\s*maxSteps:\s*1,\s*structuredOutput:\s*\{\s*schema:\s*input.questions\s*\?\s*questionBatchSchema\s*:\s*answerSchema/);
     expect(code).toMatch(/maxRetries:\s*0/);
-    expect(code).toContain('await this.autonomy.decide(org, decisionInput)');
+    const finish = source.slice(source.indexOf('  private async finish('), source.indexOf('  private async recordFailure('));
+    expect(finish).toContain('await this.autonomy.decide(org, decisionInput)');
+    expect(code).not.toMatch(/\btools\s*:|createDurableAgent|buildConductorController|createWorkflow|createTool|\.stream\s*\(/);
+  });
+
+  test('the video expert admits one bounded decision without tools or an executor fallback', () => {
+    const source = withoutComments(read(EDITORIAL_AUXILIARY));
+    const code = source.slice(source.indexOf('  async decideVideoCreative('), source.indexOf('  async answerQuestions('));
+    expect(code.match(/new Agent\(/g)).toHaveLength(1);
+    expect(code.match(/expert\.generate\(/g)).toHaveLength(1);
+    expect(code).toContain('social-factory-video-creative-decision-v1');
+    expect(code).toContain('AUTONOMY_DISTINCT_EXPERT_REQUIRED');
+    expect(code).toContain('await authority.assertCurrentScope()');
+    expect(code).toContain('await authority.claimExpertAttempt!(attemptKey)');
+    expect(code).toMatch(/maxSteps:\s*1/);
     expect(code).not.toMatch(/\btools\s*:|createDurableAgent|buildConductorController|createWorkflow|createTool|\.stream\s*\(/);
   });
 
@@ -235,6 +250,7 @@ describe('the card contract the screen mirrors', () => {
       // The key card, drawn in the conversation (kcxz.20).
       'data-secret',
       'data-clip-preproduction',
+      'data-heygen-consent',
       // «Откуда идеи» beside the chat (kcxz.23).
       'data-ideas',
       // «Откуда факты» beside the chat (kcxz.24).

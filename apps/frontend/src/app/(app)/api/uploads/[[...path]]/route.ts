@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'node:stream';
-import { readMediaSource, safeMediaObjectKey } from '@contentfactory/helpers/utils/media.source';
+import { readMediaSource, safeMediaObjectKey, UnsatisfiableLocalMediaRange } from '@contentfactory/helpers/utils/media.source';
 // @ts-ignore
 import mime from 'mime';
 const serveUpload = async (
@@ -12,6 +12,10 @@ const serveUpload = async (
   }
 ) => {
   const { path } = await context.params;
+  const head = request.method === 'HEAD';
+  const requestedRange = head ? null : request.headers.get('range');
+  const range = requestedRange && requestedRange.length <= 80 && requestedRange !== 'bytes=-' &&
+    /^bytes=\d*-\d*$/.test(requestedRange) ? requestedRange : undefined;
   let media: Awaited<ReturnType<typeof readMediaSource>> | undefined;
   try {
     // The shared reader pins every directory descriptor and refuses file or
@@ -22,7 +26,9 @@ const serveUpload = async (
     // the reader's remote-fetch branch and preserve literal nested directories.
     media = await readMediaSource(`./${source}`, {
       signal: request.signal,
-      range: request.headers.get('range') || undefined,
+      range,
+      localIfRange: request.headers.get('if-range') || undefined,
+      localMetadataOnly: head,
     });
     const headers: Record<string, string> = {
       'Content-Type': mime.getType(source) || 'application/octet-stream',
@@ -35,7 +41,7 @@ const serveUpload = async (
     if (media.modifiedAt) headers['Last-Modified'] = media.modifiedAt.toUTCString();
     if (media.contentRange) headers['Content-Range'] = media.contentRange;
     const status = media.status || 200;
-    if (request.method === 'HEAD') {
+    if (head) {
       media.close();
       return new Response(null, { status, headers });
     }
@@ -46,10 +52,13 @@ const serveUpload = async (
     return new Response(webStream, { status, headers });
   } catch (error) {
     media?.close();
-    if ((error as Error)?.message === 'MEDIA_RANGE_INVALID') {
-      return new NextResponse(null, { status: 416, headers: { 'Cache-Control': 'no-store' } });
+    if (error instanceof UnsatisfiableLocalMediaRange) {
+      return new NextResponse(null, {
+        status: 416,
+        headers: { 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes', 'Content-Range': `bytes */${error.size}` },
+      });
     }
-    return new NextResponse('Not found', { status: 404 });
+    return new NextResponse(head ? null : 'Not found', { status: 404 });
   }
 };
 

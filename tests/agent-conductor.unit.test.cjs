@@ -432,6 +432,8 @@ describe('stream errors are product codes (premortem S6)', () => {
     [{ name: 'AI_RetryError', cause: { name: 'AI_APICallError', statusCode: 401 } }, 'AI_PROVIDER_REJECTED'],
     [{ name: 'AI_APICallError', statusCode: 400, url: 'https://api.example' }, 'AI_PROVIDER_REJECTED'],
     [{ name: 'TimeoutError' }, 'AI_PROVIDER_TIMEOUT'],
+    [{ name: 'NonReplayableTextAttempt', textAttemptNonReplayable: true, cause: { name: 'TimeoutError' } }, 'AI_PROVIDER_TIMEOUT'],
+    [{ name: 'NonReplayableTextAttempt', textAttemptNonReplayable: true, cause: { name: 'Error' } }, 'AGENT_FAILED'],
     [{ name: 'TripWire', processorId: 'regex-filter' }, 'AGENT_BLOCKED'],
     [{ id: 'AGENT_RESUME_NO_SNAPSHOT_FOUND' }, 'AGENT_RUN_NOT_PENDING'],
   ])('%j → %s', (error, code) => {

@@ -445,7 +445,7 @@ export const pieceAdapt = defineCapability({
     const storedQuestion = ctx.resumeData !== undefined ? adaptQuestion.safeParse(ctx.suspendPayload) : null;
     const savedWriting = storedQuestion?.success ? writingCheckpoint.safeParse(storedQuestion.data.continuation?.writingSelection) : null;
     const targetChannel = (savedWriting?.success ? savedWriting.data.channelId : undefined) || input.channelId || selected?.selection.channelId;
-    if (!targetChannel) throw unspentFailure('CAPABILITY_INPUT_INVALID', 'Select a channel for this adaptation.');
+    if (!targetChannel) throw unspentFailure('CAPABILITY_INPUT_INVALID', 'A channel selection is required. Read channels.list, then ask the person to select the destination through ask_user before continuing this adaptation. Nothing was generated.');
     const avatarId = savedWriting?.success ? savedWriting.data.avatarId : input.avatarId || selected?.selection.avatarId;
     const range = input.lengthRange;
     if ((input.lengthPolicy === 'range') !== Boolean(range) ||
@@ -1132,7 +1132,7 @@ export const adaptationDelete = defineCapability({
     }
     const channel = String(row.integrationName || row.platform || (ru ? 'канал' : 'channel'));
     return ru
-      ? `Удалить адаптацию заготовки ${detail.piece.code} для канала «${channel}» вместе с её черновиком`
+      ? `Удалить адаптацию черновика ${detail.piece.code} для канала «${channel}» вместе с её черновиком`
       : `Delete the adaptation of piece ${detail.piece.code} for “${channel}” with its draft`;
   },
   run: async (ctx, input) => {

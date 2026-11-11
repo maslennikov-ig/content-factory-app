@@ -23,7 +23,7 @@ import { randomUUID } from 'crypto';
 import type { Response } from 'express';
 import type { Organization, User } from '@prisma/client';
 import { handleChatStream } from '@mastra/ai-sdk';
-import { AGENT_NATIVE_CONTINUATION_PART, streamNativeSession } from '@contentfactory/nestjs-libraries/chat/conductor/native-session-stream';
+import { AGENT_NATIVE_CONTINUATION_PART, readNativeStopTail, streamNativeSession } from '@contentfactory/nestjs-libraries/chat/conductor/native-session-stream';
 import { parseAgentWritingSelection } from '@contentfactory/nestjs-libraries/chat/conductor/work-context';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
@@ -40,6 +40,7 @@ import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/ba
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
 import { AgentThreadsService } from '@contentfactory/nestjs-libraries/chat/conductor/agent-threads.service';
+import { VideoAccessService } from '@contentfactory/nestjs-libraries/videos/video-access.service';
 import type { AgentTurnLifecycle, AgentTurnOutcome } from '@contentfactory/nestjs-libraries/chat/conductor/agent-turn-lifecycle';
 import {
   AGENT_ERROR_CODES,
@@ -70,6 +71,8 @@ import {
   CONDUCTOR_AGENT_ID,
   buildConductorContext,
   conductorResourceId,
+  materialContextAfterAnswer,
+  materialRequestContextOf,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.context';
 import {
   conductorErrorCode,
@@ -223,7 +226,8 @@ export class AgentController {
   constructor(
     private readonly mastraService: MastraService,
     private readonly threads: AgentThreadsService,
-    private readonly aiUsage: AiUsageService
+    private readonly aiUsage: AiUsageService,
+    private readonly videoAccess: VideoAccessService
   ) {}
 
   @Post('/chat')
@@ -251,6 +255,7 @@ export class AgentController {
     let execution: ConductorExecution | undefined;
     let session: any;
     let drainStoppedNative = false;
+    let nativeResponseAnnounced = false;
     const forceAbort = (fromExplicitStop = false) => {
       if (!explicitlyStopped) {
         // A live native producer still owns its message flush. Parked gates
@@ -297,6 +302,7 @@ export class AgentController {
       let newThreadTitleFrom: string | undefined;
       let nativeResumeRequestId: string | undefined;
       let nativeResumeRunId: string | undefined;
+      let answeredQuestionPayload: unknown;
       /** System lines of this request only, never stored (review F9). */
       let stepNotes: string[] = [];
       /** Texts whose card of proposed changes waits in the thread (kcxz.32, N2). */
@@ -348,6 +354,7 @@ export class AgentController {
         if (input.mode === 'resume') {
           const pending = runs.find(run => run.runId === verified.runId)?.toolCalls
             .find(call => call.toolCallId === verified.toolCallId);
+          answeredQuestionPayload = pending?.suspendPayload;
           await this.mastraService.assertDomainQuestionCurrent?.(identity, pending?.suspendPayload);
         }
         // The card this answer is for is being answered, not waiting.
@@ -405,8 +412,13 @@ export class AgentController {
       if (input.mode !== 'message' && await this.threads.isDurableConductor?.()) {
         const pointer = await this.threads.readNativeRun(identity, threadId);
         if (pointer?.runId === answered?.runId && pointer.logicalRequestId) {
+          const materialContext = materialContextAfterAnswer(
+            await this.threads.materialContextForTurn?.(identity, threadId, { runId: pointer.runId, requestId: pointer.logicalRequestId }),
+            answeredQuestionPayload, input.mode === 'resume' ? input.resumeData : undefined);
           const context = buildConductorContext({ identity, threadId, requestId: pointer.logicalRequestId,
             trackExecution: true, approvals: fingerprints, openProposals,
+            materialContext,
+            chatMode: await this.threads.chatModeForTurn?.(identity, threadId),
             workContext: await this.threads.workContextForTurn(identity, threadId),
             writingSelection: await this.threads.writingSelectionForTurn(identity, threadId,
               pointer.continuationWritingSelection === undefined ? undefined : parseAgentWritingSelection(pointer.continuationWritingSelection)),
@@ -419,6 +431,7 @@ export class AgentController {
           // admitted owner remains authoritative; the native adapter selects
           // its live or persisted response path without opening another ledger.
           if (owner?.requestId === pointer.logicalRequestId || queuedOwner) {
+            await this.threads.rememberNativeMaterialContext?.(identity, threadId, pointer.runId, materialRequestContextOf(context));
             const dispatch = async () => streamNativeSession({ session: live as any,
               agent: await this.mastraService.conductor() as any, threadId, resourceId, requestContext: context,
               ...(resume ? { resume } : {}),
@@ -450,6 +463,13 @@ export class AgentController {
       durableTurn = (await this.threads.isDurableConductor?.()) ?? false;
       execution = createConductorExecution({ requestId, signal: abort.signal, native: durableTurn, initialStepNotes: stepNotes });
       releaseThread = await this.threads.claimThreadTurn(identity, threadId, nativeResumeRunId ? { nativeResumeRunId } : undefined);
+      // The continuation reference is checked under the existing thread claim,
+      // before admission. A new ordinary message never inherits a prior format.
+      const materialContext = materialContextAfterAnswer(
+        input.mode === 'message'
+          ? input.continueFromRequestId ? await this.threads.materialContextForTurn(identity, threadId, { continueFromRequestId: input.continueFromRequestId }) : undefined
+          : await this.threads.materialContextForTurn?.(identity, threadId, { runId: answered?.runId }),
+        answeredQuestionPayload, input.mode === 'resume' ? input.resumeData : undefined);
       // Resolve tenant, role, deletion and revision before an admission or any
       // model call. An answered card cannot inject a different work target.
       const workContext = await this.threads.workContextForTurn(identity, threadId, input.mode === 'message' ? input.workContext : undefined);
@@ -467,10 +487,14 @@ export class AgentController {
         trackExecution: true,
         workContext,
         writingSelection,
+        materialContext,
+        chatMode: await this.threads.chatModeForTurn?.(identity, threadId, input.mode === 'message' ? input.chatMode : undefined),
         ...(input.mode === 'message' ? {
           originalAuthorRequest: { messageId: input.message.id, text: input.text },
         } : {}),
       });
+      if (input.mode !== 'message' && answered)
+        await this.threads.rememberNativeMaterialContext?.(identity, threadId, answered.runId, materialRequestContextOf(requestContext));
       const mastra = await this.mastraService.mastra();
 
       // One admission for this model-running request. Refused (no key, no
@@ -483,7 +507,7 @@ export class AgentController {
       if (!abort.signal.aborted) {
         try {
           if (newThreadTitleFrom !== undefined) {
-            await this.threads.threadForMessage(identity, threadId, newThreadTitleFrom, input.mode === 'message' && (input.workContext !== undefined || workContext) ? workContext : undefined);
+            await this.threads.threadForMessage(identity, threadId, newThreadTitleFrom, input.mode === 'message' && (input.workContext !== undefined || workContext) ? workContext : undefined, input.mode === 'message' ? input.chatMode : undefined);
           } else if (input.mode === 'message' && (input.workContext !== undefined || workContext)) {
             await this.threads.rememberWorkContext(identity, threadId, workContext);
           }
@@ -541,6 +565,7 @@ export class AgentController {
         requestId,
         onStop: () => forceAbort(true),
         settled: turnSettlement,
+        nativeResponseAnnounced: () => nativeResponseAnnounced,
         checkpointUsage: admission.checkpoint,
       });
       try {
@@ -566,9 +591,14 @@ export class AgentController {
                 ...(input.mode === 'approval' ? { approvals: { runId: input.mode === 'approval' ? answered!.runId : '', answers: input.approvals } } : {}),
                 onRunId: async (runId) => {
                   nativeRunId = runId;
-                  await this.threads.rememberNativeRun(identity, threadId, runId, requestId, input.mode === 'message' ? writingSelection.selection : undefined);
+                  await this.threads.rememberNativeRun(identity, threadId, runId, requestId, input.mode === 'message' ? writingSelection.selection : undefined, materialRequestContextOf(requestContext));
                 },
-                onMessageId: (nativeRunId, messageId) => this.threads.rememberNativeResponse(identity, threadId, nativeRunId, messageId),
+                onMessageId: (nativeRunId, messageId) => {
+                  // A failed/delayed pointer write cannot turn a known response
+                  // into an unannounced orphan eligible for a missing-tail receipt.
+                  nativeResponseAnnounced = true;
+                  return this.threads.rememberNativeResponse(identity, threadId, nativeRunId, messageId);
+                },
                 nextRunId: async () => (await this.threads.readNativeRun(identity, threadId))?.runId,
                 onError: (error) => conductorOnError(error, errorScope),
               })
@@ -643,7 +673,10 @@ export class AgentController {
             }
           };
           while (!abort.signal.aborted || drainStoppedNative) {
-            const { done, value } = await reader.read();
+            const { done, value } = await readNativeStopTail(reader, abort.signal, async () =>
+              drainStoppedNative && !!nativeRunId &&
+              (await this.mastraService.stoppedNativeDriverAbsent?.({threadId, resourceId, runId: nativeRunId, requestId},
+                {onTrackedFailure: () => turn?.fail('AGENT_TASK_OPERATION_FAILED')}) ?? false));
             if (done) break;
             if ((!abort.signal.aborted || failedExecution()) && failedPart(value)) {
               failed = true;
@@ -1011,6 +1044,26 @@ export class AgentController {
     return this.threads.history(agentIdentity(organization, user, timeZone), threadIdParam(id), threadPageQuery(query, 200));
   }
 
+  // This browser-only door reveals an already issued link; it never contacts
+  // HeyGen to issue another one or puts the link in the model's context.
+  @Get('/threads/:id/heygen-consent/:handle')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async heygenConsentLink(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Param('handle') handle: string,
+    @Res() res: Response
+  ) {
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const threadId = threadIdParam(id);
+    await this.threads.threadForAnswer(agentIdentity(organization, user), threadId, { bindSession: false });
+    const link = await this.videoAccess.readAvatarConsentLink(organization.id, user.id, threadId, handle);
+    return res.status(200).json(link);
+  }
+
   @Patch('/threads/:id')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async renameThread(
@@ -1079,6 +1132,17 @@ export class AgentController {
     @Body() body: unknown
   ) {
     return this.threads.bindVideo(agentIdentity(organization, user), threadIdParam(id), body);
+  }
+
+  @Patch('/threads/:id/chat-mode')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async switchChatMode(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    return this.threads.switchChatMode(agentIdentity(organization, user), threadIdParam(id), body);
   }
 
   @Patch('/threads/:id/model')
@@ -1157,6 +1221,7 @@ export class AgentController {
     const context = buildConductorContext({ identity, threadId, requestId, trackExecution: true,
       openProposals: openProposalTargets(await this.threads.pendingRuns(identity, threadId)),
       workContext,
+      chatMode: await this.threads.chatModeForTurn?.(identity, threadId),
       writingSelection: activeWritingSelection,
     });
     // Explicit queued input is driven by its native workflow's admitted scope.

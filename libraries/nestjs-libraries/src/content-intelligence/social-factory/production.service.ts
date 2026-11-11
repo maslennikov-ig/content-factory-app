@@ -37,10 +37,12 @@ export interface CampaignItemPrepareOverride {
 }
 export interface CampaignPrepareInput extends CampaignItemPrepareOverride {
  campaignId: string; requestId: string; instruction: string; sourceIds?: string[]; itemIds?: string[];
+ editorialReview?: 'complex'; executorModelId?: string;
  allowWebSearch?: boolean; visuals?: EditorialProductionInputV1['visuals']; itemOverrides?: Record<string, CampaignItemPrepareOverride>;
 }
 export interface CampaignReviseInput extends CampaignItemPrepareOverride {
  requestId: string; expectedContentRevision: number; instruction: string; sourceIds?: string[];
+ editorialReview?: 'complex'; executorModelId?: string;
  visuals?: EditorialProductionInputV1['visuals'];
 }
 interface RevisionRequest {
@@ -74,6 +76,7 @@ export interface ProductionOperation {
  state: 'preflight_failed' | 'submitting' | 'generated' | 'artwork_running' | 'artwork_partial' | 'material_ready' | 'ready' | 'needs_video' | 'needs_revision' | 'uncertain';
  attempt: number; sourceContentRevision: number; appliedContentRevision?: number; context: Context; baseInput: EditorialProductionInputV1;
  effectiveInput?: EditorialProductionInputV1; decision?: { answer: string; [key: string]: unknown };
+ editorialReview?: 'complex'; executorModelId?: string;
  campaignAuthority: { mode: CampaignV1['mode']; grantId?: string }; discoveryId: string;
  owner?: string; leaseUntil?: string; output?: unknown; sourceDigest?: string; sourceAdmissions: SourceAdmissionV1[];
  material?: EditorialMaterialV1; nativeMaterial?: EditorialMaterialV1; videoBaseMaterial?: EditorialMaterialV1;
@@ -135,6 +138,7 @@ export class SocialFactoryProductionService {
  }
  private selected(input: CampaignPrepareInput, items: CampaignItemV1[]) {
   requireValue(input.requestId?.trim() && input.instruction?.trim(), 'CAMPAIGN_PRODUCTION_INPUT_REQUIRED');
+  requireValue(input.editorialReview === undefined || input.editorialReview === 'complex', 'CAMPAIGN_PRODUCTION_INPUT_REQUIRED');
   requireValue(!input.itemIds?.some(id => !items.some(item => item.id === id)) && !Object.keys(input.itemOverrides ?? {}).some(id => !items.some(item => item.id === id)), 'CAMPAIGN_ITEM_SCOPE');
   return items.filter(item => !input.itemIds || input.itemIds.includes(item.id));
  }
@@ -278,6 +282,7 @@ export class SocialFactoryProductionService {
      if(prior.payload.state==='uncertain' && prior.payload.blocker==='Unsupported editorial format: instagram/post' && isLocalPreflightRecoveryAllowedV1(prior.id,prior.payload.inputDigest)){
       const recovered=await this.recoverLocalPreflight(org,actorId,id,item.contentRevision),saved=recovered.payload,base=saved.baseInput;
       const frozen:CampaignPrepareInput={campaignId:saved.campaignId,requestId:input.requestId,instruction:base.brief.instruction,itemIds:[item.id],sourceIds:base.sourceIds,visuals:base.visuals,
+       ...(saved.editorialReview?{editorialReview:saved.editorialReview,executorModelId:saved.executorModelId}:{}),
        itemOverrides:{[item.id]:{instruction:base.brief.instruction,audioMode:base.brief.audioMode,language:base.brief.language,lengthChoiceId:base.brief.lengthChoiceId,lengthGuidance:base.brief.lengthGuidance,targetSeconds:base.brief.targetSeconds,...(base.sourceArtifact?{sourceArtifact:base.sourceArtifact.ref}:{})}}};
       results.push(await this.executeItem(org,actorId,campaign,item,frozen,{context:saved.context,candidate:base.candidate,sourceArtifact:base.sourceArtifact,
        sourceContentRevision:saved.sourceContentRevision,discoveryId:saved.discoveryId,lengthOptions:[],lengthChoiceId:base.brief.lengthChoiceId,lengthGuidance:base.brief.lengthGuidance}));continue;
@@ -326,13 +331,16 @@ export class SocialFactoryProductionService {
   const existingOwner = await this.store.read<ProductionRevisionOwner>(org, 'action', revisionOwnerId);
   if (existingOwner) id = existingOwner.payload.operationId;
   const owner = randomUUID(), override = input.itemOverrides?.[item.id] ?? {};
+  const routineLength = campaign.mode === 'autopilot' && input.editorialReview !== 'complex' && !assignment.lengthGuidance
+   ? assignment.lengthOptions.find((option: {recommended?: boolean}) => option.recommended) : undefined;
   const baseInput: EditorialProductionInputV1 = { organizationId: org, actorId, profile: assignment.context.profile, candidate: assignment.candidate,
    format: item.format, sourceIds: input.sourceIds ?? [], findings: assignment.context.findings,
    ...(assignment.sourceArtifact ? {sourceArtifact: assignment.sourceArtifact} : {}), ...(item.destination ? {destination: item.destination} : {}),
    brief: { ...(override.audioMode??input.audioMode?{audioMode:override.audioMode??input.audioMode}:{}), instruction: override.instruction || input.instruction, language: override.language || input.language || assignment.context.profile.languages[0] || 'en',
-    lengthChoiceId: assignment.lengthChoiceId, lengthGuidance: assignment.lengthGuidance, slideCount: item.slideCount, targetSeconds: override.targetSeconds ?? input.targetSeconds }, visuals: input.visuals };
+    lengthChoiceId: assignment.lengthChoiceId ?? routineLength?.id, lengthGuidance: assignment.lengthGuidance ?? (routineLength ? `${routineLength.label}: ${routineLength.lengthRange.idealMin}–${routineLength.lengthRange.idealMax} characters including headline and closing; maximum ${routineLength.lengthRange.hardMax}.` : undefined), slideCount: item.slideCount, targetSeconds: override.targetSeconds ?? input.targetSeconds }, visuals: input.visuals };
   await this.formatPreflight(org,actorId,item);
-  const inputDigest = digest({ baseInput, context: assignment.context, sourceContentRevision: assignment.sourceContentRevision, scheduledAt: item.scheduledAt });
+  const inputDigest = digest({ baseInput, context: assignment.context, sourceContentRevision: assignment.sourceContentRevision, scheduledAt: item.scheduledAt,
+   ...(input.editorialReview?{editorialReview:input.editorialReview}:{}) });
   requireValue(!['reel', 'short', 'long_video'].includes(item.format) || Number.isFinite(baseInput.brief.targetSeconds) && baseInput.brief.targetSeconds! > 0 && baseInput.brief.targetSeconds! <= 600, 'EDITORIAL_VIDEO_DURATION_REQUIRED');
   requireValue(baseInput.sourceIds.length <= 20 && baseInput.sourceIds.every(id => typeof id === 'string' && id.trim()), 'EDITORIAL_INVALID_CONTEXT');
   requireValue(digest(await this.context(org, item.channelId)) === digest(assignment.context), 'CAMPAIGN_PRODUCTION_CONTEXT_CHANGED');
@@ -340,7 +348,7 @@ export class SocialFactoryProductionService {
   if (!beforeClaim || beforeClaim.payload.state === 'preflight_failed') {
    const config = await loadAiConfig(org);
    requireValue(Boolean(config.apiKey?.trim()), 'AI_PROVIDER_NOT_CONFIGURED');
-   if (campaign.mode === 'autopilot') requireValue(config.modelRouting?.advancedModel?.trim(), 'AUTONOMY_ADVANCED_MODEL_REQUIRED');
+   if (campaign.mode === 'autopilot' && input.editorialReview === 'complex') requireValue(config.modelRouting?.advancedModel?.trim(), 'AUTONOMY_ADVANCED_MODEL_REQUIRED');
   }
   const claimed = await this.store.transact(async store => {
    if(baseInput.sourceArtifact){ requireValue(store.assertArtifactSource,'SOURCE_ARTIFACT_TRANSACTION_REQUIRED'); await store.assertArtifactSource(org,actorId,baseInput.sourceArtifact.ref); }
@@ -394,6 +402,7 @@ export class SocialFactoryProductionService {
     actorId, authority: campaign.mode === 'autopilot' ? 'agent' : 'user' });
    const admitted = await autonomy.markSubmitting(org, reservation.id);
    const op: ProductionOperation = { version: 2, productionPreflightVersion:1, id, campaignId: campaign.id, itemId: item.id, inputDigest, actionId: reservation.id,
+    ...(input.editorialReview?{editorialReview:input.editorialReview,executorModelId:input.executorModelId}:{}),
     attempt: 1, sourceContentRevision: item.contentRevision, context: assignment.context, baseInput, sourceAdmissions: [], discoveryId: assignment.discoveryId,
     campaignAuthority: { mode: campaign.mode, ...(campaign.grantId ? { grantId: campaign.grantId } : {}) },
     state: admitted.execute ? 'submitting' : 'uncertain', ...(admitted.execute ? { owner, leaseUntil: lease() } : { blocker: 'MODEL_RESULT_REQUIRES_RECONCILIATION' }) };
@@ -416,9 +425,9 @@ export class SocialFactoryProductionService {
     await this.autonomy.assertUnpricedPreparationAllowed(org, permission.grantId, async () => [(getActiveAiConfig(org) ?? await loadAiConfig(org)).provider]);
    };
    if (op.output === undefined) await assertPrimaryCost();
-   if (op.output === undefined && campaign.mode === 'autopilot' && !op.decision) {
+   if (op.output === undefined && campaign.mode === 'autopilot' && op.editorialReview === 'complex' && !op.decision) {
     await this.autonomy.assertSubmitting(org, op.actionId);
-    const batch = await this.decisions.answerQuestions(org, actorId, { campaignId: campaign.id, itemId: item.id, requestId: id + '-editorial',
+    const batch = await this.decisions.answerQuestions(org, actorId, { campaignId: campaign.id, itemId: item.id, requestId: id + '-editorial',executorModelId:op.executorModelId,
      ...(request.sourceArtifact ? {sourceArtifact: request.sourceArtifact} : {}), questions: [
       {id:'angle',type:'angle',question:`Choose an angle preserving the exact selected source and task: ${request.brief.instruction}`},
       {id:'structure',type:'structure',question:`Choose the structure for ${item.format}, preserving explicit slide count ${item.slideCount ?? 'not supplied'} and facts.`},
@@ -574,6 +583,7 @@ Previous editorial draft to revise (not new evidence or permission): ${JSON.stri
     targetSeconds: input.targetSeconds ?? priorInput?.brief.targetSeconds };
    const payload: RevisionRequest = { type: 'production_revision_request', requestDigest, campaignId, itemId, contentRevision: next.contentRevision,
     prepareInput: { campaignId, requestId: id, instruction, itemIds: [itemId], sourceIds: input.sourceIds ?? priorInput?.sourceIds ?? [],
+     ...(input.editorialReview?{editorialReview:input.editorialReview,executorModelId:input.executorModelId}:{}),
      visuals: input.visuals ?? priorInput?.visuals, itemOverrides: { [itemId]: override } } };
    await store.put<RevisionRequest>({ organizationId: org, kind: 'editorial', id, parentId: campaignId, expectedRevision: 0, payload,
     sourceIds: [...(prior ? [resourceRef('editorial', prior.id)] : []), ...(payload.prepareInput.sourceIds ?? []).map(sourceRef)] });

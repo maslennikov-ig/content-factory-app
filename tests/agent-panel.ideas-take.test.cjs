@@ -153,7 +153,7 @@ describe('review W4-23 F1 — «Взять в работу» beside the chat', (
   });
 
   test('the composer gets a request in both languages, and the screen only fills it', () => {
-    expect(agentCopy.ru.panel.writeFromLead('Созвоны')).toBe('Напиши заготовку по взятому поводу «Созвоны»');
+    expect(agentCopy.ru.panel.writeFromLead('Созвоны')).toBe('Напиши черновик по взятому поводу «Созвоны»');
     expect(agentCopy.en.panel.writeFromLead('Calls')).toBe('Write a piece from the taken lead “Calls”');
     const screenSource = fs.readFileSync(
       path.join(root, 'apps/frontend/src/components/agents/agent.screen.tsx'),

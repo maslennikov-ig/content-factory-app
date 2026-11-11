@@ -259,7 +259,7 @@ const type = async (selector, value) => {
 const start = async (text = 'Надо больше писать про ИИ, чем сейчас') => {
   await type('[name="intake-input"]', text);
   await click(
-    screen.getByRole('button', { name: /Сделать заготовку/ }),
+    screen.getByRole('button', { name: /Сделать черновик/ }),
     () =>
       panel().getAttribute('data-intake-state') !== 'streaming' &&
       panel().getAttribute('data-intake-state') !== 'idle'
@@ -304,7 +304,7 @@ describe('a thin thought is answered with a piece, not with a dead end', () => {
     // Заготовка названа кодом — это первое, что человек получает.
     const line = document.querySelector('[data-intake-piece="cnt-07"]');
     expect(line).not.toBeNull();
-    expect(line.textContent).toContain('Заготовка сохранена — cnt-07');
+    expect(line.textContent).toContain('Черновик сохранён — cnt-07');
 
     // И экран ушёл на её страницу сам.
     expect(navigations).toHaveLength(1);
@@ -372,7 +372,7 @@ describe('a link, declared to the door as a link', () => {
 
     expect(document.querySelector('[data-intake-kind-line="link"]')).not.toBeNull();
 
-      await click(screen.getByRole('button', { name: /Сделать заготовку/ }));
+      await click(screen.getByRole('button', { name: /Сделать черновик/ }));
 
     expect(intakeAnswers[0].inputKind).toBe('link');
     expect(intakeAnswers[0].input).toBe('https://example.test/post');
@@ -590,7 +590,7 @@ describe('what a broken answer and a closed screen do', () => {
     await type('[name="intake-input"]', 'Мысль про дедлайны, которых себе не ставят');
       // Ход запускается и не дочитывается: экран закрывают на середине.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Сделать заготовку/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Сделать черновик/ }));
     });
 
     expect(carried).not.toBeNull();

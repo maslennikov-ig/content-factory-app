@@ -25,10 +25,40 @@ const NO_LONGER_WAITING = {
 
 type ErrorWords = { what: string; next: string };
 
+const VIDEO_PREPARATION_FAILURE: Record<AgentCopyLocale, ErrorWords> = {
+  ru: {
+    what: 'Сценарий не прошёл проверку. Видеочерновик не сохранён.',
+    next: 'Подготовку сценария нужно исправить.',
+  },
+  en: {
+    what: 'The script failed validation. The video draft was not saved.',
+    next: 'The script preparation needs to be corrected.',
+  },
+};
+
 type AgentWords = {
   /** The language of these words; the requests they go with use it too. */
   locale: AgentCopyLocale;
   screenLabel: string;
+  heygenConsent: {
+    title: string;
+    loading: string;
+    open: string;
+    notice: string;
+    expired: string;
+    unavailable: string;
+    failed: string;
+    retry: string;
+    expires: (date: string) => string;
+  };
+  researchRecovery: {
+    saved: string;
+    ready: string;
+    next: string;
+    prepare: string;
+    timeout: string;
+    message: (snapshotKey: string) => string;
+  };
   threads: ChatWords;
   history: {
     loading: string;
@@ -146,6 +176,7 @@ type AgentWords = {
     openOnScreen: string;
     openBeside: string;
     openedBeside: string;
+    clipScenario: string;
     kinds: Record<AgentArtifactKind, string>;
     done: string;
     /** The line of something deleted later in the conversation. */
@@ -280,6 +311,7 @@ type AgentWords = {
     planFeedbackPlaceholder: string;
   };
   tasks: {
+    interrupted: string;
     kind: string;
     completed: (done: number, total: number) => string;
     statuses: Readonly<Record<'pending' | 'in_progress' | 'completed', string>>;
@@ -367,6 +399,16 @@ type AgentWords = {
       continued: string;
     };
     kind: string;
+    savedResultsNext: string;
+    checkingStatus: string;
+    checkedFailed: string;
+    checkedFailedWithReply: string;
+    checkedWaiting: string;
+    checkResult: string;
+    continueMessage: string;
+    continueNext: string;
+    inputClarification: string;
+    inputRecovered: string;
     generic: ErrorWords;
     /** An action refused with a reason the product has no words for. */
     refused: ErrorWords;
@@ -466,6 +508,25 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
   ru: {
     locale: 'ru',
     screenLabel: 'ИИ-помощник',
+    heygenConsent: {
+      title: 'Согласие для аватара',
+      loading: 'Загружаю ссылку…',
+      open: 'Дать согласие в HeyGen',
+      notice: 'Согласие подтверждает сам человек в HeyGen. Одноразовая ссылка действует до 24 часов и откроется в новой вкладке. Если уже отправили согласие, дождитесь проверки HeyGen.',
+      expired: 'Срок действия ссылки истёк. Попросите помощника проверить статус согласия.',
+      unavailable: 'Ссылка недоступна. Попросите помощника проверить статус согласия.',
+      failed: 'Не удалось загрузить ссылку. Можно повторить загрузку уже выданной ссылки.',
+      retry: 'Повторить загрузку',
+      expires: date => `Действует до ${date}`,
+    },
+    researchRecovery: {
+      saved: 'Исследование было сохранено',
+      ready: 'Результат исследования получен',
+      next: 'Исследование было сохранено, но черновик не создан. Продолжите без нового поиска. Снимок хранится час и мог истечь.',
+      prepare: 'Продолжить',
+      timeout: 'Истекло время ожидания ответа помощника.',
+      message: (snapshotKey) => `Продолжи исходное задание по сохранённому исследованию ${snapshotKey} без нового поиска. Используй подтверждённое, отметь пробелы. Если исследование недоступно, сообщи об этом.`,
+    },
     threads: {
       ...chatWordsFor('ru'),
       label: 'Разговоры',
@@ -588,10 +649,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       openOnScreen: 'Открыть на экране',
       openBeside: 'Открыть',
       openedBeside: 'открыто',
+      clipScenario: 'Сценарий короткого видео',
       kinds: {
         workspace: 'Пространство',
         channels: 'Каналы',
-        piece: 'Заготовка',
+        piece: 'Черновик',
         avatar: 'Аватар',
         adaptation: 'Адаптация',
         plan: 'В плане',
@@ -634,7 +696,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         'Вернуть не получится: удалённое не восстанавливается.',
       reversibleNote: 'Выполненное действие автоматически не отменяется.',
       dismissNote: 'Отклонённый повод в очередь не вернуть — ни здесь, ни на экране.',
-      takeNote: 'Взятый повод в очередь не вернуть; заготовку по нему можно удалить в «Контенте».',
+      takeNote: 'Взятый повод в очередь не вернуть; черновик по нему можно удалить в «Контенте».',
       archiveNote: 'Подписаться снова можно в любой момент — подписка оживёт с прежними поводами.',
       publishHeading: 'Сразу в канал',
       publishNote:
@@ -686,7 +748,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       closed: NO_LONGER_WAITING.ru,
       stale: 'правка устарела, текст уже изменился — ничего не применили',
       yours:
-        'Вопросы заготовки — ваши: ответьте в чате или на карточке, или скажите «Решите за меня».',
+        'Вопросы черновика — ваши: ответьте в чате или на карточке, или скажите «Решите за меня».',
       consentLabel: 'Это моя манера — можно писать от моего имени',
       consentLabelBrand: 'Это голос нашего бренда — можно писать от его имени',
       nameLabel: 'Имя аватара',
@@ -710,6 +772,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       planFeedbackPlaceholder: 'Что изменить или уточнить…',
     },
     tasks: {
+      interrupted: 'прервано',
       kind: 'Задачи',
       completed: (done, total) => `${done} из ${total}`,
       statuses: {
@@ -763,7 +826,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       draftWhen: 'Дата',
       draftMoment: (moment) => `Дата ${moment}`,
       gone: 'Этого поста больше нет',
-      reserveNote: 'Сама не выйдет: это бронь. Подтвердить или сменить время — на экране заготовки.',
+      reserveNote: 'Сама не выйдет: это бронь. Подтвердить или сменить время — на экране черновика.',
       cancelReserve: 'Отменить бронь',
       cancelling: 'Снимаем бронь',
       cancelled: 'Бронь снята, пост остался черновиком.',
@@ -798,6 +861,16 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       paidCapNote: (title) =>
         `${title ? `${title} — ` : ''}шаг остановлен ограничением старой версии помощника. Проверьте сохранённые результаты перед продолжением.`,
       kind: 'Не получилось',
+      savedResultsNext: 'Сохранённые результаты остались в разговоре. Обновите статус и проверьте их перед продолжением.',
+      checkingStatus: 'Проверяю сохранённое состояние…',
+      checkedFailed: 'Состояние проверено. Последний ход отмечен с ошибкой; новых действий не запускалось.',
+      checkedFailedWithReply: 'Состояние проверено: сохранённый ответ показан в разговоре. Последний ход отмечен с ошибкой.',
+      checkedWaiting: 'Состояние проверено. Ответьте на вопрос в карточке разговора.',
+      checkResult: 'Проверить результат',
+      continueNext: 'Продолжу с незавершённого шага. Сохранённые материалы и видеочерновики останутся на месте.',
+      inputClarification: 'Уточняю параметры этого шага.',
+      inputRecovered: 'Параметры уточнены; работа продолжена.',
+      continueMessage: 'Продолжи исходное задание с последнего незавершённого шага по сохранённой истории. Используй существующие материалы и видеочерновики, не создавай их повторно и не повторяй завершённые действия. Если нужен мой ответ, задай вопрос в карточке.',
       generic: {
         what: 'Не получилось довести до конца.',
         next: 'Попробуйте ещё раз — обычно этого хватает.',
@@ -816,6 +889,12 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         unsupportedClaims: 'Не подтверждено источником',
       },
       codes: {
+        MATERIAL_FORMAT_REQUIRED: { what: 'Нужно уточнить формат материала.', next: 'Помощник может исправить параметры и продолжить.' },
+        VIDEO_PREPARATION_EMPTY: VIDEO_PREPARATION_FAILURE.ru,
+        VIDEO_PROMPT_EMPTY: VIDEO_PREPARATION_FAILURE.ru,
+        VIDEO_REQUIRED_NUMBER_MISSING: VIDEO_PREPARATION_FAILURE.ru,
+        VIDEO_UNSUPPORTED_NUMBER: VIDEO_PREPARATION_FAILURE.ru,
+        VIDEO_REQUIRED_NEGATION_MISSING: VIDEO_PREPARATION_FAILURE.ru,
         ADAPTATION_SERIES_UNAVAILABLE: {
           what: 'Серия или её исходный материал сейчас недоступны.',
           next: 'Проверьте доступ к материалу и каналу и посмотрите сохранённые черновики, прежде чем запускать создание заново.',
@@ -831,6 +910,30 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         VIDEO_PREFLIGHT_STALE: {
           what: 'Согласование видео устарело или сценарий изменился.',
           next: 'Откройте сохранённый сценарий и заново проверьте параметры и цену.',
+        },
+        VIDEO_OWNED_CHAT_REQUIRED: {
+          what: 'Не удалось подтвердить исходный чат этого видео.',
+          next: 'Откройте свой чат, в котором подготовили видео.',
+        },
+        VIDEO_CHAT_CONTEXT_REQUIRED: {
+          what: 'Для этого действия нужен сохранённый чат.',
+          next: 'Откройте свой чат с этим видео и повторите запрос там.',
+        },
+        VIDEO_HUMAN_DECISION_REQUIRED: {
+          what: 'Для действия нужно ваше подтверждение.',
+          next: 'Проверьте выбранные параметры и подтвердите их на карточке в чате.',
+        },
+        VIDEO_AUTOPILOT_NOT_SELECTED: {
+          what: 'В этом чате выключен автопилот.',
+          next: 'Продолжите с ручным подтверждением или выберите автопилот в настройках чата.',
+        },
+        VIDEO_PROFILE_SELECTION_CHANGED: {
+          what: 'Данные выбранного ведущего изменились.',
+          next: 'Откройте актуальный профиль и проверьте образ и голос перед подтверждением.',
+        },
+        VIDEO_VOICE_SELECTION_INVALID: {
+          what: 'Выбранный голос недоступен.',
+          next: 'Откройте сохранённые варианты и выберите тот, который можно прослушать.',
         },
         VIDEO_REQUEST_NOT_AUTHORED: {
           what: 'Не удалось подтвердить ваше сообщение с запросом на видео.',
@@ -930,7 +1033,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         AGENT_QUESTION_STALE: {
           what: 'Материал или вопросы уже изменились. Ответ не применён.',
-          next: 'Откройте актуальную заготовку или остановите задачу. Ваш неотправленный текст сохранён в карточке вопроса.',
+          next: 'Откройте актуальный черновик или остановите задачу. Ваш неотправленный текст сохранён в карточке вопроса.',
         },
         MATERIAL_PASSAGE_NOT_FOUND: {
           what: 'Точная фраза не найдена в сохранённом источнике.',
@@ -951,6 +1054,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         CAPABILITY_INPUT_INVALID: {
           what: 'Параметры действия не подошли. Действие не выполнялось.',
           next: 'Помощник может исправить параметры в этом же сообщении.',
+        },
+        CAPABILITY_OUTCOME_UNCERTAIN: {
+          what: 'Не удалось подтвердить результат последнего действия.',
+          next: 'Обновите статус и проверьте сохранённый результат перед продолжением.',
         },
         PERMISSION_DENIED: {
           what: 'У вашей роли нет права на это действие.',
@@ -1009,7 +1116,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Попробуйте ещё раз через минуту.',
         },
         PIECE_NOT_FOUND: {
-          what: 'Такой заготовки нет — возможно, её удалили.',
+          what: 'Такого черновика нет — возможно, его удалили.',
           next: 'Откройте «Контент» и выберите другую.',
         },
         PIECE_AVATAR_UNKNOWN: {
@@ -1117,11 +1224,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Попробуйте ещё раз чуть позже или сделайте это на экране продукта.',
         },
         INTAKE_FAILED: {
-          what: 'Заготовка не написалась.',
+          what: 'Не удалось написать черновик.',
           next: 'Попробуйте ещё раз или начните её в «Контенте».',
         },
         INTAKE_BRIEF_INVALID: {
-          what: 'ИИ вернул некорректное описание задания. Заготовка не создана.',
+          what: 'ИИ вернул некорректное описание задания. Черновик не создан.',
           next: 'Исходное задание сохранено. Можно повторить попытку.',
         },
         LOCAL_RESEARCH_UNAVAILABLE: {
@@ -1203,7 +1310,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Назовите тему короче.',
         },
         IDEAS_LEAD_NOT_TAKEN: {
-          what: 'Этот повод ещё не взят в работу — заготовку не писали и ничего не потратили.',
+          what: 'Этот повод ещё не взят в работу — черновик не писали и ничего не потратили.',
           next: 'Скажите «возьми в работу» — возьмём и сразу напишем.',
         },
         INTAKE_RESEARCH_SNAPSHOT_REQUIRED: {
@@ -1212,7 +1319,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE: {
           what: 'Сохранённое исследование больше недоступно для этого разговора.',
-          next: 'Найдём источники заново или используем доступную заготовку.',
+          next: 'Найдём источники заново или используем доступный черновик.',
         },
         INTAKE_RESEARCH_SELECTION_INVALID: {
           what: 'Не удалось применить выбор из сохранённых исследований.',
@@ -1220,14 +1327,14 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         INTAKE_RESEARCH_STORAGE_UNAVAILABLE: {
           what: 'Не удалось сохранить исследование для продолжения.',
-          next: 'Попробуйте позже: заготовка ещё не создана.',
+          next: 'Попробуйте позже: черновик ещё не создан.',
         },
         INTAKE_RESEARCH_EVIDENCE_MISMATCH: {
           what: 'В сохранённом источнике нет выбранной цитаты.',
           next: 'Проверим источник, прежде чем использовать это утверждение.',
         },
         INTAKE_RESEARCH_INCOMPLETE: {
-          what: 'Найденных сведений пока недостаточно для заготовки.',
+          what: 'Найденных сведений пока недостаточно для черновика.',
           next: 'Уточним поиск или обозначим недостающие сведения.',
         },
         INTAKE_RESEARCH_SELECTION_REQUIRES_PERSON: {
@@ -1236,7 +1343,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         },
         INTAKE_RESEARCH_CONTINUATION_PENDING: {
           what: 'Создание по этому исследованию уже началось, результат пока не подтверждён.',
-          next: 'Проверим сохранённую заготовку, чтобы не создать её повторно.',
+          next: 'Проверим сохранённый черновик, чтобы не создать его повторно.',
         },
         CONTENT_ADAPTATION_INCOMPLETE: {
           what: 'Адаптация пока не готова: не удалось сохранить весь нужный смысл с опорой на источники и в пределах длины.',
@@ -1247,11 +1354,11 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Вернёмся к вашему сообщению и продолжим с его исходным текстом.',
         },
         INTAKE_TEXT_MISSING: {
-          what: 'Писать заготовку не из чего: нет ни слов, ни повода.',
+          what: 'Писать черновик не из чего: нет ни слов, ни повода.',
           next: 'Напишите мысль или назовите повод.',
         },
         INTAKE_TEXT_TOO_LONG: {
-          what: 'Вместе с поводом текст длиннее, чем читает заготовка, — не писали и ничего не потратили.',
+          what: 'Текст вместе с поводом превышает предел длины черновика, — не писали и ничего не потратили.',
           next: 'Сократите то, что добавили к поводу.',
         },
         // Факты, свои тексты и аналитика из чата (kcxz.24).
@@ -1333,8 +1440,8 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Дождитесь обновления лимита или выберите ключ пространства в настройках.',
         },
         ADAPTATION_NOT_FOUND: {
-          what: 'Такого поста у этой заготовки нет — ничего не сделали и не потратили.',
-          next: 'Откройте заготовку и назовите пост ещё раз.',
+          what: 'Такого поста у этого черновика нет — ничего не сделали и не потратили.',
+          next: 'Откройте черновик и назовите пост ещё раз.',
         },
         AI_ADMISSION_CONTENDED: {
           what: 'Учёт обращений к ИИ сейчас занят — шаг не начинали и ничего не потратили.',
@@ -1400,17 +1507,17 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       close: 'Закрыть панель',
       workspaceTitle: 'Что есть в пространстве',
       emptyLead:
-        'Здесь откроется то, над чем работаем: аватар, канал, заготовка, план. Пока — что уже есть.',
+        'Здесь откроется то, над чем работаем: аватар, канал, черновик, план. Пока — что уже есть.',
       // «Одно имя — один ключ»: the same words as on «С чего начать».
       doInChat: onboardingCopy.ru.doInChat,
       loading: 'Смотрим, что уже есть',
       failed: 'Не удалось узнать, что уже есть в пространстве.',
-      writeFromLead: (title: string) => `Напиши заготовку по взятому поводу «${title}»`,
+      writeFromLead: (title: string) => `Напиши черновик по взятому поводу «${title}»`,
       fromEditor: {
         piece: (piece: string, code: string | null, channel: string | null) =>
-          `Про пост из заготовки «${piece}»${code ? ` (${code})` : ''}${channel ? ` для канала «${channel}»` : ''}: `,
+          `Про пост из черновика «${piece}»${code ? ` (${code})` : ''}${channel ? ` для канала «${channel}»` : ''}: `,
         text: (text: string, channel: string | null) =>
-          `Сделай из этого текста заготовку и пост${channel ? ` для канала «${channel}»` : ''}:\n\n${text}`,
+          `Сделай из этого текста черновик и пост${channel ? ` для канала «${channel}»` : ''}:\n\n${text}`,
         empty: (channel: string | null) =>
           `Напишем пост${channel ? ` для канала «${channel}»` : ''} из одной мысли: `,
       },
@@ -1426,6 +1533,25 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
   en: {
     locale: 'en',
     screenLabel: 'AI assistant',
+    heygenConsent: {
+      title: 'Avatar consent',
+      loading: 'Loading the link…',
+      open: 'Give consent in HeyGen',
+      notice: 'The person gives consent directly in HeyGen. This one-use link opens in a new tab and is valid for up to 24 hours. If consent was already submitted, wait for HeyGen’s review.',
+      expired: 'This link has expired. Ask the assistant to check consent status.',
+      unavailable: 'This link is unavailable. Ask the assistant to check consent status.',
+      failed: 'The link could not be loaded. You can reload the link that was already issued.',
+      retry: 'Reload link',
+      expires: date => `Valid until ${date}`,
+    },
+    researchRecovery: {
+      saved: 'Research was saved',
+      ready: 'Research result received',
+      next: 'Research was saved, but the draft was not created. Continue without a new search. The snapshot is kept for one hour and may have expired.',
+      prepare: 'Continue',
+      timeout: 'The model response timed out.',
+      message: (snapshotKey) => `Continue the original request using saved research ${snapshotKey} without a new search. Use confirmed facts and flag gaps. If the research is unavailable, tell me.`,
+    },
     threads: {
       ...chatWordsFor('en'),
       label: 'Conversations',
@@ -1546,6 +1672,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       openOnScreen: 'Open on screen',
       openBeside: 'Open',
       openedBeside: 'opened',
+      clipScenario: 'Short video scenario',
       kinds: {
         workspace: 'Workspace',
         channels: 'Channels',
@@ -1666,6 +1793,7 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       planFeedbackPlaceholder: 'What to change or clarify…',
     },
     tasks: {
+      interrupted: 'interrupted',
       kind: 'Tasks',
       completed: (done, total) => `${done} of ${total}`,
       statuses: {
@@ -1754,6 +1882,16 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
       paidCapNote: (title) =>
         `${title ? `${title} — ` : ''}this step was stopped by an older assistant limit. Check saved results before continuing.`,
       kind: 'Did not work',
+      savedResultsNext: 'Saved results remain in the conversation. Refresh status and check them before continuing.',
+      checkingStatus: 'Checking saved status…',
+      checkedFailed: 'Status checked. The last turn is marked as failed; no new action was started.',
+      checkedFailedWithReply: 'Status checked: the saved answer is shown in the conversation. The last turn is marked as failed.',
+      checkedWaiting: 'Status checked. Answer the question in the conversation card.',
+      checkResult: 'Check result',
+      continueNext: 'I will continue from the unfinished step. Saved materials and video drafts will be kept.',
+      inputClarification: 'Clarifying the parameters for this step.',
+      inputRecovered: 'The parameters were corrected and work continued.',
+      continueMessage: 'Continue the original request from the last unfinished step in saved history. Reuse existing materials and video drafts; do not recreate them or repeat completed actions. If you need my answer, ask in a question card.',
       generic: {
         what: 'We could not finish this.',
         next: 'Try again — that usually does it.',
@@ -1772,6 +1910,12 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         unsupportedClaims: 'Unsupported by the source',
       },
       codes: {
+        MATERIAL_FORMAT_REQUIRED: { what: 'The material format needs clarification.', next: 'The assistant can correct the parameters and continue.' },
+        VIDEO_PREPARATION_EMPTY: VIDEO_PREPARATION_FAILURE.en,
+        VIDEO_PROMPT_EMPTY: VIDEO_PREPARATION_FAILURE.en,
+        VIDEO_REQUIRED_NUMBER_MISSING: VIDEO_PREPARATION_FAILURE.en,
+        VIDEO_UNSUPPORTED_NUMBER: VIDEO_PREPARATION_FAILURE.en,
+        VIDEO_REQUIRED_NEGATION_MISSING: VIDEO_PREPARATION_FAILURE.en,
         ADAPTATION_SERIES_UNAVAILABLE: {
           what: 'The series or its source material is currently unavailable.',
           next: 'Check access to the material and channel, and inspect saved drafts before starting again.',
@@ -1787,6 +1931,30 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         VIDEO_PREFLIGHT_STALE: {
           what: 'The video approval expired or the script changed.',
           next: 'Open the saved script and review the settings and price again.',
+        },
+        VIDEO_OWNED_CHAT_REQUIRED: {
+          what: 'The original chat for this video could not be verified.',
+          next: 'Open the chat where you prepared this video.',
+        },
+        VIDEO_CHAT_CONTEXT_REQUIRED: {
+          what: 'This action needs a saved chat.',
+          next: 'Open your chat for this video and repeat the request there.',
+        },
+        VIDEO_HUMAN_DECISION_REQUIRED: {
+          what: 'This action needs your confirmation.',
+          next: 'Review the selected settings and approve them on the card in chat.',
+        },
+        VIDEO_AUTOPILOT_NOT_SELECTED: {
+          what: 'Autopilot is off in this chat.',
+          next: 'Continue with manual approval or select autopilot in the chat settings.',
+        },
+        VIDEO_PROFILE_SELECTION_CHANGED: {
+          what: 'The selected presenter details changed.',
+          next: 'Open the current profile and review the look and voice before approval.',
+        },
+        VIDEO_VOICE_SELECTION_INVALID: {
+          what: 'The selected voice is unavailable.',
+          next: 'Open your saved voice options and select one you can play.',
         },
         VIDEO_REQUEST_NOT_AUTHORED: {
           what: 'Your message requesting the video could not be verified.',
@@ -1907,6 +2075,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         CAPABILITY_INPUT_INVALID: {
           what: 'The action parameters were invalid. The action did not run.',
           next: 'The assistant can correct the parameters in this same message.',
+        },
+        CAPABILITY_OUTCOME_UNCERTAIN: {
+          what: 'The result of the last action could not be confirmed.',
+          next: 'Refresh status and check the saved result before continuing.',
         },
         PERMISSION_DENIED: {
           what: 'Your role has no right to do this.',

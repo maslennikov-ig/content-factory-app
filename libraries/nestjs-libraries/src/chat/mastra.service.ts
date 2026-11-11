@@ -1,3 +1,4 @@
+import { readStoredChatMode, AGENT_MATERIAL_FORMAT_CONTEXT_KEY, explicitMaterialFormats } from './conductor/chat-mode';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 import { getModelPromptTokenLimit } from '@contentfactory/nestjs-libraries/openai/ai.context-window';
 import { createNativeAdaptationSeriesWorkflow } from './conductor/native-adaptation-series';
@@ -30,7 +31,7 @@ import { observeConductorRun } from './conductor/native-run-observer';
 import { createNativeObservability } from './conductor/native-observability';
 import { NativeSessionCache } from './conductor/native-session-cache';
 import { assertNativeRecoveryAllowed, cancelNativeRunSnapshots, NativeRecoveryRefusedError,
-  nativeSnapshotTerminal, nativeStopIntent, NativeStopOwnerPendingError, NATIVE_NESTED_WORKFLOW, type NativeStopBinding } from './conductor/native-stop';
+  nativeSnapshotTerminal, nativeStopIntent, nativeLocalExecutionSettled, NativeStopOwnerPendingError, NATIVE_NESTED_WORKFLOW, type NativeStopBinding } from './conductor/native-stop';
 import { restoreNativeRunContext } from './conductor/native-session-context';
 import { protectPersistedApprovals } from './conductor/native-session-permissions';
 import {
@@ -95,6 +96,8 @@ import {
   CONDUCTOR_REQUEST_ID_KEY,
   buildConductorContext,
   conductorResourceId,
+  materialRequestContextOf,
+  parseMaterialRequestContext,
 } from '@contentfactory/nestjs-libraries/chat/conductor/conductor.context';
 import {
   AGENT_EXECUTION_METADATA_KEY,
@@ -161,6 +164,8 @@ export class MastraService
       active: () => boolean;
       run: <T>(work: () => Promise<T>) => Promise<T>;
       stop: () => void;
+      stopped: () => boolean;
+      drainStoppedWork: () => Promise<'failed' | 'interrupted'>;
     }
   >();
   private readonly nativeSessionCache = new NativeSessionCache({
@@ -243,9 +248,10 @@ export class MastraService
 
   validateWorkArtifact(
     identity: CapabilityIdentity,
-    artifact: AgentArtifactRef
+    artifact: AgentArtifactRef,
+    threadId?: string
   ) {
-    return this.workContextResolver().validateArtifact(identity, artifact);
+    return this.workContextResolver().validateArtifact(identity, artifact, {threadId});
   }
 
   browseWorkObjects(identity: CapabilityIdentity, query: unknown) {
@@ -426,6 +432,7 @@ export class MastraService
           state: 'running',
           logicalRequestId,
           availabilityCycles: 0,
+          ...(materialRequestContextOf(position.requestContext) ? { continuationMaterialContext: materialRequestContextOf(position.requestContext) } : {}),
           ...(readResolvedWritingSelection(position.requestContext)?.selection
             ? { continuationWritingSelection: readResolvedWritingSelection(position.requestContext)!.selection } : {}),
         },
@@ -584,6 +591,7 @@ export class MastraService
             ? parseAgentWritingSelection(JSON.parse(String(nextContext.get(AGENT_WRITING_SELECTION_KEY))).selection)
             : {},
           continuationModelTask: readConductorModelTask(nextContext) ?? null,
+          ...(materialRequestContextOf(nextContext) ? { continuationMaterialContext: materialRequestContextOf(nextContext) } : {}),
           state: 'queued',
           retryAt: null,
         }),
@@ -753,10 +761,64 @@ export class MastraService
     }
   }
 
-  /** Called only after Stop drained its HTTP owner and verified the saved tail. */
+  /** Positive absence, never inferred from empty replay or an expired app claim. */
+  async stoppedNativeDriverAbsent(input: NativeStopBinding, options?: {onTrackedFailure?: () => void}): Promise<boolean> {
+    const agent = await this.conductor();
+    if (!isDurableAgent(agent)) return false;
+    const memory = await agent.getMemory();
+    const thread = await memory?.getThreadById({threadId: input.threadId});
+    const pointer = thread?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+    const scopeKey = `${input.resourceId}:${input.threadId}`;
+    const scope = this.nativeTaskScopes.get(scopeKey);
+    if (pointer?.runId !== input.runId || !nativeStopIntent(thread, input) ||
+        (thread?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined)?.requestId !== input.requestId ||
+        scope && (scope.requestId !== input.requestId || !scope.stopped())) return false;
+    const workflows = await pStore.getStore('workflows');
+    if (!workflows) throw new Error('Native Stop storage is unavailable.');
+    const related = [...new Set([input.runId, pointer.previousRunId,
+      ...(Array.isArray(pointer.lineageRunIds) ? pointer.lineageRunIds : []),
+    ].filter((id): id is string => typeof id === 'string' && !!id))];
+    const observed: Array<{runId: string; local: ReturnType<typeof agent.runRegistry.get>; owner: Awaited<ReturnType<typeof workflows.getRunOwnership>>}> = [];
+    for (const runId of related) {
+      const local = agent.runRegistry.get(runId);
+      const [root, nested, owner] = await Promise.all([
+        workflows.getWorkflowRunById({workflowName: 'durable-agentic-loop', runId}),
+        workflows.getWorkflowRunById({workflowName: NATIVE_NESTED_WORKFLOW, runId}),
+        workflows.getRunOwnership({runId}),
+      ]);
+      // Terminal ancestors remain history; the target itself must be absent.
+      if (owner?.live || (runId === input.runId ? root || nested :
+          (root && !nativeSnapshotTerminal(root)) || (nested && !nativeSnapshotTerminal(nested)))) return false;
+      if (!await nativeLocalExecutionSettled(local, runId, owner)) return false;
+      const currentOwner = await workflows.getRunOwnership({runId});
+      if (agent.runRegistry.get(runId) !== local || currentOwner?.live ||
+          currentOwner?.ownerId !== owner?.ownerId || currentOwner?.generation !== owner?.generation) return false;
+      observed.push({runId, local, owner});
+    }
+    if (scope && await scope.drainStoppedWork() === 'failed') {
+      if (!options?.onTrackedFailure) return false;
+      options.onTrackedFailure();
+    }
+    for (const before of observed) {
+      const owner = await workflows.getRunOwnership({runId: before.runId});
+      if (agent.runRegistry.get(before.runId) !== before.local || owner?.live ||
+          owner?.ownerId !== before.owner?.ownerId || owner?.generation !== before.owner?.generation) return false;
+    }
+    const current = await memory!.getThreadById({threadId: input.threadId});
+    const currentPointer = current?.metadata?.assistantNativeRun as Record<string, unknown> | undefined;
+    const currentRelated = new Set([currentPointer?.runId, currentPointer?.previousRunId,
+      ...(Array.isArray(currentPointer?.lineageRunIds) ? currentPointer.lineageRunIds : []),
+    ].filter((id): id is string => typeof id === 'string' && !!id));
+    return currentPointer?.runId === input.runId && currentRelated.size === related.length && related.every(id => currentRelated.has(id)) &&
+      (current?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined)?.requestId === input.requestId &&
+      nativeStopIntent(current, input) && (!this.nativeTaskScopes.has(scopeKey) ||
+        this.nativeTaskScopes.get(scopeKey) === scope && scope!.stopped());
+  }
+
+  /** Stop drained its HTTP owner; verify either the saved tail or explicit driver absence. */
   async settleStoppedNativeRun(input: {
     threadId: string; resourceId: string; runId: string; requestId: string;
-  }): Promise<boolean> {
+  }, options?: {withoutAnnouncedResponse?: boolean}): Promise<boolean> {
     const agent = await this.conductor();
     if (!isDurableAgent(agent)) return false;
     const memory = await agent.getMemory();
@@ -773,7 +835,11 @@ export class MastraService
         ['completed', 'failed', 'interrupted'].includes(String(marker.outcome));
     };
     if (!owns(thread)) return false;
+    const scope = this.nativeTaskScopes.get(`${input.resourceId}:${input.threadId}`);
+    if (scope && (scope.requestId !== input.requestId || !scope.stopped() || await scope.drainStoppedWork() === 'failed')) return false;
     const pointer = thread!.metadata!.assistantNativeRun as Record<string, unknown>;
+    if (options?.withoutAnnouncedResponse &&
+        (pointer.response != null || pointer.responseAnnounced === true || !await this.stoppedNativeDriverAbsent(input))) return false;
     const workflows = await pStore.getStore('workflows');
     const memoryStore = await pStore.getStore('memory');
     if (!workflows || !memoryStore) throw new Error('Native Stop storage is unavailable.');
@@ -781,7 +847,7 @@ export class MastraService
       ...(Array.isArray(pointer.lineageRunIds) ? pointer.lineageRunIds : []),
     ].filter((id): id is string => typeof id === 'string' && !!id))];
     for (const runId of related) {
-      if (agent.runRegistry.get(runId)) return false;
+      const local = agent.runRegistry.get(runId);
       const [saved, nested, owner] = await Promise.all([
         workflows.getWorkflowRunById({ workflowName: 'durable-agentic-loop', runId }),
         workflows.getWorkflowRunById({ workflowName: NATIVE_NESTED_WORKFLOW, runId }),
@@ -795,27 +861,36 @@ export class MastraService
         ['success', 'failed', 'tripwire', 'bailed', 'skipped'].includes(snapshot?.status);
       const completedTarget = runId === input.runId && settled(thread) &&
         (thread?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown>)?.outcome === 'completed' && nativeSnapshotTerminal(saved);
-      if (owner?.live || (saved && snapshot?.status !== 'canceled' && !terminalPredecessor && !completedTarget) ||
+      if (!await nativeLocalExecutionSettled(local, runId, owner) || agent.runRegistry.get(runId) !== local ||
+          owner?.live || (saved && snapshot?.status !== 'canceled' && !terminalPredecessor && !completedTarget) ||
           nested && !nativeSnapshotTerminal(nested)) return false;
     }
-    if (settled(thread)) return true;
+    if (settled(thread) && !options?.withoutAnnouncedResponse) return true;
     // No driver/checkpoint remains to emit FINISH after a failed resume. Stop
     // owns this terminal write, atomically guarded against a successor task.
     const updated = await memoryStore.updateThreadMetadata({
       id: input.threadId, resourceId: input.resourceId,
       update: current => {
-        if (!owns(current) || settled(current)) return undefined;
+        if (!owns(current) || (settled(current) && !options?.withoutAnnouncedResponse)) return undefined;
         const currentPointer = current.metadata!.assistantNativeRun as Record<string, unknown>;
         const marker = current.metadata![AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown>;
-        if (marker.stopRequested !== true || currentPointer.state !== 'stopped') return undefined;
+        if (marker.stopRequested !== true || !(currentPointer.state === 'stopped' ||
+            options?.withoutAnnouncedResponse && currentPointer.state === 'settled' && currentPointer.outcome === 'interrupted')) return undefined;
+        if (options?.withoutAnnouncedResponse && (currentPointer.response != null || currentPointer.responseAnnounced === true ||
+            marker.state === 'settled' && marker.outcome !== 'interrupted')) return undefined;
         return {
           assistantNativeRun: { ...currentPointer, state: 'settled', outcome: 'interrupted',
-            continuationPending: false, continuationIdentity: null },
+            continuationPending: false, continuationIdentity: null,
+            ...(options?.withoutAnnouncedResponse ? {stopReceipt: {version: 1, runId: input.runId,
+              requestId: input.requestId, reason: 'native-driver-absent'}} : {}) },
           [AGENT_EXECUTION_METADATA_KEY]: { ...marker, state: 'settled', outcome: 'interrupted' },
         };
       },
     });
-    return settled(updated);
+    const receipt = (updated?.metadata?.assistantNativeRun as Record<string, any> | undefined)?.stopReceipt;
+    return settled(updated) && (!options?.withoutAnnouncedResponse ||
+      (updated?.metadata?.[AGENT_EXECUTION_METADATA_KEY] as Record<string, unknown> | undefined)?.outcome === 'interrupted' &&
+      receipt?.version === 1 && receipt.runId === input.runId && receipt.requestId === input.requestId && receipt.reason === 'native-driver-absent');
   }
 
   /** Native workflows persist explicitly queued user input before acceptance. */
@@ -920,7 +995,8 @@ export class MastraService
     threadId: string,
     requestId: string,
     selectedOverride?: AgentWorkContextV1 | null,
-    writingOverride?: import('./capabilities/agent-parts.contract').AgentWritingSelection
+    writingOverride?: import('./capabilities/agent-parts.contract').AgentWritingSelection,
+    originalAuthorRequest?: import('./capabilities/capability.types').OriginalAuthorRequest
   ) {
     const agent = await this.conductor();
     const memory = (await agent.getMemory())!;
@@ -982,6 +1058,9 @@ export class MastraService
       trackExecution: true,
       workContext,
       writingSelection,
+      chatMode: readStoredChatMode(thread.metadata),
+      originalAuthorRequest,
+      materialContext: pointer?.logicalRequestId === requestId ? parseMaterialRequestContext(pointer.continuationMaterialContext) : undefined,
       openProposals: openProposalTargets(open),
     });
   }
@@ -999,9 +1078,11 @@ export class MastraService
       input.threadId,
       input.requestId,
       input.workContext,
-      input.writingSelection
+      input.writingSelection,
+      { messageId: input.signal.id, text: input.signal.contents }
     );
     seedConductorModelTask(requestContext, input.signal.contents);
+    requestContext.set(AGENT_MATERIAL_FORMAT_CONTEXT_KEY, JSON.stringify(explicitMaterialFormats(input.signal.contents)));
     const resourceId = conductorResourceId(
       identity.organizationId,
       identity.userId
@@ -1034,6 +1115,7 @@ export class MastraService
               assistantNativeRun: {
                 ...(sameRequest ? pointer : { runId, logicalRequestId: input.requestId, state: 'running' }),
                 ...(input.writingSelection !== undefined ? { continuationWritingSelection: input.writingSelection } : {}),
+                ...(materialRequestContextOf(requestContext) ? { continuationMaterialContext: materialRequestContextOf(requestContext) } : {}),
                 response: { runId, messageId },
               },
             };
@@ -1116,6 +1198,8 @@ export class MastraService
               execution.stop();
               lifecycle.stop();
             },
+            stopped: () => !lifecycle.acceptingWork,
+            drainStoppedWork: () => lifecycle.drainStoppedWork(),
           };
           this.nativeTaskScopes.set(scopeKey, scope);
           let completed = false;
@@ -1788,6 +1872,7 @@ export class MastraService
               const requestContext = buildConductorContext({
                 identity: current,
                 threadId,
+                chatMode: readStoredChatMode(thread.metadata),
               });
               seedConductorModelTask(requestContext, s.prompt);
               return {
@@ -1997,18 +2082,32 @@ export class MastraService
    * The approval card's «what and where» for a stored `confirm` call, read
    * with the same services the capabilities use (correctness review W1 F1).
    */
-  describeApproval(
+  async describeApproval(
     identity: CapabilityIdentity,
     toolName: string | null | undefined,
     args: unknown
   ): Promise<string | null> {
-    return describeApprovalCall(
+    const description = await describeApprovalCall(
       CAPABILITY_CATALOGUE,
       this.service,
       identity,
       toolName,
       args
     );
+    if (description) return description;
+    // These SDK tools only manage this conversation's internal task list or
+    // read bundled instructions. A parked call still requires its exact human
+    // approval; this description does not change any permission or auto-resume it.
+    // Keep memory, delegation and legacy skill input validation above intact.
+    const internal = new Map<string, {ru: string; en: string}>([
+      ['task_write', {ru: 'Заменить список задач этого чата.', en: 'Replace the task list in this chat.'}],
+      ['task_update', {ru: 'Обновить задачу в списке этого чата.', en: 'Update a task in this chat.'}],
+      ['task_complete', {ru: 'Отметить задачу этого чата выполненной.', en: 'Mark a task in this chat as completed.'}],
+      ['task_check', {ru: 'Проверить состояние задач этого чата.', en: 'Check task progress in this chat.'}],
+      ['skill_search', {ru: 'Найти встроенные инструкции для этого чата.', en: 'Search bundled instructions for this chat.'}],
+      ['skill_read', {ru: 'Прочитать встроенную инструкцию для этого чата.', en: 'Read bundled instructions for this chat.'}],
+    ]);
+    return (toolName && internal.get(toolName)?.[identity.language === 'ru' ? 'ru' : 'en']) || null;
   }
 
   /**

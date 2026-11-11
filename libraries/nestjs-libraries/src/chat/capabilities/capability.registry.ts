@@ -310,7 +310,7 @@ export const assertCapabilityRegistry = (
     // Asking in the web chat (kcxz.45) is a guard on a write action; a
     // confirm one always asks.
     if (capability.asksInWebChat && capability.risk !== 'write' &&
-        !(['video.launch', 'video.launch_v2'].includes(capability.id) && capability.risk === 'paid')) {
+        !(['video.launch', 'video.launch_v2', 'video.heygen_style_submit', 'video.heygen_voice_execute'].includes(capability.id) && capability.risk === 'paid')) {
       throw new Error(
         `Capability ${id}: only a write capability asks in the web chat on top of its class.`
       );

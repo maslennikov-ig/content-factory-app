@@ -31,6 +31,8 @@ import {
   type AgentSamplesUpload,
 } from './agent.contract';
 import type { AgentWords } from './agent.copy';
+import type { AgentChatMode } from './agent.contract';
+import { chatModeCopy } from './agent.chat-mode.copy';
 import { AgentGlyph } from './agent.icons';
 import {
   SAMPLES_ACCEPT,
@@ -143,6 +145,7 @@ export function AgentComposer({
   onDraftUsed,
   draftStorageKey,
   recovery,
+  chatModeControl,
 }: {
   /** The agent is answering. */
   busy: boolean;
@@ -179,8 +182,16 @@ export function AgentComposer({
   draftStorageKey?: string;
   /** A proven pre-start refusal restores only an otherwise empty field. */
   recovery?: ComposerRecovery | null;
+  chatModeControl?: {
+    value: AgentChatMode;
+    onChange: (mode: AgentChatMode) => void;
+    saving?: boolean;
+    error?: boolean;
+  };
 }) {
   const w = words.composer;
+  const modeWords = chatModeCopy[words.locale];
+  const modeStatusId = useId();
   const [text, setText] = useState(() => {
     try { return draftStorageKey ? window.sessionStorage.getItem(draftStorageKey) ?? '' : ''; } catch { return ''; }
   });
@@ -253,6 +264,7 @@ export function AgentComposer({
   const canSend =
     (text.trim().length > 0 || files.length > 0) &&
     !queued &&
+    !chatModeControl?.saving &&
     !uploading &&
     !held &&
     !recording &&
@@ -636,7 +648,7 @@ export function AgentComposer({
     <div className="flex min-w-0 flex-col gap-[8px]">
       <AllowanceHint presentation="chat" />
       <form
-        className="flex min-w-0 flex-col gap-[8px]"
+        className="flex min-w-0 flex-col gap-[8px] [container-type:inline-size]"
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -772,6 +784,7 @@ export function AgentComposer({
             name="attachments"
             className="shrink-0"
             label={w.attach}
+            icon={<AgentGlyph name="plus" />}
             variant="quiet"
             multiple
             accept={
@@ -782,6 +795,26 @@ export function AgentComposer({
             onFiles={addFiles}
           />
           <Hint label={w.attachHintLabel}>{w.attachHint}</Hint>
+          {chatModeControl ? (
+            <span className="relative inline-flex min-w-0 items-center">
+              <Select standalone disableForm density="dense"
+                aria-label={modeWords.label}
+                title={`${modeWords.label} · ${modeWords.options[chatModeControl.value]}`}
+                aria-describedby={chatModeControl.error ? modeStatusId : undefined}
+                className="max-w-full [@container(max-width:360px)]:w-[60px] [@container(max-width:360px)]:text-transparent"
+                value={chatModeControl.value}
+                disabled={busy || chatModeControl.saving || !!uploading || held || recording || !!transcribing}
+                onChange={(event) => chatModeControl.onChange(event.target.value as AgentChatMode)}
+              >
+                {Object.entries(modeWords.options).map(([value, label]) => (
+                  <option key={value} value={value} className="text-cf-ink">{label}</option>
+                ))}
+              </Select>
+              <span aria-hidden="true" className="pointer-events-none absolute start-[12px] hidden text-cf-ink-muted [@container(max-width:360px)]:inline-flex">
+                <AgentGlyph name={chatModeControl.value === 'collaborative' ? 'user' : 'bolt'} />
+              </span>
+            </span>
+          ) : null}
           <span className="ms-auto inline-flex max-w-full shrink-0 flex-wrap items-center justify-end gap-[8px]">
             {transcribeVoice ? (
               recording ? (
@@ -856,6 +889,8 @@ export function AgentComposer({
         <p id={hintId} className="sr-only">
           {w.keyboard}
         </p>
+        {chatModeControl?.saving ? <p role="status" className="sr-only">{modeWords.saving}</p> : null}
+        {chatModeControl?.error ? <p id={modeStatusId} role="alert" className="cf-caption text-cf-danger">{modeWords.failed}</p> : null}
         {uploading ? (
           <p role="status" aria-live="polite" className="cf-caption text-cf-ink-muted">
             {uploading === 'media' ? w.mediaSending : w.samplesSending}

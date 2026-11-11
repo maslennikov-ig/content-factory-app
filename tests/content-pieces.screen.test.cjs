@@ -331,7 +331,7 @@ describe('the table renders as a table, and the row says how to open it', () => 
 
   test('filters use the shared labelled group and name both questions', () => {
     drawTable();
-    const row = screen.getByRole('group', { name: 'Заготовки' });
+    const row = screen.getByRole('group', { name: 'Черновики' });
 
     expect(row.getAttribute('data-filters-row')).toBe('true');
     expect(screen.getByRole('textbox', { name: 'Поиск по словам' })).toBeTruthy();
@@ -526,7 +526,7 @@ describe('the intake button names what will happen', () => {
 
   test('with no channel it promises a piece and nothing more', () => {
     drawIntake();
-    const button = screen.getByRole('button', { name: 'Сделать заготовку' });
+    const button = screen.getByRole('button', { name: 'Сделать черновик' });
     expect(button.getAttribute('data-intake-action')).toBe('piece');
     // Канал перестал быть обязательным: без него кнопка работает.
     expect(button.disabled).toBe(false);
@@ -535,7 +535,7 @@ describe('the intake button names what will happen', () => {
   test('legacy channels cannot change the neutral action', () => {
     drawIntake({ selectedIds: ['int-tg'] });
     const button = screen.getByRole('button', {
-      name: 'Сделать заготовку',
+      name: 'Сделать черновик',
     });
     expect(button.getAttribute('data-intake-action')).toBe('piece');
   });
@@ -544,8 +544,8 @@ describe('the intake button names what will happen', () => {
     drawIntake({ piece: { pieceId: 'piece-12', code: 'cnt-12' }, onOpenPiece: noop });
     const line = document.querySelector('[data-intake-piece="cnt-12"]');
     expect(line.getAttribute('role')).toBe('status');
-    expect(line.textContent).toContain('Заготовка сохранена — cnt-12');
-    expect(screen.getByRole('button', { name: 'Открыть заготовку' })).toBeTruthy();
+    expect(line.textContent).toContain('Черновик сохранён — cnt-12');
+    expect(screen.getByRole('button', { name: 'Открыть черновик' })).toBeTruthy();
   });
 });
 

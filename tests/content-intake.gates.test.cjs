@@ -173,7 +173,7 @@ test('a USER reads the screen and writes nothing, and is told whom to ask', asyn
   // Экран виден целиком, но выключен: пустое место вместо кнопки ничего не
   // объясняет.
   expect(document.querySelector('fieldset').disabled).toBe(true);
-  expect(screen.getByRole('button', { name: 'Сделать заготовку' }).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Сделать черновик' }).disabled).toBe(true);
   expect(intakeCalls()).toHaveLength(0);
 });
 
@@ -185,9 +185,9 @@ test('a workspace with no usable channel still makes a piece, and offers no chan
 
   // С волны «заготовка и адаптации» (решение владельца 06.09.2026) канал
   // необязателен: без единого канала заготовка всё равно делается, кнопка
-  // читается «Сделать заготовку», а выбирать некого.
+  // читается «Сделать черновик», а выбирать некого.
   expect(panel().getAttribute('data-intake-state')).toBe('idle');
-  expect(screen.getByRole('button', { name: 'Сделать заготовку' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Сделать черновик' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Мой канал' })).toBeNull();
   expect(intakeCalls()).toHaveLength(0);
 });

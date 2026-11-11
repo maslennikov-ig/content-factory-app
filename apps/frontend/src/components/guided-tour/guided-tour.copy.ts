@@ -46,8 +46,8 @@ export const guidedTourCopy: { ru: Words; en: Words } = {
         body: 'Добавьте нашего бота администратором канала и отправьте в канал сообщение /connect … — точную команду покажет окно подключения.',
       },
       pieceNew: {
-        title: '«Новая заготовка»',
-        body: 'Заготовка — суть будущего поста без привязки к площадке. С неё начинается любой материал.',
+        title: '«Новый черновик»',
+        body: 'Черновик — суть будущего поста без привязки к площадке. Из него можно подготовить несколько материалов.',
       },
       pieceKind: {
         title: 'Свой текст · Чужой пост · Задание',
@@ -59,7 +59,7 @@ export const guidedTourCopy: { ru: Words; en: Words } = {
       },
       adaptationAdapt: {
         title: 'Адаптация',
-        body: 'Делает из заготовки пост под этот канал: длина, тон и оформление площадки.',
+        body: 'Делает из черновика пост под этот канал: длина, тон и оформление площадки.',
       },
       adaptationPanel: {
         title: 'Настройки поста',
@@ -111,8 +111,8 @@ export const guidedTourCopy: { ru: Words; en: Words } = {
         body: 'Add our bot to the channel as an admin and post /connect … in the channel — the connect window shows the exact command.',
       },
       pieceNew: {
-        title: '"New piece"',
-        body: 'A piece is the core of a future post, not tied to any platform. Every piece of content starts here.',
+        title: '"New draft"',
+        body: 'A draft holds the core idea for a future post. Use it to prepare content for different platforms.',
       },
       pieceKind: {
         title: 'My text · Someone’s post · Instruction',

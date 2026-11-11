@@ -163,12 +163,19 @@ async function child(phase, statePath) {
     assert.equal(receipt.stopped, true); const stopped = await handler.getThread(ORG, USER, threadId);
     assert.equal(stopped.execution.state, 'settled'); assert.equal(stopped.execution.outcome, 'interrupted');
     assert(stopped.messages.some(m => m.id === 'original' && JSON.stringify(m).includes(ORIGINAL)));
-    const stoppedPointer = await threads.readNativeRun(IDENTITY, threadId); assert.equal(stoppedPointer.state, 'stopped');
+    const stoppedPointer = await threads.readNativeRun(IDENTITY, threadId);
+    assert.equal(stoppedPointer.logicalRequestId, receipt.requestId);
+    assert.equal(stoppedPointer.logicalRequestId, stopped.execution.requestId);
+    assert.equal(stoppedPointer.continuationPending, false);
+    // The native observer can commit interruption before or after the HTTP
+    // Stop writes its stopped pointer. Both must identify the same terminal task.
+    assert(stoppedPointer.state === 'stopped' ||
+      stoppedPointer.state === 'settled' && stoppedPointer.outcome === 'interrupted');
     const stoppedHumans = await savedHumans(); await handler.getThread(ORG, USER, threadId); assert.deepEqual(await savedHumans(), stoppedHumans);
     assert.equal(read().modelCalls, count + 6, 'Stop and subsequent GET cannot infer');
     assert.equal(await prisma.contentPiece.count({where: {organizationId: IDENTITY.organizationId}}), 1);
     assert.equal(await prisma.post.count({where: {organizationId: IDENTITY.organizationId}}), 1);
-    process.send({phase: 'complete', result: {coldPointer: {state: coldPointer.state, outcome: coldPointer.outcome}, stoppedPointer: {state: stoppedPointer.state}, humanRowsStableOnGet: true, writesStableOnGet: true, inputTokens: null, cachedInputTokens: null, usageNote: 'Fixture usage is synthetic; actual provider tokens are unavailable.', expiredEvidence: true, stopped: true, native: true, sources: sources.length, laterSource: 43, questionAnswered: true, lengthChoiceAnswered:true, restart: true, getNoInference: true, originalPreserved: true, searches: read().searches, modelCalls: read().modelCalls, cores: cores.length, telegramDrafts: posts.length, prompts: read().prompts}});
+    process.send({phase: 'complete', result: {coldPointer: {state: coldPointer.state, outcome: coldPointer.outcome}, stoppedPointer: {matchedRequest: true, outcome: stopped.execution.outcome}, humanRowsStableOnGet: true, writesStableOnGet: true, inputTokens: null, cachedInputTokens: null, usageNote: 'Fixture usage is synthetic; actual provider tokens are unavailable.', expiredEvidence: true, stopped: true, native: true, sources: sources.length, laterSource: 43, questionAnswered: true, lengthChoiceAnswered:true, restart: true, getNoInference: true, originalPreserved: true, searches: read().searches, modelCalls: read().modelCalls, cores: cores.length, telegramDrafts: posts.length, prompts: read().prompts}});
   } finally {await runtime.close({drop: phase !== 'start'}); await prisma.$disconnect();}
   process.exit(0);
 }

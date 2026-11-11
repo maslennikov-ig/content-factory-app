@@ -112,12 +112,11 @@ const ownErrorCode = (error: unknown): AgentErrorCode => {
   if (name === 'TripWire' || field(error, 'processorId') !== undefined) {
     return 'AGENT_BLOCKED';
   }
-  if (nativeTerminalProviderError(error).code === 'AI_PROVIDER_PAYMENT_REQUIRED') {
-    return 'AI_PROVIDER_PAYMENT_REQUIRED';
+  const providerCode = nativeTerminalProviderError(error).code;
+  if (providerCode === 'AI_PROVIDER_PAYMENT_REQUIRED' || providerCode === 'AI_PROVIDER_TIMEOUT') {
+    return providerCode;
   }
   if (
-    name === 'TimeoutError' ||
-    name === 'AbortError' ||
     code === 'ETIMEDOUT' ||
     status === 408 ||
     status === 504

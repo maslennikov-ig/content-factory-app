@@ -153,7 +153,7 @@ describe('the hand-over', () => {
 
   test('the words: piece first, then text, then the «one thought» request — in both languages', () => {
     expect(handoff.editorDraft(FROM, { piece: 'X', code: 'cnt-2', channel: 'K', text: 't' })).toBe(FROM.piece('X', 'cnt-2', 'K'));
-    expect(handoff.editorDraft(FROM, { piece: 'X', code: null, channel: null, text: '' })).toBe('Про пост из заготовки «X»: ');
+    expect(handoff.editorDraft(FROM, { piece: 'X', code: null, channel: null, text: '' })).toBe('Про пост из черновика «X»: ');
     expect(handoff.editorDraft(FROM, { piece: null, code: null, channel: null, text: 't' })).toBe(FROM.text('t', null));
     expect(handoff.editorDraft(FROM, { piece: null, code: null, channel: null, text: '' })).toBe('Напишем пост из одной мысли: ');
     const en = agentWordsFor('en').panel.fromEditor;

@@ -582,7 +582,7 @@ export const ideasTake = defineCapability({
     const ru = ctx.language === 'ru';
     const title = quoted(cut(await leadTitle(ctx, input.leadId), 120), ru);
     return ru
-      ? `Взять в работу повод ${title}: он уйдёт из очереди, и по нему напишем заготовку`
+      ? `Взять в работу повод ${title}: он уйдёт из очереди, и по нему напишем черновик`
       : `Take the lead ${title} to work: it leaves the queue, and a piece is written from it`;
   },
   run: async (ctx, input) => {

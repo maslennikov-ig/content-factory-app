@@ -278,10 +278,34 @@ describe('kcxz.49: scheduling and moving over MCP ask in the conversation', () =
     expect(registry.isConfirmationNeeded(new registry.ConfirmationNeeded('Писать?'))).toBe(true);
   });
 
-  test('what cannot be undone from the product stays web-only', () => {
+  test.each([
+    ['video.heygen_voice_intake', 'voiceIntake'],
+    ['video.heygen_voice_select', 'voiceSelect'],
+  ])('%s saves the human choice once after MCP confirmation', async (id, method) => {
+    const { input, services } = fixtures()[id];
+    const voice = services.HeygenStyleVoiceServiceV1;
+    const write = jest.fn(voice[method]);
+    const { tool } = setup(id, { ...services, HeygenStyleVoiceServiceV1: { ...voice, [method]: write } });
+    const asked = await call(tool, input);
+    expect(asked.summary).toMatchObject({ done: false, needsConfirmation: true });
+    expect(write).not.toHaveBeenCalled();
+
+    const confirmed = { ...input, confirmation: asked.summary.confirmation };
+    expect(await call(tool, confirmed)).toMatchObject({ ok: true });
+    expect(write).toHaveBeenCalledWith(ADMIN.organizationId, ADMIN.userId, input,
+      expect.objectContaining({ source: 'confirmed_chat_action', toolId: id }));
+    expect(await call(tool, confirmed)).toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  test('only the listed confirmed choices are offered over MCP', () => {
     const offered = catalogue.filter((one) => one.risk === 'confirm' && registry.isMcpCapability(one));
-    expect(offered.map((one) => one.id)).toEqual(['plan.schedule', 'plan.move']);
-    expect(offered.map((one) => one.mcpConfirm)).toEqual(['request', 'request']);
+    expect(offered.map(({ id, mcpConfirm }) => [id, mcpConfirm])).toEqual([
+      ['video.heygen_voice_intake', 'ask'],
+      ['video.heygen_voice_select', 'ask'],
+      ['plan.schedule', 'request'],
+      ['plan.move', 'request'],
+    ]);
     expect(find('piece.adapt').mcpConfirm).toBe('ask');
   });
 });

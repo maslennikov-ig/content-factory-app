@@ -30,22 +30,27 @@ const request = async (url, init = {}) => {
   const method = init.method ?? 'GET';
   const body = init.body ? JSON.parse(init.body) : null;
   calls.push({ url, method, body });
-  if (url === '/media/video-catalog') return response({ routes: [clip, presenter], settings: { usageMode: 'workspace_key', effective: {higgsfield: {available: true, hasKey: true}, heygen: {available: true, hasKey: true}} }, assets: { avatars: [{ id: 'stock-avatar', name: 'Stock presenter', engines: ['avatar_iii'] }], voices: [{ id: 'stock-voice', name: 'Russian voice' }] } });
+  if (url === '/media/video-catalog' || url === '/media/video-catalog?assets=none') return response({ routes: [clip, presenter], settings: { usageMode: 'workspace_key', effective: {higgsfield: {available: true, hasKey: true}, heygen: {available: true, hasKey: true}} }, ...(url.endsWith('assets=none') ? {} : {assets: { avatars: [{ id: 'stock-avatar', name: 'Stock presenter', engines: ['avatar_iii'] }], voices: [{ id: 'stock-voice', name: 'Russian voice' }] }}) });
   if (url === '/media/video-access') return response(personalFixture?.access ?? {workspaceEnabled: false, providers: [{provider: 'higgsfield', enabled: false, trial: false}, {provider: 'heygen', enabled: false, trial: true}], connections: []});
   if (url === '/media/video-v2/connections/personal/readiness') return response(personalFixture.readiness);
   if (url === '/media/video-v2/connections/personal/assets') return response(personalFixture.assets);
+  if (url === '/media/video-v2/connections/personal/person-profiles') return response({items:personalFixture?.profiles??[],nextCursor:null});
+  if (url === '/media/video-v2/heygen-settings' && method === 'POST') { stored={...stored,version:stored.version+1,settings:{...stored.settings,heygenV2:{...stored.settings.heygenV2,settings:{...stored.settings.heygenV2.settings,...body.overrides,voiceSettings:{...stored.settings.heygenV2.settings.voiceSettings,...body.overrides.voiceSettings}}}}};return response(stored); }
+
   if (url === '/media/video-v2/connections/personal/discover' && method === 'POST') return response(personalFixture.readiness);
+  if (url === '/media/video-connections/higgsfield/start' && method === 'POST') return response({authorizationUrl:'javascript:blocked'});
   if (url === '/content-intelligence/pieces') return response({ pieces: [{ id: pieceId, title: 'Original article' }] });
-  if (url.startsWith('/media/video-prompts?')) return response(stored ? [stored] : []);
-  if (url === `/media/video-prompts/${draftId}` && method === 'GET') return response(stored);
+  if (url.startsWith('/media/video-prompts?') || url === '/media/video-prompts' && method === 'GET') return response(stored ? [stored] : []);
+  if (url === `/media/video-prompts/${stored?.id}` && method === 'GET') return response(stored);
   if (url === '/media/video-prompts' && method === 'POST') { stored = makeDraft(); stored.settings = body.settings; stored.brief.outputLocale = body.settings.locale; return response(stored); }
   if (url === `/media/video-prompts/${draftId}` && method === 'PUT') { stored = { ...stored, version: stored.version + 1, brief: body.brief, settings: body.settings }; return response(stored); }
   if (url === '/media/video-v2/preflight' && method === 'POST') {
     if (unknownPrice) return response({code: 'VIDEO_PRICE_UNAVAILABLE'}, false);
     const expiresAt = new Date(Date.now() + 300000).toISOString();
-    return response({id: `quote-${stored.version}`, preflightId: `quote-${stored.version}`, draftId, version: stored.version, access: body.access, brief: stored.brief, settings: stored.settings, quote: {amount: '0.5', unit: 'USD', source: 'fixture', asOf: new Date().toISOString(), expiresAt, upperBound: null}, expiresAt, accountGeneration: null, perJob: '1', perMonth: null, remaining: null, providerBillingCap: false});
+    return response({id: `quote-${stored.version}`, preflightId: `quote-${stored.version}`, draftId, version: stored.version, access: body.access, brief: stored.brief, settings: stored.settings, quote: {amount: '0.5', unit: 'USD', source: 'fixture', asOf: new Date().toISOString(), expiresAt, upperBound: null}, expiresAt, accountGeneration: body.access.kind==='subscription'?personalFixture.access.connections[0].generation:null, perJob: body.access.kind==='subscription'?personalFixture.access.connections[0].perJob:'1', perMonth: body.access.kind==='subscription'?personalFixture.access.connections[0].perMonth:null, remaining: null, providerBillingCap: false, ...personalFixture?.nativeApproval});
   }
   if (['/media/video-v2/jobs', '/media/video-jobs'].includes(url) && method === 'POST') { if (failLaunchOnce) { failLaunchOnce = false; throw new Error('lost response'); } currentJob = { id: 'job-1', draftId, pieceId, state: 'accepted', access: {kind: 'api', payer: 'workspace_key'}, snapshot: { brief: stored.brief, settings: stored.settings }, result: null, canCancel: false }; return response(currentJob); }
+  if (url.includes('/subtitles/')&&url.endsWith('/download')) return {ok:!failDownload,blob:async()=>new Blob(['1\n00:00:00,000 --> 00:00:01,000\nТочные слова.\n'],{type:'application/x-subrip'})};
   if (url.endsWith('/download')) return { ok: !failDownload, status: failDownload ? 500 : 200, blob: async () => new Blob(['fixture-video-bytes'], { type: 'video/mp4' }) };
   if (url.endsWith('/retry-save')) { currentJob = { ...currentJob, state: 'completed', result: { id: 'owned-media', path: '/owned/fixture.mp4', name: 'fixture.mp4' } }; return response(currentJob); }
   if (url === '/media/video-v2/jobs/job-1') return response({...currentJob, access: currentJob.access ?? {kind: 'api', payer: 'workspace_key'}});
@@ -77,6 +82,98 @@ const check = async view => { await selectApi(view); await act(async () => fireE
 beforeEach(() => { hubNavigations = []; calls = []; stored = makeDraft(); currentJob = null; personalFixture = null; unknownPrice = false; failLaunchOnce = false; failDownload = false; role = 'EDITOR'; sessionStorage.clear(); localStorage.clear(); window.history.replaceState(null, '', '/media?video=1'); });
 afterEach(() => { cleanup(); jest.restoreAllMocks(); });
 afterAll(() => dom.window.close());
+
+test('a current V2 unknown-price approval enables the qualified V model and output without widening historical V1 approvals',()=>{
+  const s={...helper.videoSettingsForRoute(presenter,'de-DE'),duration:73,resolution:'1080p',aspectRatio:'4:5',engine:'avatar_v',avatarId:'mine',voiceId:'myvoice'};
+  s.heygenV2={binding:{profileId:'profile',profileRevision:1,profileDigest:'a'.repeat(64),connectionId:'personal',accountGeneration:4,subjectDigest:'b'.repeat(64),sourcePin:{pieceId,sourceRevision:'c'.repeat(64)}},
+    settings:{version:2,sourceLookId:'mine',sourceGroupId:'group',appearanceLookId:'mine',groupId:'group',voiceId:'myvoice',sourceMode:'text',engine:{type:'avatar_v'},voiceSettings:{locale:'de-DE'},durationSeconds:73,aspectRatio:'4:5',resolution:'1080p',outputFormat:'mp4',captions:'none'}};
+  const expiresAt=new Date(Date.now()+300000).toISOString();
+  const approval={id:'approval',draftId,version:1,settings:s,accountGeneration:4,access:{kind:'subscription',connectionId:'personal'},
+    unknownPrice:true,billing:'personal_subscription',maximumJobs:1,remaining:'82',selection:{avatar:'Owned presenter',voice:'Owned voice'},expiresAt,
+    quote:{amount:null,upperBound:null,unit:'heygen_credit',source:'unavailable',expiresAt}};
+  expect(accessHelper.videoCanLaunchV2({...makeDraft(),settings:s},approval,approval.access,false)).toBe(true);
+  expect(accessHelper.videoApprovalCurrentV2({...approval,settings:{...s,heygenV2:undefined}})).toBe(false);
+  expect(accessHelper.videoApprovalCurrentV2({...approval,accountGeneration:5})).toBe(false);
+  expect(accessHelper.videoApprovalCurrentV2({...approval,settings:{...s,voiceId:'another_voice'}})).toBe(false);
+  expect(accessHelper.videoApprovalCurrentV2({...approval,maximumJobs:2})).toBe(false);
+  expect(accessHelper.videoApprovalCurrentV2({...approval,remaining:'0'})).toBe(false);
+});
+
+test.each(['current', 'changed generation', 'unbounded jobs', 'empty balance', 'expired approval', 'changed profile binding', 'changed binding despite generic readiness'])('native V2 preflight bypasses generic wallet limits only for a qualified %s approval', async scenario => {
+  stored.pieceRevision = 'c'.repeat(64);
+  const binding = {profileId: '44444444-4444-4444-8444-444444444444', profileRevision: 1, profileDigest: 'a'.repeat(64),
+    connectionId: 'personal', accountGeneration: 4, subjectDigest: 'b'.repeat(64), sourcePin: {pieceId, sourceRevision: stored.pieceRevision}};
+  stored.settings = {...helper.videoSettingsForRoute(presenter, 'ru-RU'), duration: 73, avatarId: 'mine', voiceId: 'myvoice', engine: 'avatar_iv', resolution: '1080p',
+    heygenV2: {binding, settings: {version: 2, sourceLookId: 'mine', sourceGroupId: 'group', appearanceLookId: 'mine', groupId: 'group', voiceId: 'myvoice',
+      sourceMode: 'text', engine: {type: 'avatar_iv'}, voiceSettings: {locale: 'ru-RU'}, durationSeconds: 73, aspectRatio: '9:16', resolution: '1080p', outputFormat: 'mp4', captions: 'none'}}};
+  const expiresAt = new Date(Date.now() + 300000).toISOString();
+  personalFixture = {access: {workspaceEnabled: true, providers: [{provider: 'heygen', enabled: false, connectReady: true, generationReady: false}],
+    connections: [{id: 'personal', provider: 'heygen', state: 'discovery_required', generation: 4, walletVerified: false, workspaceGranted: true, perJob: null, perMonth: null, unit: 'heygen_credit'}]},
+    readiness: {connectionId: 'personal', provider: 'heygen', accountGeneration: 4, walletVerified: false, schema: {digest: null, reviewed: false}, operations: [{kind: 'presenter', ready: false, blockers: ['VIDEO_SCHEMA_UNSUPPORTED']}]},
+    assets: {ownedOnly: true, accountGeneration: 4, status: 'catalog_only', blockers: [], avatars: [], voices: []},
+    nativeApproval: {unknownPrice: true, billing: 'personal_subscription', maximumJobs: 1, remaining: '82', selection: {avatar: 'Owned presenter', voice: 'Owned voice'},
+      perJob: '82', perMonth: null, quote: {amount: null, upperBound: null, unit: 'heygen_credit', source: 'unavailable', expiresAt}}};
+  if (scenario === 'changed generation') personalFixture.nativeApproval.accountGeneration = 3;
+  if (scenario === 'unbounded jobs') personalFixture.nativeApproval.maximumJobs = 2;
+  if (scenario === 'empty balance') personalFixture.nativeApproval.remaining = '0';
+  if (scenario === 'expired approval') personalFixture.nativeApproval.expiresAt = new Date(Date.now() - 1000).toISOString();
+  if (scenario.startsWith('changed') && scenario.includes('binding')) personalFixture.nativeApproval.settings = {...stored.settings, heygenV2: {...stored.settings.heygenV2, binding: {...binding, profileDigest: 'd'.repeat(64)}}};
+  if (scenario === 'changed binding despite generic readiness') {
+    personalFixture.access.providers[0].generationReady = true;
+    Object.assign(personalFixture.access.connections[0], {state: 'connected', walletVerified: true, perJob: '10', perMonth: '20'});
+    Object.assign(personalFixture.readiness, {walletVerified: true, schema: {digest: 'reviewed', reviewed: true}, operations: [{kind: 'presenter', ready: true, blockers: []}]});
+    Object.assign(personalFixture.assets, {status: 'ready', avatars: [{id: 'mine', ownership: 'owned', state: 'available'}], voices: [{id: 'myvoice', ownership: 'owned', state: 'available'}]});
+  }
+  if (scenario === 'current') {
+    personalFixture.access.providers[0].blockers = ['VIDEO_WALLET_IDENTITY_UNVERIFIED', 'VIDEO_SCHEMA_UNSUPPORTED'];
+    personalFixture.assets.catalog = {scope: 'authenticated_private_account', readOnly: true, renderQualified: false, avatars: [], voices: []};
+  }
+  const view = draw({personalConnectionId: 'personal'}); await loaded(view);
+  await waitFor(() => expect(button(view, 'preflight').disabled).toBe(false));
+  expect(button(view, 'launch').disabled).toBe(true);
+  if (scenario === 'current') {
+    expect(view.container.textContent).toContain('Rendering requires verified consent, eligibility and pricing.');
+    expect(view.container.textContent).not.toContain('integration still needs configuration');
+  }
+  await act(async () => fireEvent.click(button(view, 'preflight')));
+  await waitFor(() => expect(calls.filter(call => call.url === '/media/video-v2/preflight')).toHaveLength(1));
+  await waitFor(() => expect(button(view, 'preflight').disabled).toBe(false));
+  await waitFor(() => expect(button(view, 'launch').disabled).toBe(scenario !== 'current'));
+  if (scenario === 'current') expect(view.container.textContent).not.toContain('Reconnect the same account');
+  expect(calls.filter(call => call.method === 'POST').map(call => call.url)).toEqual(['/media/video-v2/preflight']);
+});
+
+test('a persisted caption result downloads through its owned job and never requests a provider URL or render',async()=>{
+  currentJob={id:'job-1',draftId,pieceId,state:'completed',snapshot:{settings:stored.settings,brief:stored.brief},
+    access:{kind:'subscription',connectionId:'personal'},result:{id:'owned',path:'/owned/result.mp4',name:'result.mp4'},
+    subtitles:[{id:'subtitle-1',mediaId:'subtitle-1',name:'captions.srt',path:'/owned/captions.srt',mimeType:'application/x-subrip'}]};
+  jest.spyOn(URL,'createObjectURL').mockReturnValue('blob:owned-subtitle');
+  jest.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{});
+  const click=jest.spyOn(dom.window.HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
+  const view=draw({jobId:'job-1'});await loaded(view);
+  await act(async()=>fireEvent.click(await within(view.container).findByRole('button',{name:'Captions · SRT'})));
+  await waitFor(()=>expect(click).toHaveBeenCalledTimes(1));
+  expect(calls.some(call=>call.url==='/media/video-v2/jobs/job-1/subtitles/subtitle-1/download')).toBe(true);
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+  expect(calls.every(call=>!call.url.includes('heygen.com'))).toBe(true);
+});
+
+test('a saved duration outside the route choices is displayed accurately without changing the draft', async () => {
+  const previous = presenter.durations;
+  presenter.durations = {min: 15, max: 60, values: [15, 30, 60]};
+  try {
+    stored.settings = {...helper.videoSettingsForRoute(presenter, 'ru-RU'), duration: 20};
+    const view = draw();
+    await loaded(view);
+    await waitFor(() => expect(view.container.querySelector('#video-duration')?.value).toBe('20'));
+    const duration = view.container.querySelector('#video-duration');
+    expect(duration.selectedOptions[0].disabled).toBe(true);
+    expect(stored.settings.duration).toBe(20);
+    expect(calls.every(call => call.method === 'GET')).toBe(true);
+  } finally {
+    presenter.durations = previous;
+  }
+});
 
 test('personal connection can be offered while generation stays blocked', async () => {
   personalFixture = {access:{workspaceEnabled:true,providers:[{provider:'heygen',enabled:false,connectReady:true,generationReady:false,trial:false,blockers:['SCHEMA_UNREVIEWED']}],connections:[]}};
@@ -155,11 +252,52 @@ test('checking an unverified personal account keeps the draft and never submits 
   const view=draw();await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
   await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
   await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
-  await waitFor(()=>expect(within(view.container).getByText(/The account wallet is not verified yet/)).toBeTruthy());
+  await waitFor(()=>expect(within(view.container).getByText(/The connected account has not been verified yet/)).toBeTruthy());
   expect(within(view.container).getByRole('button',{name:'Manage integrations'}).disabled).toBe(false);
-  expect(within(view.container).queryByRole('button',{name:'Check account'})).toBeNull();
+  expect(within(view.container).getByRole('button',{name:'Check account'}).disabled).toBe(false);
   expect(calls.filter(c=>c.url.endsWith('/discover'))).toHaveLength(0);
+  await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Check account'})));
+  expect(calls.filter(c=>c.url.endsWith('/discover'))).toHaveLength(1);
   expect(stored.brief.script).toBe(fact);expect(button(view,'preflight').disabled).toBe(true);expect(calls.some(c=>c.url==='/media/video-v2/jobs'&&c.method==='POST')).toBe(false);
+});
+
+test('a disconnected provider offers connection without starting it automatically', async () => {
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'higgsfield',connectReady:true,generationReady:false}],connections:[{id:'personal',provider:'higgsfield',state:'disconnected',generation:1,walletVerified:false,workspaceGranted:false,perJob:null,perMonth:null,unit:'higgsfield_credit'}]}};
+  const view=draw();await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
+  expect(within(view.container).getByRole('button',{name:'Connect account Higgsfield'}).disabled).toBe(false);
+  expect(within(view.container).queryByLabelText('Available actions')).toBeNull();
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+  await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Connect account Higgsfield'})));
+  expect(calls.filter(call=>call.url.endsWith('/start'))).toEqual([{url:'/media/video-connections/higgsfield/start',method:'POST',body:{returnPath:helper.videoWorkspacePath({pieceId,draftId})}}]);
+  expect(calls.some(call=>call.url==='/media/video-v2/jobs' && call.method==='POST')).toBe(false);
+});
+
+test('unverified account shows its real connection state and only the relevant action once', async () => {
+  stored.settings=helper.videoSettingsForRoute(presenter,'en');
+  const blockers=['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED'];
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'heygen',connectReady:true,generationReady:false}],connections:[{id:'personal',provider:'heygen',state:'discovery_required',generation:1,walletVerified:false,workspaceGranted:true,perJob:null,perMonth:null,unit:'heygen_credit'}]},readiness:{connectionId:'personal',provider:'heygen',accountGeneration:1,walletVerified:false,schema:{digest:null,reviewed:false},operations:['presenter','generated_clip','narration','captions','final_composition'].map(kind=>({kind,ready:false,blockers}))},assets:{ownedOnly:false}};
+  const view=draw();await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
+  await waitFor(()=>expect(within(view.container).getByText(/The connected account has not been verified yet/)).toBeTruthy());
+  expect(view.container.querySelector('#video-subscription-account option[value="personal"]').textContent).toContain('Connected');
+  expect(within(view.container).getAllByText(/The connected account has not been verified yet/)).toHaveLength(1);
+  expect(within(view.container).getByRole('button',{name:'Check account'}).disabled).toBe(false);
+  expect(calls.every(call=>call.method==='GET')).toBe(true);
+});
+
+test('missing identity configuration explains the integration gap without a futile account check', async () => {
+  stored.settings=helper.videoSettingsForRoute(presenter,'en');
+  personalFixture={access:{workspaceEnabled:true,providers:[{provider:'heygen',connectReady:true,generationReady:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED']}],connections:[{id:'personal',provider:'heygen',state:'discovery_required',generation:1,walletVerified:false,workspaceGranted:true,perJob:null,perMonth:null,unit:'heygen_credit'}]},assets:{ownedOnly:false}};
+  const view=draw();await loaded(view);await act(async()=>fireEvent.change(view.container.querySelector('#video-access-method'),{target:{value:'subscription'}}));
+  await waitFor(()=>expect(view.container.querySelector('#video-subscription-account option[value="personal"]')).toBeTruthy());
+  await act(async()=>fireEvent.change(view.container.querySelector('#video-subscription-account'),{target:{value:'personal'}}));
+  expect(within(view.container).getByText(/integration still needs configuration/)).toBeTruthy();
+  expect(within(view.container).queryByRole('button',{name:'Check account'})).toBeNull();
+  expect(calls.some(call=>call.url.endsWith('/readiness') || call.url.endsWith('/discover'))).toBe(false);
+  expect(button(view,'preflight').disabled).toBe(true);
 });
 
 test('saved facts and exact script survive reopening; mounting makes no write or paid request', async () => {
@@ -169,6 +307,39 @@ test('saved facts and exact script survive reopening; mounting makes no write or
   expect(view.container.querySelector('input[name="video-output-locale"]').value).toBe('ru-RU');
   expect(view.container.querySelector('#video-access-method').value).toBe('');
   expect(button(view, 'preflight').disabled).toBe(true);
+  expect(calls.every(call => call.method === 'GET')).toBe(true);
+});
+
+test('a new draft ignores a mismatched old job banner and access while keeping its explicit history link', async () => {
+  stored = {...stored, version: 6, settings: {...stored.settings, duration: 73}};
+  const oldDraftId = '33333333-3333-4333-8333-333333333333';
+  currentJob = {id: 'job-1', draftId: oldDraftId, pieceId, state: 'reauth_required',
+    access: {kind: 'subscription', connectionId: 'old-personal'}, snapshot: {brief: {...stored.brief, keyMessage: 'Historical English video'}, settings: stored.settings}};
+  const view = draw({jobId: 'job-1', embedded: true}); await loaded(view);
+  await waitFor(() => expect(view.container.querySelector('input[name="video-duration"]')?.value).toBe('73'));
+  await waitFor(() => expect(view.container.querySelector('#video-access-method').value).toBe(''));
+  expect(view.container.querySelector('[data-video-job-id="job-1"]')).toBeNull();
+  expect(view.container.querySelector('#video-draft-picker').disabled).toBe(false);
+  expect(view.container.textContent).not.toContain('Reconnect the same account');
+  expect(view.container.querySelector(`a[href*="draftId=${oldDraftId}"][href*="jobId=job-1"]`)).not.toBeNull();
+  expect(calls.every(call => call.method === 'GET')).toBe(true);
+});
+
+test('explicit job reopening loads its own draft and switching saved drafts clears the old selected result', async () => {
+  currentJob = {id: 'job-1', draftId, pieceId, state: 'completed', access: {kind: 'api', payer: 'workspace_key'},
+    snapshot: {settings: stored.settings, brief: stored.brief}, result: {id: 'owned-old', path: '/owned/old.mp4', name: 'Old video.mp4'}};
+  const view = draw({draftId: undefined, jobId: 'job-1', embedded: true}); await loaded(view);
+  await waitFor(() => expect(view.container.querySelector('[data-video-job-id="job-1"] video')).not.toBeNull());
+  expect(calls.some(call => call.url === `/media/video-prompts/${draftId}`)).toBe(true);
+  const nextDraftId = '44444444-4444-4444-8444-444444444444';
+  stored = {...stored, id: nextDraftId, version: 6, settings: {...stored.settings, duration: 73}};
+  await act(async () => mutateReaders([`/media/video-prompts?pieceId=${pieceId}`, 'workspace-1']));
+  await waitFor(() => expect(view.container.querySelector(`#video-draft-picker option[value="${nextDraftId}"]`)).not.toBeNull());
+  await act(async () => fireEvent.change(view.container.querySelector('#video-draft-picker'), {target: {value: nextDraftId}}));
+  await waitFor(() => expect(view.container.querySelector('input[name="video-duration"]')?.value).toBe('73'));
+  expect(view.container.querySelector('[data-video-job-id="job-1"]')).toBeNull();
+  expect(view.container.querySelector('video')).toBeNull();
+  expect(view.container.querySelector('a[href*="jobId=job-1"]')).not.toBeNull();
   expect(calls.every(call => call.method === 'GET')).toBe(true);
 });
 
@@ -430,6 +601,7 @@ test('media query changes and back navigation switch the existing page between l
     'next/dynamic': () => function RetainedVideo(props) { const [opened] = React.useState(props.draftId); return React.createElement('div', { 'data-open-video': opened, 'data-piece': props.pieceId }); },
     '@contentfactory/frontend/components/media/media.component': { MediaBox: () => React.createElement('div', { 'data-media-library': true }) },
     '../videos/video.entry': { VideoMediaEntry: () => null },
+    '../videos/video-drafts': { SavedVideoDrafts: () => null },
   });
   const view = render(React.createElement(MediaLayoutComponent));
   expect(view.container.querySelector('[data-media-library]')).not.toBeNull();
@@ -495,4 +667,39 @@ test('video selection, route, native edit completion and approval projection kee
   const scope = {draftId, version: 1, preflightId: 'quote-1'};
   const blocks = contract.readMessageBlocks({id: 'approval', role: 'assistant', parts: [{type: 'tool-video_launch', toolCallId: 'launch-1', title: 'Launch video', state: 'approval-requested', input: {...scope, requestMessageId: 'author'}, approval: {id: 'approval-1', requestReason: 'Estimate and reservation'}}]});
   expect(blocks.find(block => block.type === 'approval').videoApproval).toEqual(scope);
+});
+
+
+test('saved person controls adopt the new saved draft and invalidate the exact previous launch approval',async()=>{
+ const avatar={id:'mine',name:'Owned blue jacket',groupId:'group',avatarType:'photo_avatar',ownership:'owned',state:'available',selectableForDraft:true,engines:['avatar_iv']};
+ const voice={id:'myvoice',name:'Saved original voice',ownership:'owned',state:'available',selectableForDraft:true};
+ const profileId='44444444-4444-4444-8444-444444444444';
+ const profile={profileId,revision:1,digest:'a'.repeat(64),connectionId:'personal',displayName:'Ilya',setupReusable:true,preferredSourceLookId:'mine',defaultAppearanceLookId:'mine',sourceLooks:[{groupId:'group',lookId:'mine',roles:['style_base','appearance']}],defaultVoice:{voiceId:'myvoice',baseline:{speed:1}},observations:{voice:{name:voice.name},looks:[{lookId:'mine',name:avatar.name}]}};
+ personalFixture={access:{workspaceEnabled:true,providers:[{provider:'heygen',enabled:true,connectReady:true,generationReady:true,trial:false}],connections:[{id:'personal',provider:'heygen',state:'connected',generation:4,walletVerified:true,workspaceGranted:true,perJob:'10',perMonth:'20',unit:'heygen_credit'}]},readiness:{connectionId:'personal',provider:'heygen',accountGeneration:4,walletVerified:true,schema:{digest:'reviewed',reviewed:true},operations:[{kind:'presenter',ready:true,blockers:[]}]},assets:{ownedOnly:true,accountGeneration:4,status:'ready',blockers:[],catalog:{scope:'authenticated_private_account',readOnly:true,renderQualified:false,avatars:[avatar],voices:[voice]}},profiles:[profile]};
+ stored.settings={...helper.videoSettingsForRoute(presenter,'ru-RU'),duration:8,avatarId:'mine',voiceId:'myvoice',engine:'avatar_iv',resolution:'720p',heygenV2:{binding:{profileId,profileRevision:1,profileDigest:profile.digest,connectionId:'personal'},settings:{version:2,sourceLookId:'mine',sourceGroupId:'group',appearanceLookId:'mine',groupId:'group',voiceId:'myvoice',sourceMode:'text',engine:{type:'avatar_iv'},voiceSettings:{locale:'ru-RU',speed:1},durationSeconds:8,aspectRatio:'9:16',resolution:'720p',outputFormat:'mp4',captions:'none'}}};
+ const view=draw({personalConnectionId:'personal'});await loaded(view);
+ await waitFor(()=>expect(view.container.querySelector('#heygen-person-profile')?.value).toBe(profileId));
+ await act(async()=>fireEvent.click(button(view,'preflight')));
+ await waitFor(()=>expect(button(view,'launch').disabled).toBe(false));
+ await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Settings for this video'})));
+ await act(async()=>fireEvent.change(within(view.container).getByRole('spinbutton',{name:'Speech speed'}),{target:{value:'1.15'}}));
+ expect(button(view,'launch').disabled).toBe(true);
+ await act(async()=>fireEvent.click(within(view.container).getByRole('button',{name:'Apply to this video'})));
+ await waitFor(()=>expect(stored.version).toBe(2));
+ await waitFor(()=>expect(view.container.querySelector('[name="heygen-speed"]').value).toBe('1.15'));
+ expect(button(view,'launch').disabled).toBe(true);expect(calls.filter(call=>call.url==='/media/video-v2/preflight')).toHaveLength(1);
+ expect(calls.some(call=>call.method==='POST'&&call.url==='/media/video-v2/jobs')).toBe(false);
+ expect(stored.brief.script).toBe(fact);expect(profile.defaultVoice.baseline.speed).toBe(1);
+});
+test.each([false,true])('a saved native profile restores its bound personal route while preserving an explicit API choice: %s',async(explicitApi)=>{
+ stored.settings={...helper.videoSettingsForRoute(presenter,'ru-RU'),duration:73,avatarId:'mine',voiceId:'myvoice',engine:'avatar_iv',resolution:'1080p',
+  heygenV2:{binding:{profileId:'profile',profileRevision:1,profileDigest:'a'.repeat(64),connectionId:'personal',accountGeneration:4,subjectDigest:'b'.repeat(64),sourcePin:{pieceId,sourceRevision:stored.pieceRevision}},
+   settings:{version:2,sourceLookId:'mine',sourceGroupId:'group',appearanceLookId:'mine',groupId:'group',voiceId:'myvoice',sourceMode:'text',engine:{type:'avatar_iv'},voiceSettings:{locale:'ru-RU'},durationSeconds:73,aspectRatio:'9:16',resolution:'1080p',outputFormat:'mp4',captions:'none'}}};
+ personalFixture={access:{workspaceEnabled:true,providers:[{provider:'heygen',enabled:false}],connections:[{id:'personal',provider:'heygen',state:'discovery_required',generation:4,workspaceGranted:true,perJob:null,perMonth:null,unit:'heygen_credit'}]},
+  readiness:{connectionId:'personal',provider:'heygen',accountGeneration:4,operations:[]},assets:{ownedOnly:true,accountGeneration:4,status:'unavailable',blockers:[],avatars:[],voices:[],guidance:null}};
+ if(explicitApi)localStorage.setItem(`${accessHelper.videoActorKeyV2('workspace-1',actorId)}:${draftId}`,JSON.stringify({kind:'api',payer:'workspace_key'}));
+ const view=draw();await loaded(view);
+ await waitFor(()=>expect(view.container.querySelector('#video-access-method').value).toBe(explicitApi?'api':'subscription'));
+ if(!explicitApi)expect(await within(view.container).findByRole('region',{name:'Delivery',exact:true})).toBeTruthy();
+ expect(button(view,'launch').disabled).toBe(true);expect(calls.every(call=>call.method==='GET')).toBe(true);
 });

@@ -362,7 +362,10 @@ const stand = (scenario) => {
   const world = createWorld(scenario.world);
   // `outsideTurn`: what runs on the worker, not in the turn — the periodic
   // idea check (review W4-23 F5) — admits its own operation, as there.
-  const services = world.servicesFor({ usage: aiUsage, outsideTurn: aiConfig.withoutActiveAiConfig });
+  const services = {
+    ...world.servicesFor({ usage: aiUsage, outsideTurn: aiConfig.withoutActiveAiConfig }),
+    ...scenario.services?.(),
+  };
   const { model, state } = scriptedModel(textChain.currentUsageLedger);
 
   const storage = new InMemoryStore();
@@ -427,7 +430,7 @@ const stand = (scenario) => {
     const resolver = new AgentWorkContextResolver({services: serviceOf,
       gate: new registry.DoorPolicyGate(permissionsService()), capabilities: registry.CAPABILITY_CATALOGUE});
     mastraService.resolveWorkContext = (identity, selected, options) => resolver.resolve(identity, selected, options);
-    mastraService.validateWorkArtifact = (identity, artifact) => resolver.validateArtifact(identity, artifact);
+    mastraService.validateWorkArtifact = (identity, artifact, threadId) => resolver.validateArtifact(identity, artifact, { threadId });
   }
 
   const doorModules = {
@@ -442,6 +445,7 @@ const stand = (scenario) => {
     },
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService },
     '@contentfactory/nestjs-libraries/chat/mastra.service': { MastraService: class {} },
+    '@contentfactory/nestjs-libraries/videos/video-access.service': { VideoAccessService: class {} },
   };
   const { AgentThreadsService } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/chat/conductor/agent-threads.service.ts',
@@ -453,11 +457,14 @@ const stand = (scenario) => {
     {
       // The door builds its turn from the very conductor module the agent runs.
       resolve: (request) => {
-        // This validator belongs to the merged adaptation stream, rather than
-        // the conductor barrel whose lifecycle instances are shared below.
-        if (request.endsWith('/adaptation-review-progress')) return undefined;
         const prefix = '@contentfactory/nestjs-libraries/chat/conductor/';
-        return request.startsWith(prefix) && !request.endsWith('agent-threads.service')
+        // Reuse only modules exported by the conductor barrel. The controller
+        // also imports the native stream adapter and work-context helpers directly.
+        const shared = [
+          'agent-chat.request', 'conductor.context', 'conductor.errors',
+          'conductor.memory', 'conductor.execution', 'conductor.pictures', 'conductor.steps',
+        ];
+        return request.startsWith(prefix) && shared.includes(request.slice(prefix.length))
           ? conductor
           : undefined;
       },
@@ -759,6 +766,7 @@ const playWatched = async (scenario, logs) => {
       body = {
         ...(threadId ? { threadId } : {}),
         ...(turn.workContext !== undefined ? {workContext: turn.workContext} : {}),
+        ...(turn.chatMode ? { chatMode: turn.chatMode } : {}),
         messages: [
           {
             id: `msg-user-${index + 1}`,

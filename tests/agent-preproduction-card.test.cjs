@@ -26,9 +26,9 @@ const { ClipPreproductionCard } = loadWithMocks('apps/frontend/src/components/ag
   '@contentfactory/react/translation/use-interface-language': { useInterfaceLanguage: () => language },
   '../layout/user.context': { useUser: () => actor },
 });
-function draw({ threadId = ref.threadId, cache = new Map(), onOpenSource = jest.fn() } = {}) {
+function draw({ threadId = ref.threadId, cache = new Map(), onOpenSource = jest.fn(), readOnly = false } = {}) {
   return render(React.createElement(SWRConfig, { value: { provider: () => cache, dedupingInterval: 0, loadingTimeout: 0, errorRetryCount: 0, focusThrottleInterval: 0 } },
-    React.createElement(ClipPreproductionCard, { preproduction: ref, threadId, onOpenSource })));
+    React.createElement(ClipPreproductionCard, { preproduction: ref, threadId, onOpenSource, readOnly })));
 }
 beforeEach(() => { saved = fixture(); requests = []; language = 'ru'; failure = 0; hold = null; actor = { id: 'actor', orgId: 'org' }; });
 afterEach(cleanup);
@@ -67,10 +67,35 @@ test.each(['video_preproduction', 'video_preproduction_open'])('native %s projec
   const before = JSON.stringify(parts);
   const blocks = contract.readMessageBlocks({ id: 'saved', role: 'assistant', parts: JSON.parse(before) });
   expect(blocks).toEqual([{ type: 'clip-preproduction', key: 'saved:0', preproduction: ref }]);
-  expect(contract.artifactsOf([{ id: 'saved', role: 'assistant', parts }])).toEqual([]);
+  const [artifact] = contract.artifactsOf([{ id: 'saved', role: 'assistant', parts }]);
+  expect(contract.artifactKey(artifact)).toBe(`piece:${ref.pieceId}:clip:${ref.id}`);
+  expect(contract.artifactKey(artifact)).not.toBe(contract.artifactKey({kind:'piece',id:ref.pieceId,data:{}}));
+  const savedRef = contract.artifactRefOf(artifact);
+  const workspace = contract.readAgentWorkspace(JSON.parse(JSON.stringify({version:'assistant-workspace/v1',workContext:null,artifacts:[savedRef],activeArtifact:savedRef})));
+  expect(workspace.activeArtifact).toMatchObject({kind:'piece',id:ref.pieceId,pieceId:ref.pieceId,clipPilotId:ref.id});
+  expect(contract.artifactContextOf(artifact)).toMatchObject({kind:'piece',id:ref.pieceId,clipPilotId:ref.id});
   expect(contract.INLINE_CARD_KINDS).toContain('clip-preproduction');
   expect(contract.readMessageBlocks({ id: 'saved', role: 'assistant', parts: parts.slice(0, 1) })).toEqual(blocks);
   expect(JSON.stringify(parts)).toBe(before);
+});
+
+test('reopening a historical pilot as a read-only artifact shows its retained copy with no policy or generation write', async () => {
+  saved.executionModeV2 = {version: 2, mode: 'review', canChange: true};
+  const {ArtifactEditor}=loadWithMocks('apps/frontend/src/components/agents/agent.panel.tsx',{
+    react:React, 'next/dynamic':()=>()=>null, './agent.preproduction-card':{ClipPreproductionCard},
+  });
+  const editor=ArtifactEditor({artifact:{kind:'piece',id:ref.pieceId,title:null,code:null,data:{clipPilotId:ref.id,clipThreadId:ref.threadId}},words:{},chatThreadId:ref.threadId});
+  expect(editor.type).toBe(ClipPreproductionCard);expect(editor.props.readOnly).toBe(true);expect(editor.props.preproduction).toEqual(ref);expect(editor.props.onRequest).toBeUndefined();
+  const cache = new Map(), first = draw({cache,readOnly:true});
+  await waitFor(() => expect(first.container.textContent).toContain(saved.scenario.spokenText));
+  const mode = within(first.container).getByRole('combobox', {name:'Режим пилота'});
+  expect(mode.disabled).toBe(true);
+  await act(async () => fireEvent.change(mode, {target:{value:'autopilot'}}));
+  first.unmount();
+  const restored = draw({cache,readOnly:true});
+  await waitFor(() => expect(restored.container.textContent).toContain(saved.scenario.screenText));
+  expect(requests.length).toBeGreaterThanOrEqual(2);
+  expect(requests.every(row => row.method==='POST' && row.url.endsWith('/clip-preproduction/open') && row.body.pilotId===ref.id && row.body.threadId===ref.threadId)).toBe(true);
 });
 
 test.each(['ru', 'en'])('saved scenario, exact RU output and critique are visible inline with honest next stage (%s)', async locale => {

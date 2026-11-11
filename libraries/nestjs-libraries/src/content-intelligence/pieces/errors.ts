@@ -45,11 +45,11 @@ export const PIECE_ERROR_MESSAGES: Record<
   { ru: string; en: string }
 > = {
   PIECE_NOT_FOUND: {
-    ru: 'Такой заготовки в рабочем пространстве нет.',
+    ru: 'Такого черновика в рабочем пространстве нет.',
     en: 'This workspace has no such piece.',
   },
   PIECE_ARCHIVED: {
-    ru: 'Заготовка в архиве. Верните её из архива, чтобы адаптировать.',
+    ru: 'Черновик в архиве. Верните его из архива, чтобы адаптировать.',
     en: 'The piece is archived. Bring it back to adapt it.',
   },
   PIECE_CHANNEL_REQUIRED: {
@@ -69,7 +69,7 @@ export const PIECE_ERROR_MESSAGES: Record<
     en: 'That kind of adaptation comes later; for now the product writes text.',
   },
   ADAPTATION_NOT_FOUND: {
-    ru: 'Такой адаптации у этой заготовки нет.',
+    ru: 'Такой адаптации у этого черновика нет.',
     en: 'This piece has no such adaptation.',
   },
   ADAPTATION_PUBLISHED: {
@@ -81,11 +81,11 @@ export const PIECE_ERROR_MESSAGES: Record<
     en: 'No more questions. Answer in your own words, or let us decide.',
   },
   PIECE_CORE_MISSING: {
-    ru: 'У этого материала нет выделенной сути: он сделан до заготовок, и уточнять в нём нечего.',
+    ru: 'У этого материала нет выделенной сути: он сделан до появления черновиков, и уточнять в нём нечего.',
     en: 'This material has no extracted substance: it predates pieces, and there is nothing to clarify in it.',
   },
   PIECE_NOT_SAVED: {
-    ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
+    ru: 'Черновик не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
     en: 'The piece could not be saved. Nothing is lost — try again.',
   },
   PIECE_AVATAR_UNKNOWN: {

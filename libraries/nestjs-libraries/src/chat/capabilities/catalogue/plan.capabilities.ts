@@ -641,7 +641,7 @@ export const planSchedule = defineCapability({
     const blocked = notADraft(subject, ctx.language);
     const head =
       ctx.language === 'ru'
-        ? `Запланировать пост заготовки ${subject.code} в канале «${subject.channel}» на ${when}`
+        ? `Запланировать пост черновика ${subject.code} в канале «${subject.channel}» на ${when}`
         : `Schedule the post of piece ${subject.code} in “${subject.channel}” for ${when}`;
     if (blocked) return `${head}${blocked}`;
     // What can still be undone, said here so the line and the card's footnote
@@ -690,7 +690,7 @@ export const planPublishNow = defineCapability({
     const blocked = notADraft(subject, ctx.language);
     const head =
       ctx.language === 'ru'
-        ? `Опубликовать сейчас пост заготовки ${subject.code} в канале «${subject.channel}»`
+        ? `Опубликовать сейчас пост черновика ${subject.code} в канале «${subject.channel}»`
         : `Publish the post of piece ${subject.code} in “${subject.channel}” now`;
     if (blocked) return `${head}${blocked}`;
     // What happens. The true limit (kcxz.31 D7) — a post that is out cannot
@@ -766,11 +766,11 @@ export const planMove = defineCapability({
     const to = localTime(input.at, subject.zone, ctx.language);
     if (subject.row.state !== 'queued') {
       return ctx.language === 'ru'
-        ? `Перенести пост заготовки ${subject.code} в канале «${subject.channel}» на ${to} — но он не запланирован, переносить нечего`
+        ? `Перенести пост черновика ${subject.code} в канале «${subject.channel}» на ${to} — но он не запланирован, переносить нечего`
         : `Move the post of piece ${subject.code} in “${subject.channel}” to ${to} — but it is not scheduled, there is nothing to move`;
     }
     return ctx.language === 'ru'
-      ? `Перенести запланированный пост заготовки ${subject.code} в канале «${subject.channel}» с ${from} на ${to}: он выйдет сам в новое время, до выхода его можно снять с расписания. ${excerptOf(subject.row, ctx.language)}`
+      ? `Перенести запланированный пост черновика ${subject.code} в канале «${subject.channel}» с ${from} на ${to}: он выйдет сам в новое время, до выхода его можно снять с расписания. ${excerptOf(subject.row, ctx.language)}`
       : `Move the scheduled post of piece ${subject.code} in “${subject.channel}” from ${from} to ${to}: it goes out by itself at the new time and can be taken off the schedule until then. ${excerptOf(subject.row, ctx.language)}`;
   },
   approvalContent: postContent,

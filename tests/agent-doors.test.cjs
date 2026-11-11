@@ -65,6 +65,23 @@ const USER_B = { id: 'user-b', language: 'ru' };
 const RESOURCE_A = 'org-1:user-a';
 const RESOURCE_B = 'org-1:user-b';
 
+test('the HeyGen consent link door reads only the owner’s thread and never issues a link', async () => {
+  const context = setup();
+  await context.mastra.memory.createThread({threadId: 'thread-a-1', resourceId: RESOURCE_A, title: 'Consent'});
+  const read = jest.fn(async () => ({url: 'https://heygen.com/consent/example', expiresAt: '2026-12-01T00:00:00.000Z'}));
+  context.controller.videoAccess = {readAvatarConsentLink: read};
+  const response = () => ({headers: {}, setHeader(name, value) { this.headers[name] = value; }, status(code) { this.code = code; return this; }, json(value) { this.body = value; return this; }});
+  const own = response();
+  await context.controller.heygenConsentLink(ORG, USER_A, 'thread-a-1', 'opaque-handle', own);
+  expect(read).toHaveBeenCalledWith(ORG.id, USER_A.id, 'thread-a-1', 'opaque-handle');
+  expect(own.code).toBe(200);
+  expect(own.headers['Cache-Control']).toBe('private, no-store');
+  expect(own.headers['Referrer-Policy']).toBe('no-referrer');
+  expect(own.body.url).toBe('https://heygen.com/consent/example');
+  await expect(context.controller.heygenConsentLink(ORG, USER_B, 'thread-a-1', 'opaque-handle', response())).rejects.toThrow();
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
 /** Mastra's memory and suspended runs, in memory. */
 const fakeMastra = () => {
   const threads = new Map();

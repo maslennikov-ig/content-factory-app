@@ -55,6 +55,10 @@ export class SocialFactoryRepository implements SocialFactoryStoreV1 {
   transactSourcePermission<T>(work: (store: SocialFactoryStoreV1, client: Pick<Prisma.TransactionClient, 'contentSource' | 'socialFactoryRecord'>) => Promise<T>): Promise<T> {
     return this.transact(store => work(store, (store as SocialFactoryRepository).bound));
   }
+  /** Save a video plan and its exact draft revision together; neither may survive a failed CAS. */
+  transactVideoDraft<T>(work: (store: SocialFactoryStoreV1, client: Pick<Prisma.TransactionClient, 'videoPromptDraft' | 'contentPiece' | 'videoSubscriptionConnection' | 'videoSubscriptionJob' | 'socialFactoryRecord' | 'media'>) => Promise<T>): Promise<T> {
+    return this.transact(store => work(store, (store as SocialFactoryRepository).bound));
+  }
   async read<T>(organizationId: string, kind: SocialFactoryKindV1, id: string): Promise<SocialFactoryRecordV1<T> | null> {
     return this.client().socialFactoryRecord.findFirst({ where: { organizationId, kind, id, ...this.live() } });
   }

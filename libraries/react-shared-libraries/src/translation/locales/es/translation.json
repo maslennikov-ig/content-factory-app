@@ -735,6 +735,8 @@
   "assistant_context": "Contexto",
   "assistant_context_help_label": "¿Para qué sirve esta selección?",
   "assistant_context_help": "Este objeto se incluye en tu próximo mensaje al asistente. Desvincularlo elimina esa relación; el historial del chat y el objeto se conservan.",
+  "assistant_draft_waiting_review": "El borrador espera tu revisión. Revísalo en la tarjeta antes de aceptar cambios.",
+  "assistant_review_draft": "Revisar borrador",
   "assistant_draft_review_title": "Versión propuesta",
   "assistant_accept_draft": "Aceptar",
   "assistant_keep_draft": "Conservar el texto actual",

@@ -735,6 +735,8 @@
   "assistant_context": "Contexte",
   "assistant_context_help_label": "À quoi sert cette sélection ?",
   "assistant_context_help": "Cet objet accompagne votre prochain message à l’assistant. Le détacher retire ce lien ; l’historique du chat et l’objet sont conservés.",
+  "assistant_draft_waiting_review": "Le brouillon attend votre validation. Relisez-le dans la carte avant d’accepter des modifications.",
+  "assistant_review_draft": "Vérifier le brouillon",
   "assistant_draft_review_title": "Version proposée",
   "assistant_accept_draft": "Accepter",
   "assistant_keep_draft": "Garder le texte actuel",

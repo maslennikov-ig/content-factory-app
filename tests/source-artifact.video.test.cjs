@@ -62,7 +62,7 @@ test('native selected-post preparation saves and reopens the exact edited adapta
   const draft = nativeSummary(result);
   expect(draft.brief.script).toBe('Проверяйте ДЕВЯТЬ минут. Не семь.');
   expect(draft.brief.sourceArtifact).toEqual(source);
-  expect(result.parts).toContainEqual({ type: 'data-media', data: { kind: 'media', id: 'library', videoDraftId: draft.id, pieceId: f.ids.piece } });
+  expect(result.parts).toContainEqual({ type: 'data-media', data: expect.objectContaining({ kind: 'media', id: 'library', videoDraftId: draft.id, pieceId: f.ids.piece, title: expect.stringContaining('Current edited post') }) });
   const reopened = nativeSummary(await nativeVideo(f, 'video.draft', { draftId: draft.id }));
   expect(reopened.brief).toEqual(draft.brief);
   const edited = nativeSummary(await nativeVideo(f, 'video.edit', { draftId: draft.id, version: draft.version, prompt: 'Вертикальный ролик: ' + draft.brief.script }));
@@ -76,13 +76,13 @@ test('native explicit stale, mismatched or forged source never falls back to COR
   const f = videoFixture(), source = await f.service.resolve(f.ids.org, f.ids.actor, f.selection);
   const input = { pieceId: f.ids.piece, settings: f.settings, sourceArtifact: source.ref, prepareWithAi: true };
   f.editPost('Текущая новая версия.');
-  await reject(nativeVideo(f, 'video.prepare', input), 'SOURCE_ARTIFACT_STALE');
-  await reject(nativeVideo(f, 'video.prepare', { ...input, pieceId: randomUUID() }), 'VIDEO_INVALID_INPUT');
+  await expect(nativeVideo(f, 'video.prepare', input)).resolves.toMatchObject({ output: { ok: false, code: 'SOURCE_ARTIFACT_STALE' } });
+  await expect(nativeVideo(f, 'video.prepare', { ...input, pieceId: randomUUID() })).resolves.toMatchObject({ output: { ok: false, code: 'VIDEO_INVALID_INPUT' } });
   const capability = registry.CAPABILITY_CATALOGUE.find(entry => entry.id === 'video.prepare');
   for (const sourceArtifact of [{ ...source.ref, revision: null }, { ...source.ref, actorId: f.ids.otherActor }]) {
     expect(capability.input.safeParse({ ...input, sourceArtifact }).success).toBe(false);
   }
-  await reject(nativeVideo(f, 'video.prepare', input, { organizationId: randomUUID() }), 'VIDEO_PIECE_NOT_FOUND');
+  await expect(nativeVideo(f, 'video.prepare', input, { organizationId: randomUUID() })).resolves.toMatchObject({ output: { ok: false, code: 'VIDEO_PIECE_NOT_FOUND' } });
   expect(f.tables.videoPromptDraft.size).toBe(0);
   expect(f.counters).toEqual({ model: 0, quotes: 0, credentials: 0, dispatch: 0, submit: 0, poll: 0 });
 });

@@ -735,6 +735,8 @@
   "assistant_context": "Ngữ cảnh",
   "assistant_context_help_label": "Lựa chọn này có tác dụng gì?",
   "assistant_context_help": "Đối tượng này được gửi kèm tin nhắn tiếp theo cho trợ lý. Bỏ liên kết không xóa lịch sử trò chuyện hay đối tượng.",
+  "assistant_draft_waiting_review": "Bản nháp đang chờ bạn xem xét. Hãy kiểm tra trong thẻ trước khi chấp nhận thay đổi.",
+  "assistant_review_draft": "Xem xét bản nháp",
   "assistant_draft_review_title": "Bản nháp đề xuất",
   "assistant_accept_draft": "Chấp nhận",
   "assistant_keep_draft": "Giữ nguyên nội dung",

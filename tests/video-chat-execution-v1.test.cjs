@@ -248,7 +248,7 @@ test('active video context resolves current tenant-owned draft and job data and 
   const fresh = await resolver.resolve(ctx({}), initial.context, { refresh: true });
   expect(fresh.data.videoDraft.brief.script).toBe('Current script 2');
   expect(fresh.context.revision).not.toBe(initial.context.revision);
-  expect(readDraft).toHaveBeenCalledWith('org-a', 'draft');
+  expect(readDraft).toHaveBeenCalledWith('org-a', 'draft', 'actor');
   expect(get).toHaveBeenCalledWith('org-a', 'job');
   const jobOnly = await resolver.resolve(ctx({}), {version: context.version, kind: 'media', videoJobId: 'job'});
   expect(jobOnly.data.videoDraft).toMatchObject({id: 'draft', version: 2, brief: {script: 'Current script 2'}});

@@ -24,16 +24,32 @@ const {
 const registry = loadRegistry();
 const catalogue = registry.CAPABILITY_CATALOGUE;
 const find = (id) => catalogue.find((capability) => capability.id === id);
+const HEYGEN_TOOLS = [
+  'video_person_profiles', 'video_person_profile_resolve', 'video_person_profile_propose', 'video_person_profile_save',
+  'video_heygen_settings', 'video_heygen_options_v1', 'video_heygen_glossary_v1', 'video_heygen_background_v1',
+  'video_performance_v1', 'video_performance_scenes_v1', 'video_performance_settings_v1', 'video_performance_user_edit_v1',
+  'video_performance_preference_v1', 'video_performance_feedback_v1', 'video_performance_feedback_read_v1', 'video_performance_feedback_correction_v1',
+  'video_heygen_authorize_scope_v2', 'video_heygen_launch_scoped_v2', 'video_heygen_creative_expert_v2', 'video_heygen_scope_stop_v2',
+  'video_heygen_style_prepare', 'video_heygen_style_status', 'video_heygen_style_recover', 'video_heygen_style_select', 'video_heygen_style_submit',
+  'video_heygen_voice_intake', 'video_heygen_voice_status', 'video_heygen_voice_prepare_auditions', 'video_heygen_voice_prepare_clone',
+  'video_heygen_voice_execute', 'video_heygen_voice_recover', 'video_heygen_voice_select', 'video_heygen_voice_apply_selected',
+];
+const HEYGEN_NATIVE_ONLY = new Set([
+  'video_person_profile_save', 'video_performance_user_edit_v1', 'video_performance_preference_v1', 'video_performance_feedback_v1',
+  'video_heygen_authorize_scope_v2', 'video_heygen_launch_scoped_v2', 'video_heygen_creative_expert_v2', 'video_heygen_scope_stop_v2',
+]);
 const VIDEO_TOOLS = [
   'video_catalog', 'video_prepare', 'video_drafts', 'video_draft',
   'video_edit', 'video_preflight', 'video_launch', 'video_jobs',
-  'video_status', 'video_cancel', 'video_retry-save', 'video_access_v2', 'video_personal_assets', 'video_personal_readiness', 'video_personal_discover',
+  'video_status', 'video_cancel', 'video_retry-save',
+  ...HEYGEN_TOOLS,
+  'video_access_v2', 'video_personal_assets', 'video_avatar_consent_status', 'video_avatar_consent_request', 'video_presenter_preview', 'video_personal_readiness', 'video_personal_discover',
   'video_preflight_v2', 'video_launch_v2', 'video_jobs_v2', 'video_status_v2',
   'video_manual_v2', 'video_retry_save_v2', 'video_resume_v2',
 ];
 const VIDEO_READ_TOOLS = [
   'video_catalog', 'video_drafts', 'video_draft', 'video_jobs',
-  'video_status', 'video_access_v2', 'video_personal_assets', 'video_personal_readiness', 'video_jobs_v2', 'video_status_v2',
+  'video_status', 'video_access_v2', 'video_personal_assets', 'video_avatar_consent_status', 'video_personal_readiness', 'video_jobs_v2', 'video_status_v2',
 ];
 const build = (id, services, options = {}) =>
   registry.buildCapabilityTool(find(id), {
@@ -380,7 +396,7 @@ describe('native Mastra tools', () => {
   });
 
   test('the title is the label in the interface language; the model gets the description', () => {
-    expect(tools.piece_rename.title).toBe('Переименовать заготовку');
+    expect(tools.piece_rename.title).toBe('Переименовать черновик');
     const english = registry.buildMastraCapabilityTools(catalogue, {
       services: servicesFrom({}),
       language: 'en',
@@ -869,7 +885,7 @@ describe('MCP tools from the same registry', () => {
       'campaign_create', 'campaign_open', 'campaign_list', 'campaign_stop', 'campaign_revoke', 'campaign_reconcile',
       'channel_editorial_profile', 'channel_editorial_profile_save', 'source_permission_revoke', 'channel_discover', 'campaign_decide_editorial', 'campaign_measure', 'campaign_findings', 'campaign_finding_review',
       'source_resolve_artifact', 'source_edit_draft_artifact', 'campaign_draft_destination_create', 'campaign_render_local_reel', 'campaign_compose_local_video', 'campaign_local_video_open', 'campaign_local_video_stop', 'campaign_plan_materials', 'campaign_prepare', 'campaign_edit', 'campaign_reinspect', 'campaign_revise', 'campaign_bind_video', 'campaign_finalize_video', 'video_production_create', 'video_production_open', 'video_production_preflight', 'video_production_stop', 'video_production_retry_save', 'campaign_optional_evidence', 'campaign_tracking_link', 'campaign_tracking_clicks', 'campaign_finding_feedback', 'campaign_experiment', 'campaign_evaluate_experiment', 'helixa_read',
-      ...VIDEO_TOOLS,
+      ...VIDEO_TOOLS.filter(name => !HEYGEN_NATIVE_ONLY.has(name)),
       'workspace_snapshot',
       'channels_list',
       'piece_list',
@@ -969,7 +985,7 @@ describe('MCP tools from the same registry', () => {
   test('a USER token lists only the reads', () => {
     expect(Object.keys(mcpTools('USER'))).toEqual([
       'media_upload_status', 'media_inspect',
-      ...VIDEO_READ_TOOLS.filter(name => !['video_personal_assets', 'video_personal_readiness'].includes(name)),
+      ...VIDEO_READ_TOOLS.filter(name => !['video_personal_assets', 'video_avatar_consent_status', 'video_personal_readiness'].includes(name)),
       'workspace_snapshot',
       'channels_list',
       'piece_list',

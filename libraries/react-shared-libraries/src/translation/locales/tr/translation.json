@@ -735,6 +735,8 @@
   "assistant_context": "Bağlam",
   "assistant_context_help_label": "Bu seçim ne işe yarar?",
   "assistant_context_help": "Bu nesne asistana göndereceğiniz sonraki mesaja eklenir. Nesneyi ayırmak yalnızca bağlantıyı kaldırır; sohbet geçmişi ve nesne korunur.",
+  "assistant_draft_waiting_review": "Taslak incelemenizi bekliyor. Değişiklikleri kabul etmeden önce karttaki metni inceleyin.",
+  "assistant_review_draft": "Taslağı incele",
   "assistant_draft_review_title": "Önerilen taslak",
   "assistant_accept_draft": "Kabul et",
   "assistant_keep_draft": "Mevcut metni koru",

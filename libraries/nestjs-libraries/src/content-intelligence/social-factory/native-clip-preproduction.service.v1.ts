@@ -245,7 +245,7 @@ export class NativeClipPreproductionServiceV1 {
     const scenario = clipScenarioV1.safeParse(parse(lastAuthor?.raw)), lastCritic = [...p.stages].reverse().find(s => s.kind === 'critic' && s.state === 'captured');
     const review = clipCritiqueV1.safeParse(parse(lastCritic?.raw));
     const production = await this.production?.projection(org, actor, id, p, sourceCurrent);
-    return { pilotId: id, pieceId: p.source.ref.pieceId, threadId: p.threadId, state: sourceCurrent ? p.state : 'needs_input', blocker: sourceCurrent ? p.blocker : 'SOURCE_ARTIFACT_STALE',
+    return { pilotId: id, pieceId: p.source.ref.pieceId, threadId: p.threadId, sourceTitle: p.source.title, state: sourceCurrent ? p.state : 'needs_input', blocker: sourceCurrent ? p.blocker : 'SOURCE_ARTIFACT_STALE',
       ...(p.revisionV2 ? {revisionV2: {version: 2, parentPilotId: p.revisionV2.parentPilotId, scope: p.revisionV2.scope, newImagePair: true}} : {}),
       executionModeV2: {version: 2, mode: p.production ? p.production.executionV2?.mode ?? 'autopilot' : p.executionModeV2?.mode ?? 'review', canChange: !p.production},
       sourceArtifact: p.source.ref, sourceDigest: p.source.contentDigest, sourceCurrent, outputLocale: p.outputLocale, directionsLanguage: 'en', targetSeconds: 5,

@@ -82,7 +82,11 @@ const artifactSchema = z.object({
   adaptationId: id.optional(),
   videoJobId: id.optional(),
   videoDraftId: id.optional(),
+  videoPersonalConnectionId: id.optional(),
+  clipPilotId: id.optional(),
 }).strict().superRefine((value, ctx) => {
+  if (value.clipPilotId && value.kind !== 'piece') ctx.addIssue({code: 'custom', message: 'Clip pilot references need their source piece.'});
+  if (value.videoPersonalConnectionId && (value.kind !== 'media' || !value.videoDraftId)) ctx.addIssue({code: 'custom', message: 'Personal video connection needs its saved video draft.'});
   if ((value.videoJobId || value.videoDraftId) && value.kind !== 'media') ctx.addIssue({ code: 'custom', message: 'Unexpected video scope.' });
   if (value.kind === 'media' && value.pieceId && !value.videoJobId && !value.videoDraftId) ctx.addIssue({ code: 'custom', message: 'Video scope is required.' });
   if ((value.kind === 'adaptation' || value.kind === 'plan') && !value.pieceId) ctx.addIssue({ code: 'custom', message: 'A variant names its piece.' });
@@ -161,7 +165,7 @@ export const readStoredAgentWorkspace = (metadata: Record<string, unknown> | und
 
 export const sameAgentArtifact = (left: AgentArtifactRef, right: AgentArtifactRef) =>
   left.kind === right.kind && left.id === right.id && left.pieceId === right.pieceId &&
-  left.videoJobId === right.videoJobId && left.videoDraftId === right.videoDraftId;
+  left.videoJobId === right.videoJobId && left.videoDraftId === right.videoDraftId && left.clipPilotId === right.clipPilotId;
 
 export const workContextForArtifact = (ref: AgentArtifactRef): AgentWorkContextV1 => ({
   version: AGENT_WORK_CONTEXT_VERSION,
@@ -172,12 +176,13 @@ export const workContextForArtifact = (ref: AgentArtifactRef): AgentWorkContextV
   ...(ref.adaptationId ? { adaptationId: ref.adaptationId } : {}),
   ...(ref.videoJobId ? { videoJobId: ref.videoJobId } : {}),
   ...(ref.videoDraftId ? { videoDraftId: ref.videoDraftId } : {}),
+  ...(ref.clipPilotId ? {clipPilotId: ref.clipPilotId} : {}),
 });
 
 export const artifactForWorkContext = (context: AgentWorkContextV1): AgentArtifactRef | null => {
   const id = context.id ?? (context.videoJobId || context.videoDraftId ? 'library' : context.kind === 'piece' ? context.pieceId : context.kind === 'channel' ? context.channelId : context.adaptationId);
   if (!id || context.kind === 'calendar') return null;
-  return { kind: context.kind, id, ...(context.pieceId && context.kind !== 'piece' ? { pieceId: context.pieceId } : {}), ...(context.channelId && context.kind !== 'channel' ? { channelId: context.channelId } : {}), ...(context.videoJobId ? {videoJobId: context.videoJobId} : {}), ...(context.videoDraftId ? {videoDraftId: context.videoDraftId} : {}) };
+  return { kind: context.kind, id, ...(context.pieceId && context.kind !== 'piece' ? { pieceId: context.pieceId } : {}), ...(context.channelId && context.kind !== 'channel' ? { channelId: context.channelId } : {}), ...(context.videoJobId ? {videoJobId: context.videoJobId} : {}), ...(context.videoDraftId ? {videoDraftId: context.videoDraftId} : {}), ...(context.clipPilotId ? {clipPilotId: context.clipPilotId} : {}) };
 };
 
 /** Snapshot budgets count strings across the tree, not only individual leaves. */

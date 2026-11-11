@@ -735,6 +735,8 @@
   "assistant_context": "Kontext",
   "assistant_context_help_label": "Was bewirkt diese Auswahl?",
   "assistant_context_help": "Dieses Objekt wird mit Ihrer nächsten Nachricht an den Assistenten übermittelt. Das Lösen entfernt die Verknüpfung; Chatverlauf und Objekt bleiben erhalten.",
+  "assistant_draft_waiting_review": "Der Entwurf wartet auf Ihre Prüfung. Prüfen Sie ihn in der Karte, bevor Sie Änderungen übernehmen.",
+  "assistant_review_draft": "Entwurf prüfen",
   "assistant_draft_review_title": "Vorgeschlagener Entwurf",
   "assistant_accept_draft": "Übernehmen",
   "assistant_keep_draft": "Aktuellen Text behalten",

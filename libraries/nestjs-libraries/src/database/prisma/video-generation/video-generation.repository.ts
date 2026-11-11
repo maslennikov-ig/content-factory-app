@@ -30,8 +30,8 @@ export class VideoGenerationRepository {
   draft(organizationId: string, id: string) {
     return this.prisma.videoPromptDraft.findFirst({ where: {organizationId, id} });
   }
-  drafts(organizationId: string, pieceId?: string) {
-    return this.prisma.videoPromptDraft.findMany({ where: {organizationId, ...(pieceId ? {pieceId} : {})}, orderBy: {updatedAt: 'desc'}, take: 50 });
+  drafts(organizationId: string, pieceId?: string, ids?: string[], actorId?: string) {
+    return this.prisma.videoPromptDraft.findMany({ where: {organizationId, ...(pieceId ? {pieceId} : {}), ...(ids ? {id: {in: ids}} : {}), ...(actorId ? {userId: actorId} : {})}, orderBy: {updatedAt: 'desc'}, take: 50 });
   }
   async editDraft(organizationId: string, id: string, version: number, brief: unknown, settings: unknown) {
     const artifact = (brief as any)?.sourceArtifact;

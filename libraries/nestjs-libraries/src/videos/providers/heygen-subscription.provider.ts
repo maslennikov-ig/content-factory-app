@@ -8,10 +8,51 @@ import { VideoSubscriptionRequest } from '../video-access.v2';
 import type { VideoSettingsV1 } from '../video-provider.v1';
 import { videoErrorV1 } from '../video-brief.v1';
 import type { VideoPersonalAssetV1 } from '../video-personal-subscription.v1';
+import { heygenAvatarArgsV1, decodeHeygenAvatarReceiptV1, decodeHeygenAvatarRejectionV1, type HeygenAvatarHooksV1 } from '../subscriptions/video-heygen-avatar-native.v1';
+import { heygenNativeOwnedSelectionV1 } from '../subscriptions/video-heygen-avatar-admission.v1';
+import { heygenAvatarArgsV2, heygenVideoRecipeV2, type HeygenRecipeBindingV2, type HeygenVideoSettingsV2,
+  type HeygenSettingsQualificationV2 } from '../subscriptions/video-heygen-settings.v2';
 
 @Injectable()
 export class HeygenSubscriptionProvider {
   constructor(readonly mcp: VideoMcpClient, readonly runtime: VideoSubscriptionRuntime) {}
+  nativeArgs(settings: VideoSettingsV1, brief: {script: string}) {
+    return heygenAvatarArgsV1({avatarId: settings.avatarId, voiceId: settings.voiceId, script: brief.script,
+      locale: settings.locale, resolution: settings.resolution, aspectRatio: settings.aspectRatio,
+      engine: settings.engine, captions: settings.captions});
+  }
+  nativeAccount(def: SubscriptionEndpoint, token: string, guard: VideoTokenGuard) {
+    return this.mcp.readHeygenAccountV1(def, token, guard);
+  }
+  nativeSelection(def: SubscriptionEndpoint, token: string, settings: VideoSettingsV1, guard: VideoTokenGuard) {
+    return heygenNativeOwnedSelectionV1(this.mcp, def, token, settings, guard);
+  }
+  submitNative(def: SubscriptionEndpoint, token: string, args: unknown, guard: VideoTokenGuard, hooks: HeygenAvatarHooksV1) {
+    return this.mcp.renderHeygenAvatarV1(def, token, args, guard, hooks);
+  }
+  nativeArgsV2(settings: HeygenVideoSettingsV2, exactSpeech: string | null, qualification: HeygenSettingsQualificationV2) {
+    return heygenAvatarArgsV2(settings, exactSpeech, qualification);
+  }
+  nativeRecipeV2(binding: HeygenRecipeBindingV2, settings: HeygenVideoSettingsV2, exactSpeech: string | null, qualification: HeygenSettingsQualificationV2) {
+    return heygenVideoRecipeV2(binding, settings, exactSpeech, qualification);
+  }
+  submitNativeV2(def: SubscriptionEndpoint, token: string, args: unknown, guard: VideoTokenGuard, hooks: HeygenAvatarHooksV1) {
+    return this.mcp.renderHeygenAvatarV2(def, token, args, guard, hooks);
+  }
+  pollNative(def: SubscriptionEndpoint, token: string, id: string, guard: VideoTokenGuard) {
+    return this.mcp.readHeygenVideoV1(def, token, id, guard);
+  }
+  nativeReceipt(raw: unknown) { return decodeHeygenAvatarReceiptV1(raw); }
+  nativeRejection(raw: unknown) { return decodeHeygenAvatarRejectionV1(raw); }
+  async readOwnedCatalog(def: SubscriptionEndpoint, token: string, assertUsable: VideoTokenGuard) {
+    return this.mcp.readHeygenOwnedCatalog(def, token, assertUsable);
+  }
+  async readOwnedAvatarGroup(def: SubscriptionEndpoint, token: string, selected: {avatarId: string; groupId?: string}, assertUsable: VideoTokenGuard) {
+    return this.mcp.readHeygenOwnedAvatarGroup(def, token, selected, assertUsable);
+  }
+  async requestOwnedAvatarConsent(def: SubscriptionEndpoint, token: string, selected: {avatarId: string; groupId: string}, assertUsable: VideoTokenGuard, onBeforeDispatch: () => Promise<void>) {
+    return this.mcp.requestOwnedAvatarConsent(def, token, selected, assertUsable, onBeforeDispatch);
+  }
   async ownedAssets(def: SubscriptionEndpoint, token: string, assertUsable?: VideoTokenGuard, walletDigest?: string) {
     if (def.ownedAssetProfile !== 'scoped_owned_v1') return videoErrorV1('VIDEO_OWNED_ASSET_PROFILE_UNVERIFIED', 409);
     await this.mcp.capabilities(def, token, assertUsable);
@@ -30,7 +71,7 @@ export class HeygenSubscriptionProvider {
       // Account-visible public stock and foreign/revoked identities cannot stand in for the owner.
       const eligible = rows.filter(r => r?.ownership === 'owned' && r.state === 'available' && r.owner_subject === subject &&
         typeof r.id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(r.id));
-      return eligible.map(r => ({id: r.id, name: typeof r.name === 'string' ? r.name.slice(0, 120) : r.id, ownership: 'owned', state: 'available',
+      return eligible.map(r => ({id: r.id, name: typeof r.name === 'string' && r.name.trim() ? r.name.slice(0, 120) : 'Личный материал', ownership: 'owned', state: 'available',
         engines: Array.isArray(r.engines) ? r.engines.filter((e: unknown) => ['avatar_iii', 'avatar_iv'].includes(e as string)) : [],
         locales: Array.isArray(r.locales) ? r.locales.filter((l: unknown) => typeof l === 'string' && /^[A-Za-z-]{2,60}$/.test(l)) : []}));
     };

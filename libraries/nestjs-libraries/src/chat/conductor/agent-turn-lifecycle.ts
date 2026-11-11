@@ -125,9 +125,16 @@ export class AgentTurnLifecycle {
     } finally { this.pending.delete(pending); }
   }
 
+  /** Drain actual tools without waiting on, settling, or releasing their outer driver. */
+  async drainStoppedWork(): Promise<'failed' | 'interrupted'> {
+    if (this.accepting) throw new Error('The agent request must stop before draining its work.');
+    await Promise.allSettled([...this.pending]);
+    return this.failed ? 'failed' : 'interrupted';
+  }
+
   async finish(outcome: AgentTurnOutcome): Promise<AgentTurnOutcome> {
     this.stop();
-    await Promise.allSettled([...this.pending]);
+    await this.drainStoppedWork();
     const settled = this.failed ? 'failed' : outcome;
     await this.settle(settled, this.errorCode);
     return settled;

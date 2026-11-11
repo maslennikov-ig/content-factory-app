@@ -1,4 +1,5 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
+import { videoDraftTitle } from '@contentfactory/helpers/utils/video-draft-title';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma, VideoGenerationJob } from '@prisma/client';
 import { z } from 'zod';
@@ -32,6 +33,7 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(cano
 // This is a local immediate-replay policy. Higgsfield does not document a key TTL.
 const HIGGSFIELD_REPLAY_MS = 60_000;
 const requestDigest = ({submitRecovery: _recovery, ...request}: VideoPreparedRequestV1) => hash(request);
+const PREPARATION_VALIDATION_CODES = new Set(['VIDEO_PREPARATION_EMPTY', 'VIDEO_PROMPT_EMPTY', 'VIDEO_REQUIRED_NUMBER_MISSING', 'VIDEO_UNSUPPORTED_NUMBER', 'VIDEO_REQUIRED_NEGATION_MISSING']);
 type Preflight = {
   id: string; version: number; preflightId: string; estimate: VideoPreparedRequestV1['estimate'];
   payer: 'included' | 'workspace_key'; route: string; maxCostUsd: number;
@@ -66,11 +68,11 @@ export class VideoJobService {
     // A durable row precedes dispatch. Bootstrap recovery retries a failed start.
     try { await this.execution.start(job.organizationId, job.id, job.runCycle); } catch { /* persisted pending work is recovered by VideoExecutionRecoveryV1 */ }
   }
-  async catalog(organizationId: string) {
+  async catalog(organizationId: string, options: {includeAssets?: boolean} = {}) {
     const settings = await this.credentials.getSettings(organizationId);
     let assets: Awaited<ReturnType<HeygenProviderV1['listAssets']>> | undefined;
     let assetsError: string | undefined;
-    if (settings.effective.heygen?.available) {
+    if (options.includeAssets !== false && settings.effective.heygen?.available) {
       try { assets = await this.heygen.listAssets(await this.credentials.resolve(organizationId, 'heygen')); }
       catch (error) { assetsError = codeOf(error); }
     }
@@ -85,7 +87,7 @@ export class VideoJobService {
     let brief = compileVideoBriefV1(piece, input, selectedSource);
     if (input.fromDraftId) {
       const source = await this.repository.draft(organizationId, input.fromDraftId);
-      if (!source || source.pieceId !== input.pieceId) return videoErrorV1('VIDEO_DRAFT_NOT_FOUND', 404);
+      if (!source || source.pieceId !== input.pieceId || (source.settings as any)?.heygenV2 && source.userId !== userId) return videoErrorV1('VIDEO_DRAFT_NOT_FOUND', 404);
       if (source.version !== input.fromDraftVersion) return videoErrorV1('VIDEO_DRAFT_CHANGED', 409);
       if (source.pieceRevision !== videoSourceRevisionV1(piece)) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
       await this.assertCurrentSource(organizationId, userId, source);
@@ -97,17 +99,31 @@ export class VideoJobService {
     await this.references(organizationId, brief.referenceMediaIds);
     if (input.prepareWithAi) {
       brief = await runAsActingUser(userId, () => withoutActiveAiConfig(() => this.usage.executeAiOperation(organizationId, 'text_generation', async () => {
-        const schema = z.object({prompt: z.string().min(1).max(12000), script: z.string().min(1).max(12000)});
-        const result = await (await getOpenAiClient(organizationId)).chat.completions.parse({
-          model: await getModelForRole(organizationId, 'draft'),
-          messages: [{role: 'system', content: VIDEO_PREPARATION_POLICY_V1}, {role: 'user', content: JSON.stringify({brief, settings: input.settings})}],
-          response_format: zodResponseFormat(schema, 'videoDraftV1'),
-        });
-        const output = result.choices[0]?.message.parsed;
-        if (!output) return videoErrorV1('VIDEO_PREPARATION_EMPTY');
-        const prepared = {...brief, ...output};
-        validateVideoGroundingV1(prepared, input.settings as VideoSettingsV1);
-        return prepared;
+        let stage = 'model_response';
+        try {
+          const schema = z.object({prompt: z.string().min(1).max(12000), script: z.string().min(1).max(12000)});
+          const result = await (await getOpenAiClient(organizationId)).chat.completions.parse({
+            model: await getModelForRole(organizationId, 'draft'),
+            messages: [{role: 'system', content: VIDEO_PREPARATION_POLICY_V1}, {role: 'user', content: JSON.stringify({brief, settings: input.settings})}],
+            response_format: zodResponseFormat(schema, 'videoDraftV1'),
+          });
+          stage = 'generated_text_validation';
+          const output = result.choices[0]?.message.parsed;
+          if (!output) return videoErrorV1('VIDEO_PREPARATION_EMPTY');
+          const prepared = {...brief, ...output};
+          validateVideoGroundingV1(prepared, input.settings as VideoSettingsV1);
+          return prepared;
+        } catch (error: any) {
+          const response = error instanceof HttpException ? error.getResponse() : undefined;
+          const code = response && typeof response === 'object' && 'code' in response ? response.code : undefined;
+          const known = stage === 'generated_text_validation' && typeof code === 'string' && PREPARATION_VALIDATION_CODES.has(code);
+          // This boundary is before createDraft. Unknown/model/save failures keep
+          // their uncertainty; a known validation refusal is never unspent.
+          if (known) Object.assign(error, {code, videoPreparationValidation: true, canReviseInput: true});
+          console.warn(JSON.stringify({event: 'video_preparation_failed', stage, code: known ? code : 'VIDEO_PREPARATION_FAILED',
+            name: error instanceof HttpException ? 'HttpException' : error instanceof SyntaxError ? 'SyntaxError' : error instanceof TypeError ? 'TypeError' : error instanceof Error ? 'Error' : 'UnknownError'}));
+          throw error;
+        }
       }, 'draft')));
     }
     brief = {...brief, preparedWithAi: input.prepareWithAi};
@@ -129,24 +145,39 @@ export class VideoJobService {
     return this.requireSourceArtifacts().assertCurrent(organizationId, actorId, artifact, transaction);
   }
   private draftView(draft: any) {
-    return {id: draft.id, pieceId: draft.pieceId, pieceRevision: draft.pieceRevision, version: draft.version, brief: draft.brief, settings: draft.settings, preparedWithAi: draft.brief?.preparedWithAi === true, preflightId: draft.preflight?.preflightId ?? null, createdAt: draft.createdAt, updatedAt: draft.updatedAt};
+    return {id: draft.id, title: videoDraftTitle(draft), pieceId: draft.pieceId, pieceRevision: draft.pieceRevision, version: draft.version, brief: draft.brief, settings: draft.settings, preparedWithAi: draft.brief?.preparedWithAi === true, preflightId: draft.preflight?.preflightId ?? null, createdAt: draft.createdAt, updatedAt: draft.updatedAt};
   }
-  async readDraft(organizationId: string, id: string) {
+  async readDraft(organizationId: string, id: string, actorId?: string) {
     const draft = await this.repository.draft(organizationId, id);
     if (!draft) return videoErrorV1('VIDEO_DRAFT_NOT_FOUND', 404);
+    if ((draft.settings as any)?.heygenV2 && draft.userId !== actorId) return videoErrorV1('VIDEO_DRAFT_NOT_FOUND', 404);
     return this.draftView(draft);
   }
-  async listDrafts(organizationId: string, pieceId?: string) { return (await this.repository.drafts(organizationId, pieceId)).map(d => this.draftView(d)); }
+  async listDrafts(organizationId: string, pieceId?: string, ids?: string[], metadataOnly = false, actorId?: string) {
+    const selectedIds = ids === undefined ? undefined : parseVideoV1(z.array(z.string().uuid()).min(1).max(24), ids);
+    return (await this.repository.drafts(organizationId, pieceId, selectedIds, actorId)).filter(d => !(d.settings as any)?.heygenV2 || d.userId === actorId).map(d => {
+      const view = this.draftView(d);
+      const settings = d.settings as unknown as VideoSettingsV1;
+      return metadataOnly ? {id: view.id, title: view.title, pieceId: view.pieceId, version: view.version,
+        settings: {provider: settings?.provider, mode: settings?.mode, locale: settings?.locale}} : view;
+    });
+  }
   async updateDraft(organizationId: string, userId: string, id: string, value: any) {
     const draft = await this.repository.draft(organizationId, id);
     if (!draft) return videoErrorV1('VIDEO_DRAFT_NOT_FOUND', 404);
+    if (((draft.settings as any)?.heygenV2 || (value?.settings as any)?.heygenV2) && draft.userId !== userId) return videoErrorV1('VIDEO_ACCESS_DENIED', 403);
     await this.assertCurrentSource(organizationId, userId, draft);
     if (!Number.isInteger(value?.version) || value.version !== draft.version) return videoErrorV1('VIDEO_DRAFT_CHANGED', 409);
-    const allowed = ['version', 'brief', 'settings', 'prompt', 'script', 'referenceMediaIds', 'scriptPolicy'];
+    const allowed = ['version', 'brief', 'settings', 'prompt', 'script', 'referenceMediaIds', 'scriptPolicy', 'contextOnlySourceIds'];
     if (!value || Object.keys(value).some(k => !allowed.includes(k))) return videoErrorV1('VIDEO_INVALID_INPUT');
     const settings = videoSettingsV1(value.settings ?? draft.settings);
     const original = draft.brief as unknown as VideoBriefV1;
+    const contextIds = value.contextOnlySourceIds === undefined ? [] : parseVideoV1(z.array(z.string().min(1).max(300)).max(50), value.contextOnlySourceIds);
+    if (new Set(contextIds).size !== contextIds.length || contextIds.some(id => !original.facts.some(fact => fact.sourceId === id)))
+      return videoErrorV1('VIDEO_FACT_SOURCE_CHANGED');
+    if (value.brief !== undefined && contextIds.length) return videoErrorV1('VIDEO_INVALID_INPUT');
     const brief = editVideoBriefV1(original, value.brief ?? {...original,
+      facts: original.facts.map(fact => contextIds.includes(fact.sourceId) ? {...fact, policy: 'context_only' as const} : fact),
       ...(value.prompt !== undefined ? {prompt: value.prompt} : {}), ...(value.script !== undefined ? {script: value.script} : {}),
       ...(value.referenceMediaIds !== undefined ? {referenceMediaIds: value.referenceMediaIds} : {}), ...(value.scriptPolicy !== undefined ? {scriptPolicy: value.scriptPolicy} : {}),
     }, settings);
@@ -172,6 +203,7 @@ export class VideoJobService {
     if (!piece || videoSourceRevisionV1(piece) !== draft.pieceRevision) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
     await this.assertCurrentSource(organizationId, userId, draft);
     const settings = videoSettingsV1(draft.settings);
+    if (settings.heygenV2) return videoErrorV1('VIDEO_HEYGEN_PERSONAL_ROUTE_REQUIRED', 409);
     const brief = draft.brief as unknown as VideoBriefV1;
     validateVideoGroundingV1(brief, settings);
     const credential = await this.credentials.resolve(organizationId, settings.provider);
@@ -214,6 +246,7 @@ export class VideoJobService {
     if (!piece || videoSourceRevisionV1(piece) !== draft.pieceRevision) return videoErrorV1('VIDEO_SOURCE_CHANGED', 409);
     await this.assertCurrentSource(organizationId, userId, draft);
     const settings = videoSettingsV1(draft.settings);
+    if (settings.heygenV2) return videoErrorV1('VIDEO_HEYGEN_PERSONAL_ROUTE_REQUIRED', 409);
     const credential = await this.credentials.resolve(organizationId, settings.provider, preflight.payer);
     if (credential.reference !== preflight.credentialReference) return videoErrorV1('VIDEO_CREDENTIAL_CHANGED', 409);
     const usd = preflight.estimate.usd;

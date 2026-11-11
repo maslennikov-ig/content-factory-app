@@ -36,7 +36,7 @@ async function fixture(options = {}) {
   const item = { version: 1, id: 'item', campaignId: 'campaign', channelId: 'channel', format: 'post', platform: 'telegram', state: 'planned', contentRevision: 1, scheduledAt: '2030-01-03T12:00:00Z', ...(options.material ? { material: options.material } : {}) };
   const grant = { version: 1, id: 'grant', actorId: 'actor', mode: 'autopilot', channelIds: ['channel'], actions: ['prepare', 'editorial_decide'], expiresAt: '2031-01-01T00:00:00Z', platformConsentIds: [] };
   for (const [kind, payload] of [['campaign', campaign], ['campaign_item', item], ['grant', grant]]) await store.put({ organizationId: 'org', kind, id: payload.id, parentId: kind === 'campaign_item' ? campaign.id : undefined, payload, expectedRevision: 0 });
-  const config = { provider: options.provider ?? 'openai', modelRouting: { advancedModel: 'configured-advanced' } };
+  const config = { provider: options.provider ?? 'openai', textModel:'configured-executor',roleModels:{},modelRouting: { advancedModel: 'configured-advanced' } };
   const generate = jest.fn(options.generate ?? (async prompt => {
     const questions=JSON.parse(prompt).questions;
     return {object: questions ? {answers:questions.map(q=>({id:q.id,...(options.answer ?? editorialAnswer)}))} : options.answer ?? editorialAnswer};
@@ -204,7 +204,7 @@ test.each([{}, {statusCode:429}, {statusCode:401}, {statusCode:404,code:'endpoin
 
 test('all scoped editorial clarification types resolve and survive restart without new calls', async()=>{
   const f=await fixture();
-  const types=['angle','structure','length','hook','cta','tone','visual','format'];
+  const types=['angle','structure','length','hook','cta','tone','visual'];
   const input={campaignId:'campaign',itemId:'item',requestId:'questions',questions:types.map(type=>({id:type,type,question:`Choose ${type} from the saved brief.`}))};
   const answers=await f.service.answerQuestions('org','actor',input);
   expect(answers.complete).toBe(true);expect(answers.decisions.map(row=>row.type)).toEqual(types);
@@ -215,7 +215,7 @@ test('all scoped editorial clarification types resolve and survive restart witho
 });
 
 test('explicit business/account facts, rights, budget and consent never invoke a model or invent answers',async()=>{
-  const f=await fixture(); const types=['business_fact','account_features','rights','budget','permission'];
+  const f=await fixture(); const types=['format','business_fact','account_features','rights','budget','permission'];
   const input={campaignId:'campaign',itemId:'item',requestId:'facts',questions:types.map(type=>({id:type,type,question:`Missing actual ${type}`}))};
   const answers=await f.service.answerQuestions('org','actor',input);
   expect(answers.complete).toBe(false);expect(answers.missingFacts).toHaveLength(types.length);
@@ -328,4 +328,64 @@ test('checkpoint and completed expert replays finish under a matching cap withou
  f.config.provider='openrouter';decide.mockRestore();
  const result=await f.restart().answer('org','actor',request());expect(result.answer).toBe(editorialAnswer.answer);
  expect(await f.restart().answer('org','actor',request())).toEqual(result);expect(f.generate).toHaveBeenCalledTimes(1);expect(f.usage.executeAiOperation).toHaveBeenCalledTimes(1);
+});
+
+const videoRequest = extra => ({requestId:'video-choice',question:'Which of these complex motion options best supports the exact speech?',executorModelId:'configured-executor',
+ scope:{grantId:'video-scope',scopeDigest:'a'.repeat(64),draftId:'draft',draftRevision:1,sourceDigest:'b'.repeat(64),profileId:'person',profileRevision:1,profileDigest:'c'.repeat(64)},
+ context:{speech:'Точные русские слова.',ordinarySettings:{speed:1},visualOptions:[{id:'calm',description:'Calm supported delivery'}]},...extra});
+const videoAuthority = () => ({assertCurrentScope:jest.fn(async()=>{}),claimExpertAttempt:jest.fn(async()=>{})});
+test('standalone video expert uses actual scope and durable replay without a campaign or human receipt',async()=>{
+ const f=await fixture(),authority=videoAuthority(),input=videoRequest();
+ const answer=await f.service.decideVideoCreative('org','actor',input,authority);
+ expect(answer).toMatchObject({scopeDigest:input.scope.scopeDigest,kind:'editorial',factStatus:'inferred',answer:editorialAnswer.answer});
+ expect(answer).not.toHaveProperty('approval');expect(answer).not.toHaveProperty('selectionReceipt');
+ expect(authority.assertCurrentScope.mock.calls.length).toBeGreaterThanOrEqual(3);
+ expect(authority.claimExpertAttempt).toHaveBeenCalledTimes(1);
+ expect(authority.claimExpertAttempt.mock.calls[0][0]).toMatch(/:0:configured-advanced$/);
+ expect(await f.restart().decideVideoCreative('org','actor',input,authority)).toEqual(answer);
+ expect(f.generate).toHaveBeenCalledTimes(1);expect(authority.claimExpertAttempt).toHaveBeenCalledTimes(1);
+ const rows=(await f.store.list('org','editorial')).filter(row=>row.payload.type==='video_creative_decision_operation');
+ expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({parentId:'video-scope',payload:{state:'completed',scope:input.scope}});
+});
+test('standalone video requires real current scope and bounded expert attempt callback before spending',async()=>{
+ const f=await fixture();
+ await expect(f.service.decideVideoCreative('org','actor',videoRequest(),{assertCurrentScope:async()=>{}})).rejects.toHaveProperty('code','AUTONOMY_VIDEO_EXPERT_SCOPE_REQUIRED');
+ const authority=videoAuthority();authority.assertCurrentScope.mockRejectedValue(new DomainError('VIDEO_SCOPE_STALE'));
+ await expect(f.service.decideVideoCreative('org','actor',videoRequest(),authority)).rejects.toHaveProperty('code','VIDEO_SCOPE_STALE');
+ expect(f.usage.executeAiOperation).not.toHaveBeenCalled();expect(f.generate).not.toHaveBeenCalled();expect(authority.claimExpertAttempt).not.toHaveBeenCalled();
+});
+test('standalone video lost response never permits another paid attempt after restart',async()=>{
+ const f=await fixture({generate:async()=>{throw new Error('lost response');}}),authority=videoAuthority();
+ await expect(f.service.decideVideoCreative('org','actor',videoRequest(),authority)).rejects.toHaveProperty('code','AUTONOMY_VIDEO_EXPERT_UNCERTAIN');
+ await expect(f.restart().decideVideoCreative('org','actor',videoRequest(),authority)).rejects.toHaveProperty('code','AUTONOMY_VIDEO_EXPERT_UNCERTAIN');
+ expect(f.generate).toHaveBeenCalledTimes(1);expect(authority.claimExpertAttempt).toHaveBeenCalledTimes(1);
+});
+test('standalone video retains generated judgement when fresh scope check fails after the paid result',async()=>{
+ const f=await fixture(),authority=videoAuthority();let current=true;
+ authority.assertCurrentScope.mockImplementation(async()=>{if(!current)throw new DomainError('VIDEO_SCOPE_STALE');});
+ f.generate.mockImplementation(async()=>{current=false;return {object:editorialAnswer};});
+ await expect(f.service.decideVideoCreative('org','actor',videoRequest(),authority)).rejects.toHaveProperty('code','VIDEO_SCOPE_STALE');
+ const row=(await f.store.list('org','editorial')).find(row=>row.payload.type==='video_creative_decision_operation');
+ expect(row.payload).toMatchObject({state:'checkpoint',generated:{answer:editorialAnswer}});
+ current=true;expect(await f.restart().decideVideoCreative('org','actor',videoRequest(),authority)).toMatchObject({kind:'editorial'});
+ expect(f.generate).toHaveBeenCalledTimes(1);expect(authority.claimExpertAttempt).toHaveBeenCalledTimes(1);
+});
+test.each(['configured-advanced','configured-executor'])('standalone expert cannot be the actual or configured executor: %s',executorModelId=>{
+ return fixture().then(async f=>{if(executorModelId==='configured-executor')f.config.modelRouting.advancedModel=executorModelId;
+  await expect(f.service.decideVideoCreative('org','actor',videoRequest({executorModelId}),videoAuthority())).rejects.toHaveProperty('code','AUTONOMY_DISTINCT_EXPERT_REQUIRED');
+  expect(f.generate).not.toHaveBeenCalled();expect(f.usage.executeAiOperation).not.toHaveBeenCalled();});
+});
+test.each(['identity','voice','consent'])('protected %s question never purchases or accepts an expert answer',async type=>{
+ const f=await fixture();const result=await f.service.answerQuestions('org','actor',{campaignId:'campaign',itemId:'item',requestId:`protected-${type}`,questions:[{id:'choice',type,question:'A protected human choice'}]});
+ expect(result.complete).toBe(false);expect(result.missingFacts).toEqual(['A protected human choice']);
+ expect(f.generate).not.toHaveBeenCalled();expect(f.usage.executeAiOperation).not.toHaveBeenCalled();
+});
+test('campaign expert also refuses the same actual executor before usage admission',async()=>{
+ const f=await fixture();await expect(f.service.answer('org','actor',request({executorModelId:'configured-advanced'}))).rejects.toHaveProperty('code','AUTONOMY_DISTINCT_EXPERT_REQUIRED');
+ expect(f.generate).not.toHaveBeenCalled();expect(f.usage.executeAiOperation).not.toHaveBeenCalled();
+});
+test('standalone video fallback cannot reuse the actual executor after explicit expert refusal',async()=>{
+ const f=await fixture({generate:async()=>{throw {statusCode:404,data:{error:{code:'model_not_found'}}};}}),authority=videoAuthority();
+ await expect(f.service.decideVideoCreative('org','actor',videoRequest({executorModelId:'fallback'}),authority)).rejects.toHaveProperty('code','AUTONOMY_ADVANCED_MODEL_UNAVAILABLE');
+ expect(f.generate).toHaveBeenCalledTimes(1);expect(authority.claimExpertAttempt).toHaveBeenCalledTimes(1);
 });

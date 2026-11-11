@@ -13,17 +13,19 @@ import { SkeletonRows, Status } from '../ui/surface';
 import { SectionLabel } from '../ui/section-label';
 import { AgentCard } from './agent.cards';
 import { AgentMarkdown } from './agent.markdown';
-import { readClipPreproduction, type AgentClipPreproductionRef, type AgentWorkContextV1 } from './agent.contract';
+import { type AgentClipPreproductionRef, type AgentWorkContextV1 } from './agent.contract';
+import { clipPreproductionKey, readOwnedClipPreproduction } from './agent.preproduction-read';
 import { clipPreproductionWordsFor } from './agent.preproduction.copy';
 import { ClipProductionDetails } from './agent.clip-production';
 import { clipProductionWordsFor } from './agent.clip-production.copy';
 
-export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, busy = false, onRequest }: {
+export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, busy = false, onRequest, readOnly = false }: {
   preproduction: AgentClipPreproductionRef;
   threadId: string | null;
   onOpenSource: () => void;
   busy?: boolean;
   onRequest?: (text: string, context: AgentWorkContextV1) => void;
+  readOnly?: boolean;
 }) {
   const user = useUser(), request = useFetch();
   const language = useInterfaceLanguage(), w = clipPreproductionWordsFor(language), modeWords = clipProductionWordsFor(language);
@@ -32,20 +34,14 @@ export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, b
   const [requested, setRequested] = useState(false), requestLatch = useRef(false);
   useEffect(() => {if (!busy) {requestLatch.current = false; setRequested(false);}}, [busy]);
   const readable = !!user?.orgId && !!user?.id && !!threadId && threadId === preproduction.threadId;
-  const result = useSWR(readable ? ['clip-preproduction', user.orgId, user.id, threadId, preproduction.id] : null, async () => {
-    const response = await request('/social-factory/clip-preproduction/open', {
-      method: 'POST', body: JSON.stringify({ pilotId: preproduction.id, threadId }),
-    });
-    if (!response.ok) throw new Error('CLIP_READ_UNAVAILABLE');
-    const value = readClipPreproduction(await response.json(), preproduction);
-    if (!value) throw new Error('CLIP_READ_UNAVAILABLE');
-    return value;
-  }, { revalidateOnMount: true, revalidateOnFocus: !revisionScope, revalidateIfStale: true, dedupingInterval: 0, errorRetryCount: 0,
+  const result = useSWR(readable ? clipPreproductionKey(user.orgId, user.id, preproduction) : null,
+    () => readOwnedClipPreproduction(clipPreproductionKey(user.orgId, user.id, preproduction), preproduction, request),
+    { revalidateOnMount: true, revalidateOnFocus: !revisionScope, revalidateIfStale: true, dedupingInterval: 0, errorRetryCount: 0,
     refreshInterval: value => !revisionScope && value?.sourceCurrent && value.production &&
       !value.production.stages.some(stage => ['submission_unknown', 'input_changed', 'quote_failed', 'save_failed', 'status_delayed', 'reauth_required', 'access_unavailable', 'canceled', 'failed'].includes(stage.state) || stage.stage === 'clip' && stage.state === 'saved') &&
       !['needs_input', 'uncertain', 'stale'].includes(value.production.visionReview?.state ?? '') ? 10000 : 0 });
   const data = result.data;
-  const canRequest = !!onRequest && isOrganizationEditor(user?.role) && data?.sourceCurrent === true && !busy && !requested && !savingMode;
+  const canRequest = !readOnly && !!onRequest && isOrganizationEditor(user?.role) && data?.sourceCurrent === true && !busy && !requested && !savingMode;
   const requestTurn = (text: string) => {
     if (!canRequest || requestLatch.current || !text.trim()) return;
     requestLatch.current = true; setRequested(true);
@@ -54,7 +50,7 @@ export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, b
   const oldWorkActive = data?.models.some(model => model.state !== 'captured') || data?.production?.stages.some(stage => stage.jobId && !['saved', 'failed', 'canceled'].includes(stage.state)) ||
     ['running', 'captured', 'uncertain'].includes(data?.production?.visionReview?.state ?? '');
   const setMode = async (mode: string) => {
-    if (!data?.executionModeV2?.canChange || savingMode) return;
+    if (readOnly || !data?.executionModeV2?.canChange || savingMode) return;
     setSavingMode(true); setModeFailure(null);
     let accepted = false;
     try {
@@ -86,7 +82,7 @@ export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, b
             {data.revisionV2 ? <p role="status" className="cf-body-sm text-cf-ink">{modeWords.linkedRevision}</p> : null}
             {data.executionModeV2 ? <section className="flex min-w-0 flex-col gap-[8px]" aria-label={modeWords.mode}>
               <Select disableForm name={`clip-mode-${preproduction.id}`} label={modeWords.mode} value={data.executionModeV2.mode}
-                disabled={!data.executionModeV2.canChange || savingMode || !data.sourceCurrent} onChange={event => void setMode(event.target.value)}>
+                disabled={readOnly || !data.executionModeV2.canChange || savingMode || !data.sourceCurrent} onChange={event => void setMode(event.target.value)}>
                 <option value="review">{modeWords.reviewMode}</option><option value="autopilot">{modeWords.autopilotMode}</option>
               </Select>
               {savingMode ? <p role="status" className="cf-body-sm text-cf-ink-muted">{modeWords.modeSaving}</p> : null}
@@ -124,7 +120,7 @@ export function ClipPreproductionCard({ preproduction, threadId, onOpenSource, b
               <p role="status" className="cf-body-sm text-cf-ink-muted">{w.pending}</p>
               <p className="cf-body-sm text-cf-ink-muted">{w.planOnly}</p>
             </>}
-            {onRequest && isOrganizationEditor(user?.role) ? <section className="flex min-w-0 flex-col gap-[12px]" aria-label={modeWords.nextAction}>
+            {!readOnly && onRequest && isOrganizationEditor(user?.role) ? <section className="flex min-w-0 flex-col gap-[12px]" aria-label={modeWords.nextAction}>
               <SectionLabel as="h3">{modeWords.nextAction}</SectionLabel>
               {!data.production && accepted ? <Button type="button" disabled={!canRequest || !!oldWorkActive} onClick={() => requestTurn(modeWords.requestImagePreparation)}>{modeWords.prepareImageLaunch}</Button> : null}
               {accepted && data.production?.executionApproval.canApprove ? <>

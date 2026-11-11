@@ -140,7 +140,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     showOnScreen: 'Показать на экране',
     doInChat: 'Сделать в чате',
     openChannels: 'Открыть каналы',
-    openLatestPiece: 'Открыть последнюю заготовку',
+    openLatestPiece: 'Открыть последний черновик',
     back: 'Назад',
     later: 'Сделаю позже',
     next: (name) => `Дальше: ${name}`,
@@ -178,14 +178,14 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       label: 'Необязательно',
       title: 'Опора для поста',
       body: 'Цена, срок, цифра, которую вы точно знаете. С опорой текст конкретнее, и в разборе видно, на чём держится утверждение. Без неё путь тоже проходится.',
-      action: 'Открыть «Новая заготовка»',
+      action: 'Открыть «Новый черновик»',
       done: (n) =>
         `${n} ${plural(
           n,
           'утверждение',
           'утверждения',
           'утверждений'
-        )} в памяти и заготовках`,
+        )} в памяти и черновиках`,
     },
     telegram: {
       addBotTitle: 'Добавьте бота в свой канал администратором',
@@ -239,12 +239,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         ],
       },
       piece: {
-        short: 'Заготовка',
+        short: 'Черновик',
         title: 'Запишите суть будущего поста',
         why: 'Суть — одна мысль простыми словами. Из неё собираются посты под каждый канал.',
-        todo: 'На вкладке «Заготовки» нажмите «Новая заготовка», напишите, что хотите сказать, и ответьте на вопросы.',
-        action: 'Открыть «Заготовки»',
-        closes: 'Шаг закроется, когда появится первая заготовка.',
+        todo: 'На вкладке «Черновики» нажмите «Новый черновик», напишите, что хотите сказать, и ответьте на вопросы.',
+        action: 'Открыть «Черновики»',
+        closes: 'Шаг закроется, когда появится первый черновик.',
         more: [
           'Суть можно поправить руками: она нейтральна, стиль добавит адаптация.',
           'Если вопросов слишком много — «Решите всё за меня».',
@@ -254,8 +254,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Адаптация',
         title: 'Сделайте из сути пост для канала',
         why: 'Адаптация — пост под конкретный канал: его длина, тон и оформление.',
-        todo: 'Откройте заготовку и создайте адаптацию для своего канала.',
-        action: 'Открыть «Заготовки»',
+        todo: 'Откройте черновик и создайте адаптацию для своего канала.',
+        action: 'Открыть «Черновики»',
         closes: 'Шаг закроется, когда появится первая адаптация.',
         more: [
           'Не нравится текст — поменяйте длину, эмодзи или пожелание и нажмите «Переписать по настройкам».',
@@ -266,7 +266,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'План',
         title: 'Решите, когда выйдет пост',
         why: 'Дальше продукт публикует сам — в выбранное время.',
-        todo: 'На странице заготовки, в адаптации, нажмите «Запланировать» — или «Подтвердить» у брони. В календаре видны все посты.',
+        todo: 'На странице черновика, в адаптации, нажмите «Запланировать» — или «Подтвердить» у брони. В календаре видны все посты.',
         action: 'Открыть календарь',
         closes:
           'Шаг закроется, когда пост встанет в расписание или вы выберете план канала.',
@@ -318,7 +318,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       label: 'Optional',
       title: 'Something for the post to stand on',
       body: 'A price, a deadline, a number you know. A claim makes the text concrete and shows in the review what it stands on. The path works without it too.',
-      action: 'Open "New piece"',
+      action: 'Open "New draft"',
       done: (n) => `${n} claim${n === 1 ? '' : 's'} in memory and pieces`,
     },
     telegram: {
@@ -377,7 +377,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Write down the essence of the post',
         why: 'The essence is one thought in plain words. Posts for each channel are cut from it.',
         todo: 'On the "Pieces" tab press "New piece", write what you want to say and answer the questions.',
-        action: 'Open "Pieces"',
+        action: 'Open "Drafts"',
         closes: 'This closes when the first piece exists.',
         more: [
           'You can edit the essence by hand: it is neutral, the adaptation adds the style.',
@@ -389,7 +389,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Turn the essence into a post for the channel',
         why: 'An adaptation is the post for one channel: its length, tone and layout.',
         todo: 'Open the piece and create an adaptation for your channel.',
-        action: 'Open "Pieces"',
+        action: 'Open "Drafts"',
         closes: 'This closes when the first adaptation exists.',
         more: [
           'Not happy with the text? Change the length, emoji or a wish and press “Rewrite with these settings”.',

@@ -182,7 +182,7 @@ const setupPersistence = () => {
     mastra: async () => ({}),
     resolveWorkContext: jest.fn((...args) => env.resolver.resolve(...args)),
     resolveWritingSelection: jest.fn((...args) => env.resolver.resolveWritingSelection(...args)),
-    validateWorkArtifact: jest.fn((...args) => env.resolver.validateArtifact(...args)),
+    validateWorkArtifact: jest.fn((who, ref, threadId) => env.resolver.validateArtifact(who, ref, {threadId})),
     describeApproval: jest.fn(async () => null),
   };
   const stream = jest.fn(async () => new ReadableStream({ start(controller) { controller.close(); } }));
@@ -393,4 +393,31 @@ test('clip context resolves and restores the exact owned org/actor/thread/source
   open.mockResolvedValue({pilotId:'pilot-1',pieceId:'foreign-piece',threadId:'thread-1'});
   await expect(env.resolver.resolve(identity,raw,{threadId:'thread-1'})).rejects.toMatchObject({status:404});
   for(const invalid of [target('piece',{clipPilotId:'pilot-1'}),target('media',{id:'piece-1',clipPilotId:'pilot-1'})])expect(()=>context.parseAgentWorkContext(invalid)).toThrow();
+});
+
+test('saved clip artifact restores only its owned original chat, keeps stale scenarios readable, and refuses tampered source without generation', async () => {
+  const env=setupPersistence(), ref={kind:'piece',id:'piece-1',clipPilotId:'pilot-1'};
+  let sourceCurrent=true;
+  const open=jest.fn(async(org,actor,thread,pilot)=>{
+    if(org!=='org-1'||actor!=='user-1'||thread!=='thread-1'||pilot!=='pilot-1') throw Object.assign(Error('outside owned chat'),{code:'CLIP_PREPRODUCTION_ACCESS_DENIED',status:400});
+    return {pilotId:pilot,pieceId:'piece-1',threadId:thread,sourceCurrent,scenario:{screenText:'Exact retained copy'}};
+  });env.rows.NativeClipPreproductionServiceV1={open};
+  const chosen=await env.threads.patchWorkspace(identity,'thread-1',{workContext:target('piece',{id:'piece-1',clipPilotId:'pilot-1'}),artifacts:[ref],activeArtifact:ref});
+  expect(chosen.workspace.activeArtifact).toEqual(ref);
+  sourceCurrent=false;
+  const restored=(await env.threads.history(identity,'thread-1')).workspace;
+  expect(restored.activeArtifact).toEqual(chosen.workspace.activeArtifact);
+  expect(restored.workContext).toBeNull();
+  const staleSelection=await env.threads.patchWorkspace(identity,'thread-1',{workContext:target('piece',{id:'piece-1',clipPilotId:'pilot-1'}),artifacts:[ref],activeArtifact:ref});
+  expect(staleSelection.workspace.workContext).toBeNull();
+  expect(staleSelection.workspace.activeArtifact.clipPilotId).toBe('pilot-1');
+  await expect(env.resolver.resolve(identity,target('piece',{id:'piece-1',clipPilotId:'pilot-1'}),{threadId:'thread-1'})).rejects.toMatchObject({status:409});
+  env.memory.updateThread.mockClear();
+  for(const [who,scope] of [[identity,{}],[identity,{threadId:'another-chat'}],[{...identity,userId:'other-user'},{threadId:'thread-1'}],[{...identity,organizationId:'another-org'},{threadId:'thread-1'}]])
+    await expect(env.resolver.validateArtifact(who,ref,scope)).rejects.toBeDefined();
+  await expect(env.resolver.validateArtifact(identity,{...ref,pieceId:'tampered-piece'},{threadId:'thread-1'})).rejects.toMatchObject({status:404});
+  await expect(env.threads.patchWorkspace(identity,'thread-2',{artifacts:[ref],activeArtifact:ref})).rejects.toBeDefined();
+  expect(env.memory.updateThread).not.toHaveBeenCalled();
+  expect(env.aiUsage.beginAiOperation).not.toHaveBeenCalled();
+  expect(env.stream).not.toHaveBeenCalled();
 });

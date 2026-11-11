@@ -38,7 +38,7 @@ module.exports = {
     const [ask, no, askAgain, yes] = run.turns;
     const reason =
       // The text that goes out, quoted (review W2 F4).
-      'Опубликовать сейчас пост заготовки cnt-1 в канале «Канал про работу»: он уйдёт в канал сразу. «Текст поста.»';
+      'Опубликовать сейчас пост черновика cnt-1 в канале «Канал про работу»: он уйдёт в канал сразу. «Текст поста.»';
     expect(ask.approvals).toEqual([expect.objectContaining({ toolName: 'plan_publish_now', reason })]);
     expect(askAgain.approvals).toEqual([expect.objectContaining({ toolName: 'plan_publish_now', reason })]);
     // Nothing reached the door before «Да», and «Нет» changed nothing.

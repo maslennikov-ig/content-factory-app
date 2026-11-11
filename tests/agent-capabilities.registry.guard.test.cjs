@@ -157,7 +157,14 @@ describe('agent capability registry', () => {
     // …and the reads still reach every member, but the AI settings: their
     // doors are the administrator's (kcxz.20); and the cliché check, whose
     // door is the editor's — a reader has no draft to check (kcxz.24).
-    const notForEveryone = (entry) => entry.id.startsWith('campaign.') || entry.id==='source.resolve_artifact' || entry.id==='channel.editorial_profile' || ['video.personal_assets','video.personal_readiness'].includes(entry.id) || entry.id==='video.production_open' || entry.id==='video.preproduction_open' || entry.id==='helixa.read' || entry.group === 'ai-settings' || entry.id === 'text.slop_check';
+    const editorReads = new Set([
+      'source.resolve_artifact', 'channel.editorial_profile', 'video.personal_assets', 'video.avatar_consent_status',
+      'video.personal_readiness', 'video.production_open', 'video.preproduction_open', 'helixa.read', 'text.slop_check',
+      'video.person_profiles', 'video.person_profile_resolve', 'video.person_profile_propose', 'video.heygen_options_v1',
+      'video.performance_v1', 'video.performance_scenes_v1', 'video.performance_feedback_read_v1',
+      'video.performance_feedback_correction_v1', 'video.heygen_style_status', 'video.heygen_voice_status',
+    ]);
+    const notForEveryone = (entry) => entry.id.startsWith('campaign.') || entry.group === 'ai-settings' || editorReads.has(entry.id);
     for (const capability of byClass('read').filter((entry) => !notForEveryone(entry) && (!entry.entrances || entry.entrances.includes('chat')))) {
       expect(offered.has(registry.toolNameOf(capability.id))).toBe(true);
     }
@@ -290,14 +297,14 @@ describe('F1, F16: an approval card says what and where, for exactly the call (r
     const describe = (identity, args) =>
       registry.describeApprovalCall(catalogue, services, identity, 'piece_delete', args);
     expect(await describe(IDENTITY, { pieceId: 'p1' })).toBe(
-      'Удалить заготовку cnt-01 «Про созвоны» вместе с её адаптациями'
+      'Удалить черновик cnt-01 «Про созвоны» вместе с его адаптациями'
     );
     expect(await describe({ ...IDENTITY, language: 'en' }, { pieceId: 'p1' })).toBe(
       'Delete piece cnt-01 “Про созвоны” with its adaptations'
     );
     // Another workspace's piece is not found from this one.
     expect(await describe({ ...IDENTITY, organizationId: 'org-2' }, { pieceId: 'p1' })).toMatch(
-      /^Удалить заготовку p1 — в этом пространстве её нет/
+      /^Удалить черновик p1 — в этом пространстве его нет/
     );
     // Arguments the schema refuses, a failing read and a non-confirm tool.
     expect(await describe(IDENTITY, { pieceId: '' })).toBeNull();
@@ -315,7 +322,7 @@ describe('F1, F16: an approval card says what and where, for exactly the call (r
     const describe = (identity, args) =>
       registry.describeApprovalCall(catalogue, services, identity, 'adaptation_delete', args);
     expect(await describe(IDENTITY, { pieceId: 'p1', adaptationId: 'a1' })).toBe(
-      'Удалить адаптацию заготовки cnt-01 для канала «Канал про работу» вместе с её черновиком'
+      'Удалить адаптацию черновика cnt-01 для канала «Канал про работу» вместе с её черновиком'
     );
     expect(await describe(IDENTITY, { pieceId: 'p1', adaptationId: 'a9' })).toMatch(
       /^Удалить адаптацию a9 — в этом пространстве её нет/

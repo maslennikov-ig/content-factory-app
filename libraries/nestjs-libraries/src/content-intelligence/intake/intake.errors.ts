@@ -90,7 +90,7 @@ export const INTAKE_LINK_UNREACHABLE_MESSAGES = {
  * называется вслух, а не остаётся между строк.
  */
 export const PIECE_NOT_SAVED_MESSAGES = {
-  ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
+  ru: 'Черновик не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
   en: 'The piece could not be saved. Nothing is lost — try again.',
 } as const;
 

@@ -406,12 +406,12 @@ describe('«Ссылка для поста» in the post settings', () => {
     });
   };
 
-  test('prefilled from the piece’s answer, muted «как в заготовке», with its «?»', () => {
+  test('prefilled from the piece’s answer, muted «как в черновике», with its «?»', () => {
     const seen = [];
     wrap(React.createElement(Harness, { pieceLink: { url: 'https://piece.example/a' }, seen }));
     const field = screen.getByLabelText('Ссылка для поста');
     expect(field.value).toBe('https://piece.example/a');
-    expect(screen.getByText('как в заготовке')).toBeTruthy();
+    expect(screen.getByText('как в черновике')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Подсказка: Ссылка для поста' })).toBeTruthy();
     expect(seen).toEqual([]);
   });
@@ -430,21 +430,21 @@ describe('«Ссылка для поста» in the post settings', () => {
     );
     // One icon with a tooltip goes back to the answer (`97dq.78`), and it
     // is there only while the field differs from the piece.
-    const restore = screen.getByRole('button', { name: 'Вернуть ссылку из заготовки' });
-    expect(restore.getAttribute('title')).toBe('Вернуть ссылку из заготовки');
+    const restore = screen.getByRole('button', { name: 'Вернуть ссылку из черновика' });
+    expect(restore.getAttribute('title')).toBe('Вернуть ссылку из черновика');
     fireEvent.click(restore);
     expect(seen[seen.length - 1].link).toBe('');
     expect(field.value).toBe('https://piece.example/a');
-    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из заготовки' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из черновика' })).toBeNull();
   });
 
   test('a half-typed address is not saved; a cleared field is `none` (97dq.78)', () => {
     const seen = [];
     wrap(React.createElement(Harness, { pieceLink: { url: 'https://piece.example/a' }, seen }));
-    // No «Без ссылки» / «Как в заготовке» buttons any more.
+    // No «Без ссылки» / «Как в черновике» buttons any more.
     expect(screen.queryByRole('button', { name: 'Без ссылки' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Как в заготовке' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из заготовки' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Как в черновике' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из черновика' })).toBeNull();
     const field = screen.getByLabelText('Ссылка для поста');
     fireEvent.change(field, { target: { value: 'https://' } });
     expect(seen).toEqual([]);

@@ -1,3 +1,4 @@
+import { AGENT_CHAT_MODE_CONTEXT_KEY, AGENT_MATERIAL_FORMAT_CONTEXT_KEY, explicitMaterialFormats, type AgentChatMode } from './chat-mode';
 import { randomUUID } from 'node:crypto';
 import { CONDUCTOR_MODEL_TASK_KEY } from './conductor.model-task';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import {
   capabilityContextSchema,
   grantApproval,
   originalAuthorRequestSchema,
+  readOriginalAuthorRequest,
   seedCapabilityContext,
   setOpenProposals,
 } from '../capabilities/capability.context';
@@ -86,11 +88,15 @@ export const conductorMessageAuthor = (
 export const CONDUCTOR_REQUEST_ID_KEY = 'cf.requestId';
 /** This web request tracks its real capability Promises through Stop. */
 export const CONDUCTOR_EXECUTION_ID_KEY = 'cf.executionId';
+export const CONDUCTOR_EXECUTOR_MODEL_ID_KEY = 'cf.executorModelId';
 
 export const CONDUCTOR_CONTEXT_KEYS: readonly string[] = [
   ...Object.values(CAPABILITY_CONTEXT_KEYS),
   CONDUCTOR_REQUEST_ID_KEY,
+  AGENT_CHAT_MODE_CONTEXT_KEY,
+  AGENT_MATERIAL_FORMAT_CONTEXT_KEY,
   CONDUCTOR_EXECUTION_ID_KEY,
+  CONDUCTOR_EXECUTOR_MODEL_ID_KEY,
   AGENT_WORK_CONTEXT_KEY,
   AGENT_WRITING_SELECTION_KEY,
   CONDUCTOR_MODEL_TASK_KEY,
@@ -119,6 +125,9 @@ export const conductorContextSchema = capabilityContextSchema
     [MASTRA_THREAD_ID_KEY]: z.string().min(1),
     [AGENT_WORK_CONTEXT_KEY]: z.string().max(AGENT_WORK_CONTENT_MAX_CHARS + 2_000).optional(),
     [AGENT_WRITING_SELECTION_KEY]: z.string().max(4_000).optional(),
+    [AGENT_CHAT_MODE_CONTEXT_KEY]: z.enum(['collaborative', 'autopilot']).optional(),
+    [CONDUCTOR_EXECUTOR_MODEL_ID_KEY]: z.string().min(1).max(500).optional(),
+    [AGENT_MATERIAL_FORMAT_CONTEXT_KEY]: z.string().max(300).optional(),
     [MASTRA_SCOPES_KEY]: z.array(z.string().min(3)).optional(),
     [MASTRA_MESSAGE_AUTHOR_KEY]: messageAuthorSchema.optional(),
   })
@@ -182,8 +191,47 @@ export type ConductorTurn = {
   trackExecution?: boolean;
   workContext?: ResolvedAgentWorkContext | null;
   writingSelection?: ResolvedAgentWritingSelection;
+  chatMode?: AgentChatMode;
   /** Only the current message accepted by the server door, never client history. */
   originalAuthorRequest?: OriginalAuthorRequest;
+  /** Verified source/selection for this exact continuing material task only. */
+  materialContext?: MaterialRequestContext;
+};
+
+const materialRequestContextSchema = z.object({
+  originalAuthorRequest: originalAuthorRequestSchema,
+  materialFormats: z.array(z.string().min(1).max(40)).max(12),
+}).strict();
+export type MaterialRequestContext = z.infer<typeof materialRequestContextSchema>;
+export const parseMaterialRequestContext = (value: unknown): MaterialRequestContext | undefined => {
+  const parsed = materialRequestContextSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+};
+type MaterialContextReader = {get?: (key: string) => unknown};
+export const materialRequestContextOf = (context: MaterialContextReader | RequestContext<unknown>): MaterialRequestContext | undefined => {
+  // Mastra's untyped persisted contexts expose get<never>; these two known
+  // application keys still use the same runtime reader.
+  const reader = context as MaterialContextReader;
+  const author = readOriginalAuthorRequest(reader);
+  try {
+    return parseMaterialRequestContext({ originalAuthorRequest: author,
+      materialFormats: JSON.parse(String(reader.get?.(AGENT_MATERIAL_FORMAT_CONTEXT_KEY) ?? '[]')) });
+  } catch { return undefined; }
+};
+
+/** Called only after the server verifies the exact saved human question card. */
+export const materialContextAfterAnswer = (context: MaterialRequestContext | undefined, payload: any, response: any) => {
+  if (!context || !payload) return context;
+  const questions = payload.kind === 'question-batch' ? payload.questions : [payload];
+  const answers = payload.kind === 'question-batch' ? response?.answers : [response];
+  if (!Array.isArray(questions) || !Array.isArray(answers)) return context;
+  const replies = questions.flatMap((question, index) => {
+    if (question?.questionPurpose !== 'format') return [];
+    const value = answers[index];
+    const answer = typeof value === 'string' || Array.isArray(value) ? value : value?.answer;
+    return typeof answer === 'string' ? [answer] : Array.isArray(answer) ? answer : [];
+  });
+  return replies.length ? { ...context, materialFormats: [...new Set(replies.flatMap(explicitMaterialFormats))] } : context;
 };
 
 /**
@@ -194,9 +242,14 @@ export type ConductorTurn = {
 export const buildConductorContext = (turn: ConductorTurn) => {
   const context = new RequestContext<Record<string, unknown>>();
   seedCapabilityContext(context, turn.identity);
-  if (turn.originalAuthorRequest) {
+  context.set(AGENT_CHAT_MODE_CONTEXT_KEY, turn.chatMode ?? 'collaborative');
+  const material = parseMaterialRequestContext(turn.materialContext);
+  const explicitFormats = explicitMaterialFormats(turn.originalAuthorRequest?.text ?? '');
+  context.set(AGENT_MATERIAL_FORMAT_CONTEXT_KEY, JSON.stringify(explicitFormats.length ? explicitFormats : material?.materialFormats ?? []));
+  const author = material?.originalAuthorRequest ?? turn.originalAuthorRequest;
+  if (author) {
     context.set(CAPABILITY_CONTEXT_KEYS.originalAuthorRequest,
-      JSON.stringify(originalAuthorRequestSchema.parse(turn.originalAuthorRequest)));
+      JSON.stringify(originalAuthorRequestSchema.parse(author)));
   }
   context.set(
     MASTRA_RESOURCE_ID_KEY,

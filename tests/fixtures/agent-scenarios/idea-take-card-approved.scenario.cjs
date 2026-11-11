@@ -24,7 +24,7 @@ module.exports = {
     expect(asked.approvals).toHaveLength(1);
     expect(asked.approvals[0]).toMatchObject({
       toolName: 'ideas_take',
-      reason: 'Взять в работу повод «Удалёнка и найм: итоги квартала»: он уйдёт из очереди, и по нему напишем заготовку',
+      reason: 'Взять в работу повод «Удалёнка и найм: итоги квартала»: он уйдёт из очереди, и по нему напишем черновик',
     });
     expect(asked.outputs.map((one) => one.toolName)).toEqual(['ideas_queue']);
     expect(approved.outputs).toEqual([

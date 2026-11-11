@@ -13,6 +13,7 @@ import {
   type AgentMessage,
   type AgentWorkContextV1,
   type AgentWritingSelection,
+  type AgentChatMode,
   readAgentWritingSelection,
 } from './agent.contract';
 import { assistantContextKey } from './assistant.route-context';
@@ -93,6 +94,7 @@ export const createAgentTransport = ({
   currentThread,
   currentContext,
   currentWritingSelection,
+  currentChatMode,
   prepareWritingSelection,
   onThread,
   onNotStarted,
@@ -106,6 +108,7 @@ export const createAgentTransport = ({
   /** Read at send time so manual navigation never captures an old object. */
   currentContext?: () => AgentWorkContextV1 | null | undefined;
   currentWritingSelection?: () => AgentWritingSelection | undefined;
+  currentChatMode?: () => AgentChatMode;
   prepareWritingSelection?: (selection: AgentWritingSelection | undefined) => void | Promise<void>;
   /** The server named the thread in `AGENT_THREAD_HEADER`. */
   onThread: (id: string) => void;
@@ -157,6 +160,8 @@ export const createAgentTransport = ({
       },
       body: buildChatBody({
         threadId: currentThread(),
+        chatMode: currentChatMode?.(),
+        continueFromRequestId: typeof body?.continueFromRequestId === 'string' ? body.continueFromRequestId : undefined,
         messages,
         // An answer on an approval card further up names its message (N1).
         messageId,

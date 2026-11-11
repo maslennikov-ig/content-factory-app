@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-ekqe.22.5",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-ekqe.22.5",
+  "source_digest": "5a0249ec313d66ea23af10b4ffa084edc970d358055a89fcc70037310d449603",
+  "criteria": [
+    {
+      "criterion_id": "content-factory-next-ekqe.22.5",
+      "text_digest": "83df2ee1704e006458d6bda8db4fe7bd07a9dd563860f7097e0be8715baa5c13",
+      "text": "Integrate and deploy the owner-accepted native HeyGen changes\nDeliver the approved presenter controls and dependent chat changes on current main. Preserve the original preview and private material. New paid provider calls, new provider connections and real social publication are outside this delivery.\n\n## Acceptance Criteria\n- Exact integrated candidate passes the release checks, including approval, scope, isolation and upload regressions.\n- Public source and image match the tested candidate and public CI passes.\n- Verify production schema compatibility and live runtime, record rollback limits, and clean up release-owned intermediates."
+    }
+  ]
+}

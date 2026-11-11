@@ -541,6 +541,8 @@
   "assistant_context": "კონტექსტი",
   "assistant_context_help_label": "რას აკეთებს ეს არჩევანი?",
   "assistant_context_help": "ეს ობიექტი ასისტენტისთვის გაგზავნილ შემდეგ შეტყობინებას ერთვის. მიბმის მოხსნა მხოლოდ კავშირს აუქმებს; ჩატის ისტორია და თავად ობიექტი ინახება.",
+  "assistant_draft_waiting_review": "მონახაზი თქვენს შემოწმებას ელოდება. ცვლილებების მიღებამდე გადაამოწმეთ ტექსტი ბარათში.",
+  "assistant_review_draft": "მონახაზის შემოწმება",
   "assistant_draft_review_title": "შემოთავაზებული ვარიანტი",
   "assistant_accept_draft": "მიღება",
   "assistant_keep_draft": "მიმდინარე ტექსტის დატოვება",

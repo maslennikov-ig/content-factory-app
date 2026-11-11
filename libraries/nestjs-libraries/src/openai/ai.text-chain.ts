@@ -1973,6 +1973,7 @@ const runAttempt = async (
   const deadline = attemptSignal(outer, waitMs);
   const startedAt = Date.now();
   let handedOff = false;
+  let responseBytesSeen = false;
   /** Which deadline is running: the start of the answer, or the body. */
   let phase: 'start' | 'body' = 'start';
   const cap = CAP_KEYS.map((key) => body[key]).find(
@@ -2000,6 +2001,13 @@ const runAttempt = async (
     const surfaced = deadline.state.timedOut ? new AttemptTimeout() : error;
     if (last || isOpenRouterChatUrl(urlOf(input))) {
       ledger?.record(failedCall(attempt, true));
+      // Native Mastra retries only this LLM step. A completely silent stream
+      // deadline may retry under that policy; billing remains unknown. Keep
+      // JSON, transport resets and every observed payload non-replayable.
+      if (singleModelAttempt && streaming && phase === 'start' && deadline.state.timedOut &&
+        !responseBytesSeen && isOpenRouterChatUrl(urlOf(input))) {
+        throw Object.assign(surfaced, { textAttemptNoOutputTimeout: true });
+      }
       // No provider refusal arrived. A second paid call could duplicate an
       // accepted request, even if the client has not seen its first token.
       throw isOpenRouterChatUrl(urlOf(input)) ? nonReplayableTextError(surfaced) : surfaced;
@@ -2130,6 +2138,7 @@ const runAttempt = async (
         ended = true;
         break;
       }
+      responseBytesSeen ||= chunk.value.byteLength > 0;
       held.push(chunk.value);
       observer.push(chunk.value);
       if (observer.nonReplayable && isOpenRouterChatUrl(urlOf(input))) {

@@ -735,6 +735,8 @@
   "assistant_context": "コンテキスト",
   "assistant_context_help_label": "この選択は何に使われますか？",
   "assistant_context_help": "この項目は、アシスタントへの次のメッセージに含まれます。対象を解除すると関連付けだけが外れ、チャット履歴と項目自体は保持されます。",
+  "assistant_draft_waiting_review": "下書きは確認待ちです。変更を承認する前に、カードで内容を確認してください。",
+  "assistant_review_draft": "下書きを確認",
   "assistant_draft_review_title": "提案された原稿",
   "assistant_accept_draft": "適用",
   "assistant_keep_draft": "現在の文章を維持",

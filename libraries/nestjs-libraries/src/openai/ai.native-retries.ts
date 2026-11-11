@@ -129,6 +129,7 @@ export const isTransientNativeTextError = (error: unknown, configuredFlex = fals
     (!inFlightBudget && terminalBillingMessage.test(String(value.message ?? ''))))) return false;
   return chain.some(value => isTextAvailabilityStatus(Number(value.statusCode ?? value.status)) ||
     configuredFlex && isFlexEndpointCapacityRefusal(Number(value.statusCode ?? value.status), String(value.message ?? '')) ||
+    value.textAttemptNoOutputTimeout === true ||
     value.isRetryable === true || value.name === 'AttemptTimeout' ||
     (value.isRetryable !== false && (
       // Mastra emits this only for an `other` finish with no step content.
@@ -234,13 +235,14 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       // A provider refusal proves no output was served. A transport reset or
       // client deadline after dispatch does not prove the call was unbilled.
       const transient = isTransientNativeTextError(args.error, configuredFlex);
+      const noOutputTimeout = transient && nativeErrorChain(args.error).some(error => error.textAttemptNoOutputTimeout === true);
       const tierFailure = configuredFlex && transient &&
         nativeErrorChain(args.error).some(error => {
           const status = Number(error.statusCode ?? error.status);
           return isTextAvailabilityStatus(status) ||
             isFlexEndpointCapacityRefusal(status, String(error.message ?? ''));
         });
-      if (!transient || configuredFlex && !tierFailure) {
+      if (!transient || configuredFlex && !tierFailure && !noOutputTimeout) {
         // Native model fallback otherwise walks every key/model even on auth,
         // consent, invalid input, or exhausted quota. Stop before its next call.
         const terminal = nativeTerminalProviderError(args.error);
@@ -251,7 +253,7 @@ export const createNativeTextRetryConfig = (options?: NativeTextRetryHooks & {
       const retries = getNativeTextMaxRetries(args.requestContext, options?.defaultMaxRetries);
       const offset = typeof args.state.nativeRetryOffset === 'number' ? args.state.nativeRetryOffset : 0;
       const relativeRetryCount = Math.max(0, args.retryCount - offset);
-      if (configuredFlex) {
+      if (configuredFlex && tierFailure) {
         if (relativeRetryCount >= Math.min(1, retries)) return;
         args.state.nativeDefaultTierModel = args.state.nativeRetryModel;
       }

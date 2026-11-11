@@ -25,14 +25,15 @@ export function VideoApprovalDetailsV2({ approval }: { approval: VideoApprovalUi
     [accessWords.access, access.kind === 'subscription' ? accessWords.subscription : words.payer + ': ' + (access.kind === 'api' && access.payer === 'included' ? words.included : words.workspaceKey)],
     [words.route, `${settings.provider} / ${settings.model}`], [words.locale, settings.locale], [words.ratio, settings.aspectRatio], [words.duration, String(settings.duration)],
     ...(settings.resolution ? [[words.resolution, settings.resolution] as [string, string]] : []),
-    ...(settings.avatarId ? [[words.avatar, settings.avatarId] as [string, string]] : []), ...(settings.voiceId ? [[words.voice, settings.voiceId] as [string, string]] : []),
+    ...(settings.avatarId ? [[words.avatar, approval.selection?.avatar ?? settings.avatarId] as [string, string]] : []), ...(settings.voiceId ? [[words.voice, approval.selection?.voice ?? settings.voiceId] as [string, string]] : []),
     ...(settings.engine ? [[words.engine, settings.engine] as [string, string]] : []),
     [words.scriptPolicy, brief.scriptPolicy === 'exact' ? words.exact : words.adaptable],
-    [words.estimate, `${quote.amount} ${unit(quote.unit)}`], [accessWords.quoteSource, quote.source], [accessWords.quoteAsOf, quote.asOf], [accessWords.quoteExpires, approval.expiresAt],
+    [words.estimate, quote.amount === null ? words.unknown : `${quote.amount} ${unit(quote.unit)}`],
+    ...(!approval.unknownPrice ? [[accessWords.quoteSource, quote.source] as [string, string]] : []), [approval.unknownPrice ? accessWords.balanceAsOf : accessWords.quoteAsOf, quote.asOf], [accessWords.quoteExpires, approval.expiresAt],
     ...(quote.upperBound != null ? [[accessWords.upperBound, `${quote.upperBound} ${unit(quote.unit)}`] as [string, string]] : []),
-    ...(approval.perJob !== null ? [[access.kind === 'subscription' ? accessWords.jobLimit : words.maxCost, `${approval.perJob} ${unit(quote.unit)}`] as [string, string]] : []),
+    ...(!approval.unknownPrice && approval.perJob !== null ? [[access.kind === 'subscription' ? accessWords.jobLimit : words.maxCost, `${approval.perJob} ${unit(quote.unit)}`] as [string, string]] : []),
     ...(approval.perMonth !== null ? [[accessWords.monthLimit, `${approval.perMonth} ${unit(quote.unit)}`] as [string, string]] : []),
-    ...(approval.remaining !== null ? [[accessWords.remaining, `${approval.remaining} ${unit(quote.unit)}`] as [string, string]] : []),
+    ...(approval.remaining !== null ? [[approval.unknownPrice ? accessWords.subscriptionBalance : accessWords.remaining, `${approval.remaining} ${unit(quote.unit)}`] as [string, string]] : []),
     ...(access.kind === 'subscription' ? [[accessWords.account, `${access.connectionId} · v${approval.accountGeneration}`] as [string, string]] : []),
   ];
   return <section className="flex min-w-0 flex-col gap-[12px]" aria-label={words.reviewSnapshot} data-video-approval-v2={approval.id}>
@@ -46,7 +47,7 @@ export function VideoApprovalDetailsV2({ approval }: { approval: VideoApprovalUi
       {!!brief.avoidImplications.length && <p className="whitespace-pre-wrap break-words cf-body-sm">{words.avoid}: {brief.avoidImplications.join('\n')}</p>}
       {!!brief.referenceMediaIds.length && <p className="break-all cf-caption">{words.references}: {brief.referenceMediaIds.join(', ')}</p>}
     </div>
-    <p className="cf-body-sm text-cf-ink-muted">{words.quoteNote}</p><p className="cf-body-sm text-cf-ink-muted">{words.paymentNote}</p>
+    {!approval.unknownPrice && <p className="cf-body-sm text-cf-ink-muted">{words.quoteNote}</p>}<p className="cf-body-sm text-cf-ink-muted">{words.paymentNote}</p>
   </section>;
 }
 

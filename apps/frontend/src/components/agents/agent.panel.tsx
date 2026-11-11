@@ -7,6 +7,7 @@ import { useInterfaceLanguage } from '@contentfactory/react/translation/use-inte
 import { OpeningBand } from '@contentfactory/react/layout';
 import { Progress } from '@contentfactory/frontend/components/ui/progress';
 import { SkeletonRows } from '@contentfactory/frontend/components/ui/surface';
+import { ClipPreproductionCard } from './agent.preproduction-card';
 import { useFocusTrap } from '@contentfactory/frontend/components/ui/use-focus-trap';
 import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 import {
@@ -135,6 +136,11 @@ export function ArtifactEditor({
     return <AgentWorkspaceBrowserContent words={words} initialKind={artifact.kind === 'channels' ? 'channel' : 'piece'} onSelect={onSelectArtifact ?? ((selected) => window.location.assign(artifactHref(selected)))} />;
   }
   if (artifact.kind === 'piece') {
+    const clipPilotId = textOf(artifact.data.clipPilotId);
+    if (clipPilotId) return <ClipPreproductionCard key={clipPilotId} readOnly
+      preproduction={{id: clipPilotId, pieceId: artifact.id, threadId: textOf(artifact.data.clipThreadId) ?? chatThreadId ?? ''}}
+      threadId={chatThreadId ?? null}
+      onOpenSource={() => onSelectArtifact?.({kind: 'piece', id: artifact.id, title: null, code: null, data: {pieceId: artifact.id}})} />;
     return <PieceContainer key={artifact.id} pieceId={artifact.id} embedded />;
   }
   if (artifact.kind === 'adaptation' || artifact.kind === 'plan') {
@@ -190,7 +196,7 @@ export function ArtifactEditor({
   if (artifact.kind === 'media') {
     const videoJobId = textOf(artifact.data.videoJobId);
     const videoDraftId = textOf(artifact.data.videoDraftId);
-    if (videoJobId || videoDraftId) return <VideoWorkspace embedded key={`${videoJobId ?? ''}:${videoDraftId ?? ''}`} jobId={videoJobId ?? undefined} draftId={videoDraftId ?? undefined} pieceId={textOf(artifact.data.pieceId) ?? undefined} chatThreadId={chatThreadId ?? undefined} onBindChatVideo={onBindChatVideo} />;
+    if (videoJobId || videoDraftId) return <VideoWorkspace embedded key={`${videoJobId ?? ''}:${videoDraftId ?? ''}:${textOf(artifact.data.videoPersonalConnectionId) ?? ''}`} jobId={videoJobId ?? undefined} draftId={videoDraftId ?? undefined} pieceId={textOf(artifact.data.pieceId) ?? undefined} personalConnectionId={textOf(artifact.data.videoPersonalConnectionId) ?? undefined} chatThreadId={chatThreadId ?? undefined} onBindChatVideo={onBindChatVideo} />;
     // «Медиатека» itself (`kcxz.25`), as its page shows it: newest first, so a
     // picture the chat generated or the composer uploaded is the first one.
     return <MediaBox standalone setMedia={keepMedia} closeModal={keepMedia} />;

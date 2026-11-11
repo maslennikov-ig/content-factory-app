@@ -16,6 +16,8 @@ export type MediaReadOptions = {
   idleTimeoutMs?: number;
   totalTimeoutMs?: number;
   range?: string;
+  localIfRange?: string;
+  localMetadataOnly?: boolean;
 };
 export type MediaSourceV1 = {
   stream: Readable;
@@ -26,6 +28,12 @@ export type MediaSourceV1 = {
   modifiedAt?: Date;
   close: () => void;
 };
+
+export class UnsatisfiableLocalMediaRange extends Error {
+  constructor(readonly size: number) {
+    super('MEDIA_RANGE_INVALID');
+  }
+}
 
 /** An object key is decoded exactly once, before resolving any filesystem path. */
 export function safeMediaObjectKey(value: string): string {
@@ -133,12 +141,20 @@ export async function readMediaSource(source: string, options: MediaReadOptions 
       size = fileStat.size; modifiedAt = fileStat.mtime;
       if (size > maxBytes) { await file.close(); throw new Error('MEDIA_TOO_LARGE'); }
       let start: number | undefined, end: number | undefined;
-      if (options.range) {
+      if (options.localMetadataOnly) {
+        await file.close();
+        clearTimeout(total);
+        return { stream: Readable.from([]), size, status, modifiedAt, close };
+      }
+      if (options.range && (!options.localIfRange || options.localIfRange === modifiedAt.toUTCString())) {
         const [, first, last] = /^bytes=(\d*)-(\d*)$/.exec(options.range)!;
         const totalSize = size;
         start = first ? Number(first) : Math.max(0, totalSize - Number(last));
         end = first && last ? Math.min(Number(last), totalSize - 1) : totalSize - 1;
-        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= totalSize) { await file.close(); throw new Error('MEDIA_RANGE_INVALID'); }
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= totalSize) {
+          await file.close();
+          throw new UnsatisfiableLocalMediaRange(totalSize);
+        }
         contentRange = `bytes ${start}-${end}/${totalSize}`;
         size = end - start + 1; status = 206;
       }

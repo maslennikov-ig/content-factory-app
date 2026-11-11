@@ -10,12 +10,12 @@ global.IS_REACT_ACT_ENVIRONMENT = true;
 const { act, cleanup, fireEvent, render, within, waitFor } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
-const { readThreadHistory } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
+const { readThreadHistory, savedResearchContinuation, nativeTurnTimedOut } = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts');
 const words = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts').agentCopy.ru;
 const h = React.createElement;
 afterEach(() => { cleanup(); window.sessionStorage.clear(); });
 
-function fixture({ status = 'ready', initialMessages = [], initialExecution, pending = [], signalResult = { accepted: true, durability: 'native' }, historyResult, chatResponse } = {}) {
+function fixture({ status = 'ready', initialMessages = [], initialExecution, pending = [], signalResult = { accepted: true, durability: 'native' }, historyResult, chatResponse, composerDraft } = {}) {
   const calls = [];
   let config;
   let transport;
@@ -72,6 +72,7 @@ function fixture({ status = 'ready', initialMessages = [], initialExecution, pen
     './agent.threads': { THREADS_KEY: '/agent/threads' },
     './agent.transport': { isAgentRequestNotStarted: () => false, createAgentTransport: options => { transport = options; return nativeTransport ? nativeTransport(options) : {}; }, screenTimeZone: () => 'Europe/Moscow' },
     './agent.composer': { AgentComposer: ({ onSubmit, onStop, queued, recovery, busy }) => h('div', { 'data-queued': queued, 'data-composer-busy': busy },
+      composerDraft !== undefined ? h('textarea', { 'aria-label': 'Unsent message', defaultValue: composerDraft }) : null,
       recovery ? h('output', { 'data-composer-recovery': recovery.kind }, recovery.text) : null,
       h('button', { onClick: () => void onSubmit({ text: 'Дополнительное указание', files: [] }) }, 'Send instruction'),
       h('button', { onClick: onStop }, 'Explicit Stop')) },
@@ -441,6 +442,97 @@ test('a native pending question arriving in the mounted thread restores controls
   } } });
 });
 
+const draftReviewCall = { runId: 'draft-review-run', toolCallId: 'draft-review-call', toolName: 'piece_rewrite' };
+const draftReviewQuestion = {
+  kind: 'selection', cardId: 'draft-review-card', question: 'Проверьте предложенные изменения', answerKey: 'changeIds',
+  canDecideForPerson: false,
+  options: [{ id: 'change-intro', label: 'Новое начало', selected: true }, { id: 'change-ending', label: 'Новый вывод', selected: false }],
+  fullPreview: { title: 'Предложенный полный черновик', text: 'Полное новое начало.\n\nСохранённый основной текст.\n\nТочный новый вывод.' },
+};
+const draftReviewPart = { type: 'tool-piece_rewrite', toolCallId: draftReviewCall.toolCallId, title: 'Правка черновика', state: 'input-available', input: {} };
+const draftReviewPending = { ...draftReviewCall, kind: 'question', suspendPayload: draftReviewQuestion, summary: null };
+const draftReviewExecution = { requestId: 'draft-review-request', runId: draftReviewCall.runId, state: 'running' };
+
+test.each([true, false])('a saved draft review is visible and actionable after reload and steering while the native owner remains running (full preview: %s)', async fullPreview => {
+  const payload = fullPreview ? draftReviewQuestion : { ...draftReviewQuestion, fullPreview: undefined };
+  const asked = { id: 'draft-review-message', role: 'assistant', parts: [draftReviewPart] };
+  const instruction = { id: 'draft-review-steering', role: 'user', parts: [{ type: 'text', text: 'Поясните, почему выбрали это начало.' }] };
+  const messages = [human, asked, instruction];
+  const pending = [{ ...draftReviewPending, suspendPayload: payload }];
+  const f = fixture({ initialMessages: messages, initialExecution: draftReviewExecution, pending,
+    historyResult: { messages, pending, execution: draftReviewExecution } });
+  await act(async () => render(h(f.Component, f.props)));
+  const body = within(document.body);
+  expect(body.getByText('The draft is waiting for your review. Review it in the card before accepting any changes.')).toBeTruthy();
+  const jump = body.getByRole('button', { name: 'Review draft' });
+  const target = document.querySelector('[data-agent-review-card]');
+  target.scrollIntoView = jest.fn();
+  fireEvent.click(jump);
+  expect(document.activeElement).toBe(target);
+  expect(target.scrollIntoView).toHaveBeenCalledTimes(1);
+  if (fullPreview) {
+    expect(document.querySelector('[data-agent-full-preview]').textContent).toContain(draftReviewQuestion.fullPreview.text);
+    expect(body.getByRole('button', { name: 'Accept' }).disabled).toBe(false);
+    expect(body.getByRole('button', { name: 'Keep current draft' }).disabled).toBe(false);
+  }
+  expect(f.resumeStream).not.toHaveBeenCalled();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+  if (fullPreview) {
+    await act(async () => fireEvent.click(body.getByRole('button', { name: 'Accept' })));
+    expect(f.sendMessage).toHaveBeenCalledWith(undefined, { body: { resume: {
+      runId: draftReviewCall.runId, toolCallId: draftReviewCall.toolCallId, cardId: draftReviewQuestion.cardId, resumeData: { changeIds: ['change-intro', 'change-ending'] },
+    } } });
+  }
+});
+
+test('a native wait restores a missing draft review input in the same live message before the workflow settles', async () => {
+  const earlierPart = completedStep('earlier-read', 'Прочитать черновик');
+  const live = { id: 'draft-review-live', role: 'assistant', parts: [earlierPart] };
+  const saved = { ...live, parts: [earlierPart, draftReviewPart] };
+  const f = fixture({ status: 'streaming', initialMessages: [human, live], initialExecution: draftReviewExecution,
+    historyResult: { messages: [human, saved], pending: [draftReviewPending], execution: draftReviewExecution } });
+  let view;
+  await act(async () => { view = render(h(f.Component, f.props)); });
+  await act(async () => f.config().onData({ type: 'data-native-input-wait', data: { runId: draftReviewCall.runId }, transient: true }));
+  await waitFor(() => expect(document.querySelector('[data-agent-full-preview]')).not.toBeNull());
+  expect(f.stop).toHaveBeenCalledTimes(1);
+  f.setStatus('ready');
+  await act(async () => view.rerender(h(f.Component, f.props)));
+  await act(async () => f.config().onFinish({ isAbort: true, isError: false, isDisconnect: false }));
+  expect(within(document.body).getByRole('button', { name: 'Review draft' })).toBeTruthy();
+  expect(within(document.body).getByRole('button', { name: 'Accept' }).disabled).toBe(false);
+  expect(document.querySelector('[data-agent-full-preview]').textContent).toContain('Точный новый вывод.');
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test('a settled or unrelated native gate does not advertise an old draft review as actionable', async () => {
+  const asked = { id: 'old-draft-review', role: 'assistant', parts: [draftReviewPart, { type: 'data-tool-call-suspended', data: {
+    ...draftReviewCall, suspendPayload: draftReviewQuestion,
+  } }] };
+  const f = fixture({ initialMessages: [human, asked], initialExecution: { ...draftReviewExecution, state: 'settled', outcome: 'completed' } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).queryByRole('button', { name: 'Review draft' })).toBeNull();
+  expect(within(document.body).queryByRole('button', { name: 'Accept' })).toBeNull();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test('a pending draft review from another native run cannot replace the current live message or detach its observer', async () => {
+  const live = { id: 'draft-review-other-owner', role: 'assistant', parts: [completedStep('current-read', 'Текущая задача')] };
+  const saved = { ...live, parts: [...live.parts, draftReviewPart] };
+  const f = fixture({ status: 'streaming', initialMessages: [human, live], initialExecution: draftReviewExecution,
+    historyResult: { messages: [human, saved], pending: [{ ...draftReviewPending, runId: 'another-native-run' }], execution: draftReviewExecution } });
+  await act(async () => render(h(f.Component, f.props)));
+  await act(async () => {
+    f.config().onData({ type: 'data-native-input-wait', data: { runId: draftReviewCall.runId }, transient: true });
+    await new Promise(resolve => setTimeout(resolve, 20));
+  });
+  expect(document.querySelector('[data-agent-full-preview]')).toBeNull();
+  expect(f.stop).not.toHaveBeenCalled();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
 test('a native question suspension supersedes the earlier approval projection for the same call', async () => {
   const call = { runId: 'native-question-run', toolCallId: 'native-question-call', toolName: 'ask_user' };
   const question = { question: 'Какой вывод донести читателю?', questionPurpose: 'creative', canDecideForPerson: true, cardId: 'native-question-card' };
@@ -784,7 +876,8 @@ test.each(['unknown','missing-user','newer-user','running','approval'])('termina
   await act(async()=>{stream.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'error',errorText:'AGENT_FAILED'})+'\n\n'));stream.close();await f.nativeSend();});
   if(['unknown','missing-user','newer-user'].includes(boundary))expect(within(document.body).getByRole('button',{name:'Send instruction'}).closest('fieldset').disabled).toBe(true);
   if(boundary==='running')expect(document.querySelector('[data-composer-busy]').getAttribute('data-composer-busy')).toBe('true');
-  expect(document.body.textContent).not.toContain('Status refreshed: the task did not complete.');
+  expect(document.body.textContent).not.toContain(words.error.checkedFailed);
+  expect(document.body.textContent).not.toContain(words.error.checkedFailedWithReply);
   expect(f.sendMessage).toHaveBeenCalledTimes(1);expect(f.regenerate).not.toHaveBeenCalled();
   expect(f.calls.filter(call=>call.method==='POST').map(call=>call.url)).toEqual(['/agent/chat']);
 });
@@ -798,6 +891,424 @@ test('a reloaded failed task shows the retained provider category without retryi
   expect(document.body.textContent).toContain(words.error.codes.AI_PROVIDER_PAYMENT_REQUIRED.what);
   expect(f.sendMessage).not.toHaveBeenCalled();
   expect(f.resumeStream).not.toHaveBeenCalled();
+});
+
+const retainedCore = { type: 'tool-piece_core_rebuild', toolCallId: 'retained-core-call', title: 'Пересобрать суть', state: 'output-available', input: {},
+  output: { ok: true, card: { kind: 'piece', id: 'retained-current-piece', title: 'Сохранённая суть', questions: 0 } } };
+const invalidAdaptation = { type: 'tool-piece_adapt', toolCallId: 'invalid-adaptation-call', title: 'Адаптировать текст', state: 'output-available', input: {},
+  output: { ok: false, code: 'CAPABILITY_INPUT_INVALID', reason: 'Select a channel for this adaptation.' } };
+const uncertainVideo = { type: 'tool-video_prepare', toolCallId: 'uncertain-video-call', title: 'Подготовить видео', state: 'output-available', input: {},
+  output: { ok: false, code: 'CAPABILITY_OUTCOME_UNCERTAIN' } };
+
+test.each([['MATERIAL_FORMAT_REQUIRED', 'campaign_create', 'question'], ['MATERIAL_FORMAT_REQUIRED', 'campaign_create', 'success'],
+  ['CAPABILITY_INPUT_INVALID', 'campaign_plan_materials', 'success']])('a server-marked %s refusal becomes a neutral input recovery after %s (%s)', async (code, tool, followup) => {
+  const refused = { type: `tool-${tool}`, toolCallId: 'correctable-input-call', title: 'Подготовить материалы', state: 'output-available', input: tool === 'campaign_plan_materials' ? { campaignId: 'current-campaign' } : {},
+    output: { ok: false, code, canReviseInput: true } };
+  const call = { runId: 'format-question-run', toolCallId: 'format-question-call', toolName: 'ask_user' };
+  const question = { cardId: 'format-question-card', question: 'Какой формат использовать?', options: [{ label: 'Пост' }] };
+  const next = followup === 'question' ? { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'input-available', input: { question: question.question } }
+    : { ...refused, toolCallId: 'corrected-input-call', output: { ok: true } };
+  const message = { id: 'correctable-input-message', role: 'assistant', parts: [refused, next] };
+  const before = JSON.stringify(message);
+  const pending = followup === 'question' ? [{ ...call, kind: 'question', suspendPayload: question }] : [];
+  const execution = followup === 'question' ? { requestId: 'format-owner', runId: call.runId, state: 'running' }
+    : { requestId: 'format-owner', state: 'settled', outcome: 'completed' };
+  const f = fixture({ initialMessages: [human, message], initialExecution: execution, pending });
+  if (code === 'CAPABILITY_INPUT_INVALID') f.setError(new Error('CAPABILITY_INPUT_INVALID'));
+  await act(async () => render(h(f.Component, f.props)));
+  await waitFor(() => expect(document.body.textContent).toContain(followup === 'question' ? words.error.inputClarification : words.error.inputRecovered));
+  expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
+  if (followup === 'question') expect(within(document.body).getByRole('button', { name: 'Пост' }).disabled).toBe(false);
+  const blocks = loadTypeScriptModule('apps/frontend/src/components/agents/agent.contract.ts').readMessageBlocks(message, pending);
+  expect(blocks.find(block => block.type === 'error').canReviseInput).toBe(true);
+  expect(JSON.stringify(message)).toBe(before);
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test.each(['unresolved', 'uncertain', 'auth', 'unknown', 'unmarked'])('input recovery does not neutralize an %s failure', async mode => {
+  const code = mode === 'uncertain' ? 'CAPABILITY_OUTCOME_UNCERTAIN' : mode === 'auth' ? 'PERMISSION_DENIED'
+    : mode === 'unknown' ? 'UNKNOWN_NATIVE_FAILURE' : 'MATERIAL_FORMAT_REQUIRED';
+  const refused = { type: 'tool-campaign_create', toolCallId: 'retained-refusal-call', title: 'Подготовить материалы', state: 'output-available', input: {},
+    output: { ok: false, code, ...(mode === 'unmarked' ? {} : { canReviseInput: true }) } };
+  const parts = mode === 'unresolved' ? [refused] : [refused, { ...refused, toolCallId: 'later-success-call', output: { ok: true } }];
+  const f = fixture({ initialMessages: [human, { id: 'retained-refusal-message', role: 'assistant', parts }],
+    initialExecution: { requestId: 'retained-refusal-owner', state: 'settled', outcome: mode === 'unresolved' ? 'failed' : 'completed' } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(document.querySelector('[data-agent-card="error"]')).not.toBeNull();
+});
+
+test.each(['same-campaign', 'different-campaign', 'unresolved'])('legacy campaign planning input failure is neutral only after actual same-campaign success (%s)', async mode => {
+  const refused = { type: 'tool-campaign_plan_materials', toolCallId: 'legacy-plan-failed', title: 'Темы и длина материалов', state: 'output-available',
+    input: { campaignId: 'original-campaign' }, output: { ok: false, code: 'CAPABILITY_INPUT_INVALID', reason: 'Invalid planning input' } };
+  const success = { ...refused, toolCallId: 'legacy-plan-corrected', input: { campaignId: mode === 'different-campaign' ? 'other-campaign' : 'original-campaign' },
+    output: { ok: true, capability: 'campaign.plan_materials', summary: {}, card: { kind: 'campaign', id: 'original-campaign' } } };
+  const message = { id: 'legacy-plan-message', role: 'assistant', parts: mode === 'unresolved' ? [refused] : [refused, success] };
+  const before = JSON.stringify(message);
+  const f = fixture({ initialMessages: [human, message], initialExecution: { requestId: 'legacy-plan-owner', state: 'settled', outcome: mode === 'unresolved' ? 'failed' : 'completed' } });
+  await act(async () => render(h(f.Component, f.props)));
+  if (mode === 'same-campaign') {
+    await waitFor(() => expect(document.body.textContent).toContain(words.error.inputRecovered));
+    expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
+  } else expect(document.querySelector('[data-agent-card="error"]')).not.toBeNull();
+  expect(JSON.stringify(message)).toBe(before);
+  expect(refused.output.canReviseInput).toBeUndefined();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test('a corrected native ask_user SDK input failure is neutral while the real question remains actionable', async () => {
+  const call = { runId: 'corrected-sdk-run', toolCallId: 'corrected-sdk-call', toolName: 'ask_user' };
+  const question = { cardId: 'corrected-sdk-card', question: 'Какой формат выбрать?', options: [{ label: 'Пост' }] };
+  const message = { id: 'corrected-sdk-message', role: 'assistant', parts: [
+    { type: 'tool-ask_user', toolCallId: 'invalid-sdk-call', title: 'Уточнить формат', state: 'output-error', input: {}, errorText: 'Invalid ask_user input: questionPurpose' },
+    { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'input-available', input: { question: question.question } }] };
+  const f = fixture({ initialMessages: [human, message], initialExecution: { requestId: 'corrected-sdk-owner', runId: call.runId, state: 'running' },
+    pending: [{ ...call, kind: 'question', suspendPayload: question }] });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(document.querySelector('[data-agent-card="error"]')).toBeNull();
+  expect(within(document.body).getByRole('button', { name: 'Пост' }).disabled).toBe(false);
+});
+
+test('the native transport passes a checked continuation owner only for its explicit user turn', async () => {
+  const seen = [];
+  class CaptureTransport {
+    constructor(options) { this.options = options; }
+    async sendMessages(options) {
+      seen.push(await this.options.prepareSendMessagesRequest(options));
+      return new ReadableStream({ start(controller) { controller.close(); } });
+    }
+  }
+  const transport = loadWithMocks('apps/frontend/src/components/agents/agent.transport.ts', { ai: { DefaultChatTransport: CaptureTransport } })
+    .createAgentTransport({ request: async () => { throw new Error('No network needed'); }, currentThread: () => 'owned-thread', onThread: () => undefined });
+  await transport.sendMessages({ trigger: 'submit-message', messages: [human], body: { continueFromRequestId: 'checked-failed-owner' } });
+  await transport.sendMessages({ trigger: 'submit-message', messages: [human], body: {} });
+  await transport.sendMessages({ trigger: 'submit-message', messages: [human], body: { continueFromRequestId: 'not-a-question-owner',
+    resume: { runId: 'question-run', toolCallId: 'question-call', cardId: 'question-card', resumeData: { answer: 'Пост' } } } });
+  await transport.sendMessages({ trigger: 'submit-message', messages: [{ id: 'assistant-approval', role: 'assistant', parts: [] }], body: { continueFromRequestId: 'not-an-approval-owner' } });
+  expect(seen[0].body.continueFromRequestId).toBe('checked-failed-owner');
+  expect(seen.slice(1).every(request => request.body.continueFromRequestId === undefined)).toBe(true);
+});
+
+test('Continue checks the same failed owner then sends only unfinished work once while preserving the composer draft', async () => {
+  const messages = [human, { id: 'paused-saved-owner', role: 'assistant', parts: [retainedCore, invalidAdaptation] }];
+  const execution = { requestId: 'paused-saved-request', state: 'settled', outcome: 'failed' };
+  const f = fixture({ initialMessages: messages, initialExecution: execution, composerDraft: 'Несохранённый текст', historyResult: { messages, pending: [], execution } });
+  await act(async () => render(h(f.Component, f.props)));
+  const button = within(document.body).getByRole('button', { name: 'Продолжить' });
+  await act(async () => { fireEvent.click(button); fireEvent.click(button); });
+  expect(f.calls.filter(call => call.url === '/agent/threads/thread-native')).toHaveLength(1);
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.sendMessage.mock.calls[0][0]).toEqual({ text: words.error.continueMessage, files: [] });
+  expect(f.sendMessage.mock.calls[0][1].body.continueFromRequestId).toBe(execution.requestId);
+  expect(f.sendMessage.mock.calls[0][0].text).toContain('не повторяй завершённые действия');
+  expect(within(document.body).getByRole('textbox', { name: 'Unsent message' }).value).toBe('Несохранённый текст');
+  expect(f.regenerate).not.toHaveBeenCalled();
+});
+
+test('an uncertain saved effect uses Check result and never sends a continuation', async () => {
+  const messages = [human, { id: 'uncertain-saved-owner', role: 'assistant', parts: [retainedCore, uncertainVideo] }];
+  const execution = { requestId: 'uncertain-saved-request', state: 'settled', outcome: 'failed' };
+  const f = fixture({ initialMessages: messages, initialExecution: execution, historyResult: { messages, pending: [], execution } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).queryByRole('button', { name: 'Продолжить' })).toBeNull();
+  await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: 'Проверить результат' })));
+  expect(f.calls.filter(call => call.url === '/agent/threads/thread-native')).toHaveLength(1);
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.regenerate).not.toHaveBeenCalled();
+});
+
+test.each(['running', 'question', 'changed-owner', 'newer-user', 'new-uncertainty'])('Continue rereads fresh %s state instead of issuing another request', async mode => {
+  const message = { id: 'fresh-state-owner', role: 'assistant', parts: [retainedCore, invalidAdaptation] };
+  const execution = { requestId: 'fresh-state-request', state: 'settled', outcome: 'failed' };
+  const current = { messages: [human, message], pending: [], execution: { ...execution } };
+  if (mode === 'running') current.execution = { ...execution, state: 'running', runId: 'existing-live-run' };
+  if (mode === 'changed-owner') current.execution.requestId = 'newer-owner-request';
+  if (mode === 'newer-user') current.messages.push({ ...human, id: 'newer-user-request' });
+  if (mode === 'new-uncertainty') current.messages = [human, { ...message, parts: [...message.parts, uncertainVideo] }];
+  if (mode === 'question') {
+    const call = { runId: 'existing-question-run', toolCallId: 'existing-question-call', toolName: 'ask_user' };
+    const question = { cardId: 'existing-question-card', question: 'Как продолжить?', options: [{ label: 'Сохранённый результат' }] };
+    current.pending = [{ ...call, kind: 'question', suspendPayload: question }];
+    current.messages = [human, { ...message, parts: [...message.parts, { type: 'tool-ask_user', toolCallId: call.toolCallId,
+      state: 'input-available', input: { question: question.question } }] }];
+  }
+  const f = fixture({ initialMessages: [human, message], initialExecution: execution, historyResult: current });
+  await act(async () => render(h(f.Component, f.props)));
+  await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: 'Продолжить' })));
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.regenerate).not.toHaveBeenCalled();
+  if (mode === 'running') expect(f.resumeStream).toHaveBeenCalledTimes(1);
+  if (mode === 'question') expect(within(document.body).getByRole('button', { name: 'Сохранённый результат' }).disabled).toBe(false);
+  if (mode === 'new-uncertainty') expect(within(document.body).getByRole('button', { name: 'Проверить результат' })).toBeTruthy();
+});
+
+test('known video preparation validation failures explain the unsaved draft without claiming an unspent action', () => {
+  const copy = loadTypeScriptModule('apps/frontend/src/components/agents/agent.copy.ts');
+  for (const locale of ['ru', 'en']) {
+    for (const code of ['VIDEO_PREPARATION_EMPTY', 'VIDEO_PROMPT_EMPTY', 'VIDEO_REQUIRED_NUMBER_MISSING', 'VIDEO_UNSUPPORTED_NUMBER', 'VIDEO_REQUIRED_NEGATION_MISSING']) {
+      const explanation = copy.errorWordsFor(copy.agentCopy[locale], code, true);
+      expect(explanation.known).toBe(true);
+      expect(explanation.what).toContain(locale === 'ru' ? 'Видеочерновик не сохранён' : 'video draft was not saved');
+      expect(explanation.next).toContain(locale === 'ru' ? 'исправить' : 'corrected');
+      expect(explanation.what + explanation.next).not.toMatch(/не выполнялось|не выполнено|не спис|бесплат|did not run|not done|not charged|unspent|free/i);
+    }
+  }
+});
+
+test.each([undefined, 'AGENT_TASK_OPERATION_FAILED'])('a failed saved owner explains its current uncertain action and retained result without replay (receipt code: %s)', async errorCode => {
+  const messages = [human, { id: 'current-operation-failure', role: 'assistant', parts: [retainedCore, invalidAdaptation, uncertainVideo] }];
+  const execution = { requestId: 'failed-operation-owner', state: 'settled', outcome: 'failed', ...(errorCode ? { errorCode } : {}) };
+  const f = fixture({ initialMessages: messages, initialExecution: execution, historyResult: { messages, pending: [], execution } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).getByText('Сохранённая суть')).toBeTruthy();
+  const errors = document.querySelectorAll('[data-agent-card="error"]');
+  const finalError = within(errors[errors.length - 1]);
+  expect(finalError.getByText(words.error.codes.CAPABILITY_OUTCOME_UNCERTAIN.what)).toBeTruthy();
+  expect(finalError.getByText(words.error.savedResultsNext)).toBeTruthy();
+  expect(finalError.queryByRole('button', { name: words.error.retry })).toBeNull();
+  await act(async () => fireEvent.click(finalError.getByRole('button', { name: 'Проверить результат' })));
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+});
+
+test('a terminal owner without a code does not inherit an earlier turn error or stale SDK exception', async () => {
+  const earlier = { id: 'earlier-provider-timeout', role: 'assistant', parts: [{ type: 'error', error: { name: 'NonReplayableTextAttempt', message: 'Request timed out.' } }] };
+  const messages = [human, earlier, { ...human, id: 'new-operation-request' }, { id: 'new-operation-result', role: 'assistant', parts: [retainedCore] }];
+  const execution = { requestId: 'new-operation-owner', state: 'settled', outcome: 'failed' };
+  const f = fixture({ initialMessages: messages, initialExecution: execution });
+  f.setError(new Error('Request timed out.'));
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).getByText(words.error.codes.AGENT_TASK_OPERATION_FAILED.what)).toBeTruthy();
+  expect(within(document.body).queryByText(words.researchRecovery.timeout)).toBeNull();
+  expect(within(document.body).getByRole('button', { name: 'Продолжить' })).toBeTruthy();
+  expect(f.regenerate).not.toHaveBeenCalled();
+});
+
+test('refresh reports checking and the unchanged failed status with its saved answer in the clicked card without replay', async () => {
+  const messages = [human, { id: 'saved-final-answer', role: 'assistant', parts: [retainedCore, { type: 'text', text: 'Сохранённый итог работы.' }, uncertainVideo] }];
+  const execution = { requestId: 'saved-final-failed-owner', state: 'settled', outcome: 'failed' };
+  let release;
+  const historyResult = new Promise(resolve => { release = resolve; });
+  const f = fixture({ initialMessages: messages, initialExecution: execution, historyResult });
+  await act(async () => render(h(f.Component, f.props)));
+  const errorCards = document.querySelectorAll('[data-agent-card="error"]');
+  const card = errorCards[errorCards.length - 1], button = within(card).getByRole('button', { name: 'Проверить результат' });
+  await act(async () => fireEvent.click(button));
+  expect(within(card).getByText(words.error.checkingStatus)).toBeTruthy();
+  await act(async () => fireEvent.click(button));
+  expect(f.calls.filter(call => call.url === '/agent/threads/thread-native')).toHaveLength(1);
+  await act(async () => release({ messages, pending: [], execution }));
+  expect(within(card).getByText(words.error.checkedFailedWithReply)).toBeTruthy();
+  expect(within(card).getByText(words.error.codes.CAPABILITY_OUTCOME_UNCERTAIN.what)).toBeTruthy();
+  expect(within(document.body).getByText('Сохранённый итог работы.')).toBeTruthy();
+  expect(within(document.body).getByText('Сохранённая суть')).toBeTruthy();
+  await act(async () => fireEvent.click(button));
+  expect(f.calls.filter(call => call.url === '/agent/threads/thread-native')).toHaveLength(2);
+  expect(within(card).getByText(words.error.checkedFailedWithReply)).toBeTruthy();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+});
+
+test('Continue checks and points to a newly restored native question without answering it or resending the original request', async () => {
+  const call = { runId: 'refreshed-question-run', toolCallId: 'refreshed-question-call', toolName: 'ask_user' };
+  const question = { cardId: 'refreshed-question-card', question: 'Какой результат продолжить?', options: [{ label: 'Сохранённый материал' }] };
+  const saved = { id: 'refreshed-question-message', role: 'assistant', parts: [{ type: 'tool-ask_user', toolCallId: call.toolCallId,
+    state: 'input-available', input: { question: question.question } }] };
+  const execution = { requestId: 'refreshed-question-owner', state: 'settled', outcome: 'failed' };
+  const f = fixture({ initialMessages: [human], initialExecution: execution,
+    historyResult: { messages: [human, saved], pending: [{ ...call, kind: 'question', suspendPayload: question }], execution } });
+  await act(async () => render(h(f.Component, f.props)));
+  await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: 'Продолжить' })));
+  expect(within(document.body).getByText(words.error.checkedWaiting)).toBeTruthy();
+  expect(within(document.body).getByRole('button', { name: 'Сохранённый материал' }).disabled).toBe(false);
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+});
+
+test('an invalid action followed by a real native clarification keeps that current question actionable', async () => {
+  const call = { runId: 'revise-input-run', toolCallId: 'revise-input-call', toolName: 'ask_user' };
+  const question = { cardId: 'revise-input-card', question: 'Какой канал использовать?', options: [{ label: 'Выбранный канал' }] };
+  const messages = [human, { id: 'revise-input-message', role: 'assistant', parts: [invalidAdaptation,
+    { type: 'tool-ask_user', toolCallId: call.toolCallId, state: 'input-available', input: { question: question.question } }] }];
+  const f = fixture({ initialMessages: messages, initialExecution: { requestId: 'revise-input-owner', state: 'settled', outcome: 'failed' },
+    pending: [{ ...call, kind: 'question', suspendPayload: question, summary: null }] });
+  await act(async () => render(h(f.Component, f.props)));
+  const choice = within(document.body).getByRole('button', { name: 'Выбранный канал' });
+  expect(choice.disabled).toBe(false);
+  await act(async () => fireEvent.click(choice));
+  expect(f.sendMessage).toHaveBeenCalledWith(undefined, { body: { resume: {
+    runId: call.runId, toolCallId: call.toolCallId, cardId: question.cardId, resumeData: { answer: 'Выбранный канал' },
+  } } });
+});
+
+test('multiple native task_write and task_update parts in one failed owner display every active task as interrupted', async () => {
+  const tasks = [{ content: 'Собрать материал', status: 'completed' }, { content: 'Адаптировать текст', activeForm: 'Адаптирую текст', status: 'in_progress' },
+    { content: 'Подготовить видео', activeForm: 'Готовлю видео', status: 'in_progress' }, { content: 'Согласовать результат', status: 'pending' }];
+  const planParts = ['task_write', 'task_update'].map((name, index) => ({ type: `tool-${name}`, toolCallId: `current-tasks-${index}`,
+    state: 'output-available', input: { tasks: index ? tasks : tasks.map(task => ({ ...task, status: 'pending' })) }, output: { ok: true } }));
+  const message = { id: 'failed-multiple-task-parts', role: 'assistant', parts: [...planParts, retainedCore, invalidAdaptation, uncertainVideo] };
+  const before = JSON.stringify(message);
+  const f = fixture({ initialMessages: [human, message], initialExecution: { requestId: 'failed-multiple-task-owner', state: 'settled', outcome: 'failed' } });
+  await act(async () => render(h(f.Component, f.props)));
+  const card = document.querySelector('[data-agent-card="tasks"]');
+  expect(card.querySelectorAll('[data-agent-task-status="interrupted"]')).toHaveLength(2);
+  expect(card.querySelector('[data-agent-task-status="in_progress"]')).toBeNull();
+  expect(card.querySelectorAll('[data-agent-task-status="completed"]')).toHaveLength(1);
+  expect(card.querySelectorAll('[data-agent-task-status="pending"]')).toHaveLength(1);
+  expect(JSON.stringify(message)).toBe(before);
+});
+
+test('a failed current owner interrupts only the most recent persisted plan even when that plan belongs to an earlier assistant message', async () => {
+  const olderPlan = { id: 'historical-plan-message', role: 'assistant', parts: [{ type: 'data-tasks', data: { tasks: [
+    { content: 'Исторический шаг', status: 'in_progress' }, { content: 'Исторический результат', status: 'completed' },
+  ] } }] };
+  const currentPlan = { id: 'retained-plan-message', role: 'assistant', parts: [{ type: 'data-tasks', data: { tasks: [
+    { content: 'Собрать исходный материал', status: 'completed' }, { content: 'Адаптировать материал', status: 'in_progress' },
+    { content: 'Подготовить видео', status: 'in_progress' }, { content: 'Согласовать', status: 'pending' },
+  ] } }] };
+  const messages = [human, olderPlan, currentPlan, { ...human, id: 'current-followup-request' },
+    { id: 'current-followup-failure', role: 'assistant', parts: [retainedCore, invalidAdaptation, uncertainVideo] }];
+  const before = JSON.stringify(messages);
+  const f = fixture({ initialMessages: messages, initialExecution: { requestId: 'current-followup-owner', state: 'settled', outcome: 'failed' } });
+  await act(async () => render(h(f.Component, f.props)));
+  const plans = document.querySelectorAll('[data-agent-card="tasks"]');
+  expect(plans).toHaveLength(2);
+  expect(plans[0].querySelector('[data-agent-task-status="interrupted"]')).toBeNull();
+  expect(plans[0].querySelector('[data-agent-task-status="in_progress"]')).not.toBeNull();
+  expect(plans[0].querySelector('[data-agent-task-status="completed"]')).not.toBeNull();
+  expect(plans[1].querySelectorAll('[data-agent-task-status="interrupted"]')).toHaveLength(2);
+  expect(plans[1].querySelector('[data-agent-task-status="in_progress"]')).toBeNull();
+  expect(plans[1].querySelector('[data-agent-task-status="completed"]')).not.toBeNull();
+  expect(plans[1].querySelector('[data-agent-task-status="pending"]')).not.toBeNull();
+  expect(JSON.stringify(messages)).toBe(before);
+});
+
+const savedResearchPart = { type: 'tool-piece_create', toolCallId: 'saved-research-call', title: 'Написать черновик', state: 'output-available', input: {},
+  output: { ok: true, capability: 'piece.create', summary: { outcome: 'research-ready', snapshotKey: 'snapshot-retained-test', waitingOnCard: 0 } } };
+const savedResearchMessage = { id: 'research-result-message', role: 'assistant', parts: [savedResearchPart,
+  ...Array.from({ length: 8 }, (_, index) => ({ ...completedStep(`retained-read-${index}`, 'Прочитать сохранённый источник'), type: 'tool-piece_read' })),
+  { type: 'error', error: { name: 'NonReplayableTextAttempt', message: 'Request timed out.' } }] };
+const savedResearchFailure = { requestId: 'research-failed-owner', state: 'settled', outcome: 'failed', errorCode: 'AGENT_FAILED' };
+
+test('a failed native draft continues once on click through the existing send path while preserving the unsent message and context', async () => {
+  const messages = [human, savedResearchMessage];
+  const f = fixture({ initialMessages: messages, initialExecution: savedResearchFailure, composerDraft: 'Мой несохранённый текст',
+    historyResult: { messages, pending: [], execution: savedResearchFailure } });
+  const workContext = { version: 'assistant-work-context/v1', kind: 'piece', id: 'context-piece', revision: 'retained-context-v1' };
+  const writingSelection = { channelId: 'current-channel', avatarId: 'current-avatar' };
+  await act(async () => render(h(f.Component, { ...f.props, workContext, writingSelection })));
+  const body = within(document.body);
+  expect(body.getByText(words.researchRecovery.saved)).toBeTruthy();
+  expect(body.queryByText('Готово: Написать черновик')).toBeNull();
+  expect(body.getByText(words.researchRecovery.next)).toBeTruthy();
+  expect(body.getByText(words.researchRecovery.timeout)).toBeTruthy();
+  expect(body.queryByRole('button', { name: words.error.retry })).toBeNull();
+  const continueButton = body.getByRole('button', { name: 'Продолжить' });
+  await act(async () => { fireEvent.click(continueButton); fireEvent.click(continueButton); });
+  const continuation = words.researchRecovery.message('snapshot-retained-test');
+  expect(continuation).toContain('без нового поиска.');
+  expect(continuation).not.toContain('piece.create');
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.sendMessage).toHaveBeenCalledWith({ text: continuation, files: [] }, { body: { workContext, writingSelection, continueFromRequestId: savedResearchFailure.requestId } });
+  expect(body.getByRole('textbox', { name: 'Unsent message' }).value).toBe('Мой несохранённый текст');
+  expect(document.querySelector('[data-composer-recovery]')).toBeNull();
+  expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.resumeStream).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+});
+
+test('a stale continuation click cannot follow a newer authored send before a rerender', async () => {
+  const f = fixture({ initialMessages: [human, savedResearchMessage], initialExecution: savedResearchFailure });
+  await act(async () => render(h(f.Component, f.props)));
+  const body = within(document.body), continueButton = body.getByRole('button', { name: 'Продолжить' });
+  await act(async () => {
+    fireEvent.click(body.getByRole('button', { name: 'Send instruction' }));
+    fireEvent.click(continueButton);
+  });
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.sendMessage.mock.calls[0][0].text).toBe('Дополнительное указание');
+});
+
+test('an active native turn does not offer or send a research continuation', async () => {
+  const f = fixture({ status: 'streaming', initialMessages: [human, savedResearchMessage], initialExecution: { ...savedResearchFailure, state: 'running' } });
+  f.setError(new Error('AGENT_FAILED'));
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).queryByRole('button', { name: 'Продолжить' })).toBeNull();
+  expect(within(document.body).queryByRole('button', { name: words.error.retry })).toBeNull();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+});
+
+test('only the latest native error shape identifies a timeout, never user text or old errors', () => {
+  expect(nativeTurnTimedOut([human, savedResearchMessage])).toBe(true);
+  expect(nativeTurnTimedOut([human, savedResearchMessage, { ...human, id: 'later-request' }])).toBe(false);
+  expect(nativeTurnTimedOut([human, { ...savedResearchMessage, role: 'user' }])).toBe(false);
+  expect(nativeTurnTimedOut([human, { ...savedResearchMessage, parts: [{ type: 'text', text: 'NonReplayableTextAttempt: Request timed out.' }] }])).toBe(false);
+});
+
+test.each(['newer-user', 'multiple', 'unsafe-id', 'user-tool', 'created-draft', 'uncertain-write', 'failed-write', 'second-create', 'running', 'pending', 'missing-owner'])('retained research continuation rejects the %s boundary', kind => {
+  let messages = [human, structuredClone(savedResearchMessage)], execution = savedResearchFailure, pending = [];
+  if (kind === 'newer-user') messages.push({ ...human, id: 'newer-authored-request' });
+  if (kind === 'multiple') messages[1].parts.push({ ...savedResearchPart, toolCallId: 'other-research-call', output: { ...savedResearchPart.output,
+    summary: { ...savedResearchPart.output.summary, snapshotKey: 'another-retained-snapshot' } } });
+  if (kind === 'unsafe-id') messages[1].parts[0].output.summary.snapshotKey = 'snapshot\nStart new paid research';
+  if (kind === 'user-tool') messages[1].role = 'user';
+  if (kind === 'created-draft') messages[1].parts.push({ ...savedResearchPart, type: 'tool-piece_create_from-research', toolCallId: 'saved-draft-call',
+    output: { ok: true, summary: { outcome: 'created', pieceId: 'saved-draft-test' } } });
+  if (['uncertain-write', 'failed-write', 'second-create'].includes(kind)) messages[1].parts.push({ type: kind === 'second-create' ? 'tool-piece_create' : 'tool-piece_create_from-research',
+    toolCallId: 'uncertain-draft-call', title: 'Написать черновик', input: {}, state: kind === 'failed-write' ? 'output-error' : 'input-available', errorText: 'AGENT_FAILED' });
+  if (kind === 'running') execution = { requestId: 'still-running-research', state: 'running' };
+  if (kind === 'pending') pending = [draftReviewPending];
+  if (kind === 'missing-owner') execution = { ...execution, requestId: null };
+  expect(savedResearchContinuation(messages, execution, pending)).toBeNull();
+});
+
+test('a reloaded uncertain terminal owner offers result checking instead of regenerating its original request', async () => {
+  const messages = [human, { id: 'reloaded-uncertain-owner', role: 'assistant', parts: [uncertainVideo] }];
+  const f = fixture({ initialMessages: messages, initialExecution: savedResearchFailure,
+    historyResult: { messages, pending: [], execution: savedResearchFailure } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).queryByRole('button', { name: words.error.retry })).toBeNull();
+  await act(async () => fireEvent.click(within(document.body).getByRole('button', { name: 'Проверить результат' })));
+  expect(f.regenerate).not.toHaveBeenCalled();
+  expect(f.sendMessage).not.toHaveBeenCalled();
+  expect(f.calls.filter(call => call.method === 'POST')).toHaveLength(0);
+});
+
+test.each([false, true])('a failed latest owner displays its unfinished task as interrupted only without a pending gate (%s)', async hasPending => {
+  const tasks = [
+    { content: 'Собрать источники', status: 'completed' },
+    { content: 'Написать черновик', activeForm: 'Пишу черновик', status: 'in_progress' },
+    { content: 'Согласовать текст', status: 'pending' },
+  ];
+  const message = { ...savedResearchMessage, parts: [{ type: 'data-tasks', data: { tasks } }, ...savedResearchMessage.parts] };
+  const before = JSON.stringify(message);
+  const f = fixture({ initialMessages: [human, message], initialExecution: savedResearchFailure, pending: hasPending ? [draftReviewPending] : [] });
+  await act(async () => render(h(f.Component, f.props)));
+  const taskCard = document.querySelector('[data-agent-card="tasks"]');
+  expect(within(taskCard).getByText(hasPending ? 'Пишу черновик' : 'Написать черновик')).toBeTruthy();
+  expect(within(taskCard).getByText(hasPending ? words.tasks.statuses.in_progress : words.tasks.interrupted)).toBeTruthy();
+  expect(taskCard.querySelector('[data-agent-task-status="pending"]')).not.toBeNull();
+  expect(taskCard.querySelector('[data-agent-task-status="completed"]')).not.toBeNull();
+  expect(JSON.stringify(message)).toBe(before);
+});
+
+test('a research-ready outcome without a retained snapshot never claims that research or a draft was saved', async () => {
+  const part = structuredClone(savedResearchPart);
+  part.output.summary.snapshotKey = null;
+  const messages = [human, { ...savedResearchMessage, parts: [part] }];
+  const f = fixture({ initialMessages: messages, initialExecution: savedResearchFailure,
+    historyResult: { messages, pending: [], execution: savedResearchFailure } });
+  await act(async () => render(h(f.Component, f.props)));
+  expect(within(document.body).getByText(words.researchRecovery.ready)).toBeTruthy();
+  expect(within(document.body).queryByText(words.researchRecovery.saved)).toBeNull();
+  expect(within(document.body).queryByText('Готово: Написать черновик')).toBeNull();
+  const button = within(document.body).getByRole('button', { name: words.researchRecovery.prepare });
+  await act(async () => fireEvent.click(button));
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.sendMessage.mock.calls[0][0]).toEqual({ text: words.error.continueMessage, files: [] });
+  expect(f.sendMessage.mock.calls[0][1].body.continueFromRequestId).toBe(savedResearchFailure.requestId);
 });
 
 const refusedSource = (id, code = 'REMOTE_4XX', input = { url: 'https://source.example/article' }) => ({
@@ -881,7 +1392,7 @@ test.each(['running', 'failed'])('a matching saved message is acknowledged and i
   expect(document.querySelector('[data-composer-recovery]')).toBeNull();
   expect(window.sessionStorage.getItem(draftKey + ':submission')).toBeNull();
   expect(within(document.body).getAllByText('Дополнительное указание')).toHaveLength(1);
-  expect(within(document.body).getByText(outcome === 'running' ? /still running or waiting/ : /task did not complete/)).toBeTruthy();
+  expect(within(document.body).getByText(outcome === 'running' ? /still running or waiting/ : words.error.checkedFailed)).toBeTruthy();
   if (outcome === 'failed') expect(within(document.body).getByText(words.error.codes.AGENT_FAILED.what)).toBeTruthy();
   expect(f.sendMessage).toHaveBeenCalledTimes(1);
   expect(f.regenerate).not.toHaveBeenCalled();
@@ -924,7 +1435,7 @@ test.each(['empty', 'newer', 'acknowledged'])('reload recovers only the unacknow
     expect(window.sessionStorage.getItem(draftKey + ':submission')).toBeNull();
     expect(document.querySelector('[data-composer-recovery]')).toBeNull();
     expect(body.getAllByText('Дополнительное указание')).toHaveLength(1);
-    expect(body.getByText(/task did not complete/)).toBeTruthy();
+    expect(body.getByText(words.error.checkedFailed)).toBeTruthy();
   }
   expect(f.sendMessage).not.toHaveBeenCalled();
   expect(f.regenerate).not.toHaveBeenCalled();

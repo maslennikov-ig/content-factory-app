@@ -735,6 +735,8 @@
   "assistant_context": "السياق",
   "assistant_context_help_label": "ما فائدة هذا التحديد؟",
   "assistant_context_help": "يُرفق هذا العنصر برسالتك التالية إلى المساعد. إلغاء ربطه يزيل الرابط فقط؛ ويُحتفظ بسجل المحادثة والعنصر نفسه.",
+  "assistant_draft_waiting_review": "المسودة بانتظار مراجعتك. راجعها في البطاقة قبل قبول أي تغييرات.",
+  "assistant_review_draft": "مراجعة المسودة",
   "assistant_draft_review_title": "المسودة المقترحة",
   "assistant_accept_draft": "قبول",
   "assistant_keep_draft": "الاحتفاظ بالنص الحالي",

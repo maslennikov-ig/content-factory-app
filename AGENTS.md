@@ -42,6 +42,7 @@ suite checks rather than something to remember.
 - The existing `/home/me/code/content-factory` repository is a read-only donor unless a task explicitly assigns writes there.
 - Postiz and Content Factory are AGPL-3.0. ADR-0005 records the open-source product decision. Before copying donor code, verify ownership, third-party license provenance, AGPL compatibility, and public safety; any integrated implementation must be releasable under AGPL.
 - Communicate with the user in Russian unless they ask for another language.
+- External-service instructions use English: write generation prompts, visual/background descriptions, motion directions, performance instructions and other free-form operational settings in English for every provider. Keep speech, subtitles, on-screen text, posts, exact quotations and other audience/source content in the required language. Preserve provider-defined keys, enums, IDs, URLs and locale codes exactly; an English instruction does not change a Russian script or its output locale. Localize search terms when needed for the requested sources. Prepare this language split before review/admission; never rewrite frozen or in-flight requests. See `docs/product/external-service-language-policy.md`.
 
 ## Working pace — owner priority (21 October 2026)
 

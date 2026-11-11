@@ -3,7 +3,7 @@
   "stage_id": "release-preparation-20261108",
   "goal_id": "content-factory-next-2fcd",
   "profile_at_creation": "balanced-v2.20",
-  "status": "in_progress",
+  "status": "internal_ready",
   "sequence": 1,
   "acceptance_boundary_id": "release-candidate-with-heygen-exclusion",
   "acceptance_owner": "root",

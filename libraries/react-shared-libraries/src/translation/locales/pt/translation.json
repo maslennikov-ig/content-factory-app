@@ -735,6 +735,8 @@
   "assistant_context": "Contexto",
   "assistant_context_help_label": "Para que serve esta seleção?",
   "assistant_context_help": "Este objeto acompanha a sua próxima mensagem ao assistente. Desvinculá-lo remove essa ligação; o histórico da conversa e o objeto são preservados.",
+  "assistant_draft_waiting_review": "O rascunho aguarda sua revisão. Confira-o no cartão antes de aceitar alterações.",
+  "assistant_review_draft": "Revisar rascunho",
   "assistant_draft_review_title": "Versão proposta",
   "assistant_accept_draft": "Aceitar",
   "assistant_keep_draft": "Manter o texto atual",

@@ -1,3 +1,4 @@
+import { AGENT_CHAT_MODE_METADATA_KEY, normalizeAgentChatMode, readStoredChatMode, type AgentChatMode } from './chat-mode';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -35,7 +36,8 @@ import {
   writeObjective,
 } from '@mastra/core/tools';
 import { defineSchedule } from '@mastra/core/schedules';
-import { CONDUCTOR_AGENT_ID, conductorResourceId } from './conductor.context';
+import { CONDUCTOR_AGENT_ID, CONDUCTOR_REQUEST_ID_KEY, conductorResourceId, materialRequestContextOf, parseMaterialRequestContext, type MaterialRequestContext } from './conductor.context';
+import { MASTRA_RESOURCE_ID_KEY, MASTRA_THREAD_ID_KEY, RequestContext } from '@mastra/core/request-context';
 import { threadTitleFromMessage } from './conductor.memory';
 import {
   AGENT_WORKSPACE_METADATA_KEY,
@@ -182,6 +184,7 @@ export type ActiveThreadTurnHandle = {
   stop: () => Promise<void>;
   finishStream: () => void;
   settled?: Promise<void>;
+  nativeResponseAnnounced?: () => boolean;
 };
 
 const isDurableConductorLike = (agent: unknown): boolean => isDurableAgent(agent);
@@ -293,6 +296,7 @@ export const threadView = (row: ThreadRow): AgentThreadV1 => {
     title: row.title || '',
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
+    ...(normalizeAgentChatMode(row.metadata?.[AGENT_CHAT_MODE_METADATA_KEY]) ? { chatMode: readStoredChatMode(row.metadata) } : {}),
     ...(forkedFromThreadId ? { forkedFromThreadId } : {}),
     ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
   };
@@ -371,6 +375,7 @@ export class AgentThreadsService {
     requestId: string;
     onStop: () => void | Promise<void>;
     settled?: Promise<void>;
+    nativeResponseAnnounced?: () => boolean;
     checkpointUsage?: () => Promise<boolean | undefined>;
   }): ActiveThreadTurnHandle {
     const resourceId = conductorResourceId(
@@ -381,6 +386,7 @@ export class AgentThreadsService {
     const handle: ActiveThreadTurnHandle = {
       requestId: args.requestId,
       settled: args.settled,
+      nativeResponseAnnounced: args.nativeResponseAnnounced,
       ...(args.checkpointUsage ? { checkpointUsage: async () => {
         if (this.activeTurns.get(key) !== handle) return undefined;
         return args.checkpointUsage!();
@@ -411,14 +417,56 @@ export class AgentThreadsService {
       : null;
   }
 
-  async rememberNativeRun(identity: CapabilityIdentity, threadId: string, runId: string, logicalRequestId: string, writingSelection?: AgentWritingSelection) {
+  /** No transcript scan: recover only the caller-owned current task's source. */
+  async materialContextForTurn(identity: CapabilityIdentity, threadId: string,
+    expected: {continueFromRequestId?: string; runId?: string; requestId?: string}) {
+    const thread = await this.requireOwnThread(identity, threadId);
+    const pointer = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, any> | undefined;
+    if (expected.continueFromRequestId) {
+      const execution = await readAgentThreadExecution(this.claims, thread.metadata);
+      if (!pointer?.runId || pointer.logicalRequestId !== expected.continueFromRequestId || pointer.state === 'stopped' ||
+        execution?.requestId !== expected.continueFromRequestId || execution.state !== 'settled' || execution.outcome !== 'failed')
+        throw new ConflictException('The task changed. Reload its current state before continuing.');
+    } else if (!pointer?.runId || expected.runId && pointer.runId !== expected.runId ||
+      expected.requestId && pointer.logicalRequestId !== expected.requestId) return undefined;
+    const saved = parseMaterialRequestContext(pointer.continuationMaterialContext);
+    if (saved) return saved;
+    const mastra = await this.mastraService.mastra();
+    const workflows = await mastra.getStorage?.()?.getStore?.('workflows');
+    const run = await workflows?.getWorkflowRunById({ workflowName: 'durable-agentic-loop', runId: pointer.runId });
+    const snapshot = typeof run?.snapshot === 'string' ? JSON.parse(run.snapshot) : run?.snapshot;
+    const context = snapshot?.requestContext;
+    if (!context || run?.resourceId && run.resourceId !== thread.resourceId ||
+      context[MASTRA_RESOURCE_ID_KEY] !== thread.resourceId || context[MASTRA_THREAD_ID_KEY] !== threadId ||
+      context[CONDUCTOR_REQUEST_ID_KEY] !== pointer.logicalRequestId) return undefined;
+    return materialRequestContextOf(new RequestContext<Record<string, unknown>>(Object.entries(context)));
+  }
+
+  async rememberNativeMaterialContext(identity: CapabilityIdentity, threadId: string, runId: string, material: MaterialRequestContext | undefined) {
+    if (!material) return;
+    await this.writeWorkspace(threadId, async () => {
+      const pointer = await this.readNativeRun(identity, threadId);
+      if (pointer?.runId !== runId || pointer.state === 'stopped') return;
+      await (await this.memory()).updateThread({ id: threadId, metadata: {
+        [AGENT_NATIVE_RUN_METADATA_KEY]: { ...pointer, continuationMaterialContext: material },
+      } });
+    });
+  }
+
+  async rememberNativeRun(identity: CapabilityIdentity, threadId: string, runId: string, logicalRequestId: string, writingSelection?: AgentWritingSelection, materialContext?: MaterialRequestContext) {
     await this.writeWorkspace(threadId, async () => {
       const saved = await this.readNativeRun(identity, threadId);
+      const sameRequest = saved?.logicalRequestId === logicalRequestId;
+      const sameRun = sameRequest && saved?.runId === runId;
+      const retained: Record<string, unknown> = sameRequest ? saved ?? {} : {};
+      const {response, responseAnnounced, stopReceipt, ...continuation} = retained;
       await (await this.memory()).updateThread({ id: threadId, metadata: {
         [AGENT_NATIVE_RUN_METADATA_KEY]: {
-          ...(saved?.logicalRequestId === logicalRequestId ? saved : {}),
+          ...continuation,
+          ...(sameRun ? {response, responseAnnounced, stopReceipt} : {responseAnnounced: false}),
           runId, logicalRequestId, state: 'running',
           ...(writingSelection !== undefined ? { continuationWritingSelection: writingSelection } : {}),
+          ...(materialContext ? { continuationMaterialContext: materialContext } : {}),
         },
       } });
     });
@@ -426,12 +474,24 @@ export class AgentThreadsService {
 
   async rememberNativeResponse(identity: CapabilityIdentity, threadId: string, runId: string, messageId: string) {
     await this.writeWorkspace(threadId, async () => {
-      const thread = await this.requireOwnThread(identity, threadId);
-      const pointer = thread.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown> | undefined;
+      const pointer = await this.readNativeRun(identity, threadId);
       if (pointer?.runId !== runId || pointer.state === 'stopped') return;
-      await (await this.memory()).updateThread({ id: threadId, metadata: {
-        [AGENT_NATIVE_RUN_METADATA_KEY]: { ...pointer, response: { runId, messageId } },
-      } });
+      const resourceId = conductorResourceId(identity.organizationId, identity.userId);
+      const storage = (await this.mastraService.mastra()).getStorage();
+      const memory = await storage?.getStore('memory');
+      if (!memory?.updateThreadMetadata) throw new ServiceUnavailableException('Native response storage is unavailable.');
+      const write = (patch: Record<string, unknown>) => memory.updateThreadMetadata({
+        id: threadId, resourceId,
+        update: current => {
+          const owned = current.metadata?.[AGENT_NATIVE_RUN_METADATA_KEY] as Record<string, unknown> | undefined;
+          if (owned?.runId !== runId || owned.logicalRequestId !== pointer.logicalRequestId || owned.state === 'stopped') return undefined;
+          return { [AGENT_NATIVE_RUN_METADATA_KEY]: { ...owned, ...patch } };
+        },
+      });
+      // The observer awaits this before emitting the native start. Preserve
+      // its identity as expected even if the following proof write fails.
+      if (pointer.responseAnnounced !== true) await write({ responseAnnounced: true });
+      await write({ responseAnnounced: true, response: { runId, messageId } });
     });
   }
 
@@ -549,7 +609,14 @@ export class AgentThreadsService {
     // Abort requests and HTTP reader teardown can precede the real service
     // Promises and terminal Memory write. Await only this captured owner;
     // a successor must never replace the task acknowledged by this Stop.
-    await active?.settled;
+    if (active?.settled && isDurableAgent(conductor)) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([active.settled, new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new ServiceUnavailableException('Native Stop is waiting for its current owner.')), 35_000);
+        })]);
+      } finally { clearTimeout(timer); }
+    } else await active?.settled;
     if (stopPreparationError) throw stopPreparationError;
     if (isDurableAgent(conductor)) {
       if (pointer && typeof pointer.logicalRequestId === 'string') {
@@ -576,17 +643,27 @@ export class AgentThreadsService {
         throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
       }
       if (owned) {
-        if (response?.runId !== owned.runId || typeof response.messageId !== 'string' || !response.messageId) {
-          throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
-        }
-        const saved = await this.readMessages(identity, threadId);
-        if (!saved.messages.some(message => message.role === 'assistant' && message.id === response.messageId)) {
-          throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
-        }
-        if (!active && requestId && !(await this.mastraService.settleStoppedNativeRun({
-          threadId, resourceId, runId: owned.runId, requestId,
-        }))) {
-          throw new ServiceUnavailableException('Native Stop could not confirm its terminal settlement.');
+        const unannounced = active ? active.nativeResponseAnnounced?.() === false : owned.responseAnnounced === false;
+        if (owned.response == null && unannounced && requestId) {
+          // An exact HTTP run has evidence that its response was unannounced.
+          // Every native driver and checkpoint still has to be absent.
+          if (!(await this.mastraService.settleStoppedNativeRun({threadId, resourceId, runId: owned.runId, requestId},
+            {withoutAnnouncedResponse: true}))) {
+            throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+          }
+        } else {
+          if (response?.runId !== owned.runId || typeof response.messageId !== 'string' || !response.messageId) {
+            throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+          }
+          const saved = await this.readMessages(identity, threadId);
+          if (!saved.messages.some(message => message.role === 'assistant' && message.id === response.messageId)) {
+            throw new ServiceUnavailableException('Native Stop could not confirm its saved response.');
+          }
+          if (!active && requestId && !(await this.mastraService.settleStoppedNativeRun({
+            threadId, resourceId, runId: owned.runId, requestId,
+          }))) {
+            throw new ServiceUnavailableException('Native Stop could not confirm its terminal settlement.');
+          }
         }
       }
     }
@@ -833,7 +910,7 @@ export class AgentThreadsService {
     const artifacts: AgentWorkspaceV1['artifacts'] = [];
     for (const ref of workspace.artifacts) {
       try {
-        artifacts.push(await this.mastraService.validateWorkArtifact(identity, ref));
+        artifacts.push(await this.mastraService.validateWorkArtifact(identity, ref, threadId));
       } catch (error) {
         if (!(error instanceof AgentWorkContextError) || ![403, 404, 409].includes(error.getStatus())) throw error;
       }
@@ -897,18 +974,30 @@ export class AgentThreadsService {
     return this.writeWorkspace(threadId, async () => {
       const thread = await this.requireOwnThread(identity, threadId);
       const workspace = await this.availableWorkspace(identity, readStoredAgentWorkspace(thread.metadata), threadId);
-      if (patch.workContext !== undefined) workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext, {threadId})).context;
+      let staleClipContext: AgentWorkContextError | undefined;
+      if (patch.workContext !== undefined) {
+        try { workspace.workContext = patch.workContext === null ? null : (await this.mastraService.resolveWorkContext(identity, patch.workContext, {threadId})).context; }
+        catch (error) {
+          if (patch.workContext?.clipPilotId && error instanceof AgentWorkContextError && error.getStatus() === 409) staleClipContext = error;
+          else throw error;
+        }
+      }
       if (patch.writingSelection !== undefined) workspace.writingSelection = !patch.writingSelection.channelId && !patch.writingSelection.avatarId
         ? {} : (await this.mastraService.resolveWritingSelection(identity, patch.writingSelection)).selection;
       if (patch.artifacts !== undefined) {
         workspace.artifacts = [];
         for (const ref of patch.artifacts) {
-          const valid = await this.mastraService.validateWorkArtifact(identity, ref);
+          const valid = await this.mastraService.validateWorkArtifact(identity, ref, threadId);
           if (!workspace.artifacts.some((one) => sameAgentArtifact(one, valid))) workspace.artifacts.push(valid);
         }
       }
       if (patch.activeArtifact !== undefined) {
-        workspace.activeArtifact = patch.activeArtifact === null ? null : await this.mastraService.validateWorkArtifact(identity, patch.activeArtifact);
+        workspace.activeArtifact = patch.activeArtifact === null ? null : await this.mastraService.validateWorkArtifact(identity, patch.activeArtifact, threadId);
+      }
+      if (staleClipContext) {
+        const active = workspace.activeArtifact;
+        if (!active?.clipPilotId || active.clipPilotId !== patch.workContext?.clipPilotId || active.id !== (patch.workContext.id ?? patch.workContext.pieceId)) throw staleClipContext;
+        workspace.workContext = null;
       }
       if (workspace.activeArtifact && !workspace.artifacts.some((ref) => sameAgentArtifact(ref, workspace.activeArtifact!))) {
         if (patch.activeArtifact) throw invalidWorkContext();
@@ -934,7 +1023,7 @@ export class AgentThreadsService {
     if (!ref || ref.kind !== 'media' || ref.id !== 'library' || !ref.videoDraftId) throw invalidWorkContext();
     return this.writeWorkspace(threadId, async () => {
       await this.requireOwnThread(identity, threadId);
-      const valid = await this.mastraService.validateWorkArtifact(identity, ref);
+      const valid = await this.mastraService.validateWorkArtifact(identity, ref, threadId);
       const latest = await this.requireOwnThread(identity, threadId);
       const workspace = readStoredAgentWorkspace(latest.metadata);
       const stored = latest.metadata?.[AGENT_WORKSPACE_METADATA_KEY] as Partial<AgentWorkspaceV1> | undefined;
@@ -977,7 +1066,8 @@ export class AgentThreadsService {
     identity: CapabilityIdentity,
     threadId: string,
     text: string,
-    selected?: ResolvedAgentWorkContext | null
+    selected?: ResolvedAgentWorkContext | null,
+    chatMode?: AgentChatMode
   ): Promise<ThreadRow> {
     const existing = await this.ownThread(identity, threadId);
     if (existing) {
@@ -995,7 +1085,8 @@ export class AgentThreadsService {
       threadId,
       resourceId: conductorResourceId(identity.organizationId, identity.userId),
       title: threadTitleFromMessage(text, identity.language),
-      ...(workspace ? { metadata: { [AGENT_WORKSPACE_METADATA_KEY]: workspace } } : {}),
+      metadata: { ...(workspace ? { [AGENT_WORKSPACE_METADATA_KEY]: workspace } : {}),
+        ...(chatMode ? { [AGENT_CHAT_MODE_METADATA_KEY]: chatMode } : {}) },
     });
     await this.sessionFor(identity, threadId, { bindThread: true }).catch(() => undefined);
     return created;
@@ -1218,6 +1309,7 @@ export class AgentThreadsService {
     const workspace = readStoredAgentWorkspace(source.metadata);
     const forkMetadata: Record<string, unknown> = {
       [AGENT_WORKSPACE_METADATA_KEY]: workspace,
+      ...(normalizeAgentChatMode(source.metadata?.[AGENT_CHAT_MODE_METADATA_KEY]) ? { [AGENT_CHAT_MODE_METADATA_KEY]: readStoredChatMode(source.metadata) } : {}),
       forkedFromThreadId: source.id,
       ...(upToMessageId ? { forkedFromMessageId: upToMessageId } : {}),
     };
@@ -1358,9 +1450,29 @@ export class AgentThreadsService {
     return { threadId, modelId: cleanModelId, modeId: 'assistant' };
   }
 
-  /**
-   * Switches the active mode for a thread via native `Session.mode.switch` (`on0i.1`, `on0i.3`).
-   */
+  /** Explicit UI preference only; no model tool or permission mutation. */
+  async switchChatMode(identity: CapabilityIdentity, threadId: string, body: unknown) {
+    if (!body || typeof body !== 'object' || Array.isArray(body) ||
+      Object.keys(body).length !== 1 || !normalizeAgentChatMode((body as any).chatMode)) {
+      throw new BadRequestException({ code: 'AGENT_BAD_REQUEST', message: 'Invalid chat mode.' });
+    }
+    return this.writeWorkspace(threadId, async () => {
+      const thread = await this.requireOwnThread(identity, threadId);
+      await (await this.memory()).updateThread({ id: thread.id, metadata: {
+        [AGENT_CHAT_MODE_METADATA_KEY]: normalizeAgentChatMode((body as {chatMode: unknown}).chatMode)!,
+      } });
+      return { chatMode: readStoredChatMode((await this.requireOwnThread(identity, threadId)).metadata) };
+    });
+  }
+
+  async chatModeForTurn(identity: CapabilityIdentity, threadId: string, initial?: AgentChatMode): Promise<AgentChatMode> {
+    const thread = await this.ownThread(identity, threadId);
+    // Only a new thread takes its initial preference from the message. Existing
+    // preferences change via the explicit owned UI endpoint, not a queued turn.
+    return thread ? readStoredChatMode(thread.metadata) : normalizeAgentChatMode(initial) ?? 'collaborative';
+  }
+
+  /** Native assistant/plan is independent from the user-selected work mode. */
   async switchMode(
     identity: CapabilityIdentity,
     threadId: string,

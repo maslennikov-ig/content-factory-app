@@ -229,7 +229,7 @@ const ARTIFACT_GLYPH: Record<AgentArtifactKind, AgentGlyphName> = {
  * their position and title instead of calling separate posts variants.
  */
 export const artifactName = (artifact: AgentArtifact, words: AgentWords): string =>
-  artifactOwnName(artifact, words) ?? words.card.kinds[artifact.kind];
+  artifactOwnName(artifact, words) ?? (artifact.data.clipPilotId ? `Higgsfield · ${words.card.clipScenario}` : words.card.kinds[artifact.kind]);
 
 /**
  * The name when the thing has one of its own; `null` when all there is to
@@ -1586,9 +1586,12 @@ export function ProgressCard({
  */
 export function TaskChecklistCard({
   tasks,
+  interrupted = false,
   words,
 }: {
   tasks: readonly AgentTaskItem[];
+  /** Only a confirmed failed owner without a pending human gate. Native tasks stay unchanged. */
+  interrupted?: boolean;
   words: AgentWords;
 }) {
   const w = words.tasks;
@@ -1604,19 +1607,20 @@ export function TaskChecklistCard({
     >
       <ol className="flex flex-col gap-[8px]">
         {tasks.map((task, index) => {
+          const stopped = interrupted && task.status === 'in_progress';
           const text =
-            task.status === 'in_progress' && task.activeForm
+            !stopped && task.status === 'in_progress' && task.activeForm
               ? task.activeForm
               : task.content;
           return (
             <li
               key={`${task.content}-${index}`}
-              data-agent-task-status={task.status}
+              data-agent-task-status={stopped ? 'interrupted' : task.status}
               className="flex items-center gap-[8px] cf-body-sm text-cf-ink"
             >
               <span
                 className={
-                  task.status === 'completed'
+                  stopped ? 'text-cf-warning' : task.status === 'completed'
                     ? 'text-cf-success'
                     : task.status === 'in_progress'
                       ? 'text-cf-accent'
@@ -1625,7 +1629,7 @@ export function TaskChecklistCard({
               >
                 <AgentGlyph
                   name={
-                    task.status === 'completed'
+                    stopped ? 'close' : task.status === 'completed'
                       ? 'check'
                       : task.status === 'in_progress'
                         ? 'bolt'
@@ -1638,7 +1642,7 @@ export function TaskChecklistCard({
                 {text}
               </span>
               <span className="cf-caption text-cf-ink-muted">
-                {w.statuses[task.status]}
+                {stopped ? w.interrupted : w.statuses[task.status]}
               </span>
             </li>
           );
@@ -1725,6 +1729,7 @@ export function SubagentCard({
 export function ErrorCard({
   title,
   code,
+  what,
   reviewFindings,
   sourceRead,
   network,
@@ -1737,6 +1742,8 @@ export function ErrorCard({
 }: {
   title: string | null;
   code: string | null;
+  /** A verified native failure category; never inferred from user prose. */
+  what?: string;
   /** Literal semantic-review findings saved with this rejected adaptation. */
   reviewFindings?: AgentAdaptationReviewFindings;
   sourceRead?: AgentSourceReadIssue;
@@ -1797,7 +1804,7 @@ export function ErrorCard({
       }
     >
       <div role="alert" className="flex flex-col gap-[4px]">
-        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{known.what}</p>
+        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{what ?? known.what}</p>
         <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{nextStep ?? known.next}</p>
       </div>
       {reviewFindings && (reviewFindings.missingRequirements.length || reviewFindings.unsupportedClaims.length) ? (

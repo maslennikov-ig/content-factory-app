@@ -49,7 +49,7 @@ module.exports = {
       expect.objectContaining({
         toolName: 'plan_schedule',
         // The text that goes out, quoted (review W2 F4).
-        reason: 'Запланировать пост заготовки cnt-1 в канале «Канал про работу» на вт 04.03 10:00 (UTC+3): в это время он выйдет сам, до выхода его можно снять с расписания. «Текст поста.»',
+        reason: 'Запланировать пост черновика cnt-1 в канале «Канал про работу» на вт 04.03 10:00 (UTC+3): в это время он выйдет сам, до выхода его можно снять с расписания. «Текст поста.»',
       }),
     ]);
     expect(yes.outputs[0].output).toMatchObject({ ok: true, summary: { state: 'scheduled', at: '2031-03-04T07:00:00.000Z' } });

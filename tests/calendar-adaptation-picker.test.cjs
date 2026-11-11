@@ -257,7 +257,7 @@ test('«+ Новая заготовка» replaces the blank page and links to t
  const link=await screen.findByRole('link',{name:'В контент →'});expect(link.getAttribute('href')).toBe('/content');
  expect(screen.queryByText('Чистый лист')).toBeNull();
  expect(screen.queryByText('пост без конвейера')).toBeNull();
- const fresh=screen.getByRole('link',{name:'Новая заготовка'});
+ const fresh=screen.getByRole('link',{name:'Новый черновик'});
  expect(fresh.getAttribute('href')).toBe('/content?tab=brief');
  fireEvent.click(fresh);expect(closed).toBe(1);expect(editorCalls).toHaveLength(0);
 });
@@ -269,7 +269,7 @@ test('no channels: the picker points to Channels',async()=>{
 
 test('read-only role neither fetches nor offers a new piece',()=>{
  role='USER';mount();expect(screen.getByText('Планирование доступно редактору рабочего пространства.')).toBeTruthy();
- expect(requests).toHaveLength(0);expect(screen.getByRole('link',{name:'Новая заготовка'}).getAttribute('aria-disabled')).toBe('true');
+ expect(requests).toHaveLength(0);expect(screen.getByRole('link',{name:'Новый черновик'}).getAttribute('aria-disabled')).toBe('true');
 });
 
 test('loading and recoverable error states',async()=>{
@@ -294,7 +294,7 @@ test('preview shows only authenticated piece provenance and does not leak it int
   swr:{__esModule:true,default:()=>({data:[{id:'p0'}],isLoading:false})},
  });
  const view=render(h(PostPreviewDialog,{open:true,onClose:()=>{},postId:'p0',piece:{id:'piece/0',code:'cnt-06',title:'Title'}}));
- expect(screen.getByText(/из заготовки cnt-06/)).toBeTruthy();
+ expect(screen.getByText(/из черновика cnt-06/)).toBeTruthy();
  expect(screen.getByRole('link',{name:'открыть →'}).getAttribute('href')).toBe('/content/pieces/piece%2F0');
  view.rerender(h(PostPreviewDialog,{open:true,onClose:()=>{},postId:'p0',piece:null}));
  expect(screen.queryByRole('link',{name:'открыть →'})).toBeNull();

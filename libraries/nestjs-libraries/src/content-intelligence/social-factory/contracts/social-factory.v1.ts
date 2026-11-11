@@ -5,7 +5,7 @@ export const SOCIAL_FACTORY_VERSION = 1 as const;
 export type SocialPlatformV1 = 'telegram' | 'instagram' | 'youtube' | 'threads' | 'tiktok';
 export type MaterialFormatV1 = 'post' | 'thread' | 'carousel' | 'story' | 'reel' | 'short' | 'long_video';
 export type AutonomyModeV1 = 'collaborative' | 'prepare_approve' | 'autopilot';
-export type SocialFactoryKindV1 = 'channel_profile' | 'discovery' | 'editorial' | 'campaign' | 'campaign_item' | 'grant' | 'decision' | 'action' | 'observation' | 'experiment' | 'finding' | 'attribution' | 'exchange' | 'video_composition' | 'source_recommendation' | 'publication_binding' | 'channel_profile_snapshot' | 'source_permission' | 'media_purge' | 'draft_destination';
+export type SocialFactoryKindV1 = 'channel_profile' | 'discovery' | 'editorial' | 'campaign' | 'campaign_item' | 'grant' | 'decision' | 'action' | 'observation' | 'experiment' | 'finding' | 'attribution' | 'exchange' | 'video_composition' | 'source_recommendation' | 'publication_binding' | 'channel_profile_snapshot' | 'source_permission' | 'media_purge' | 'draft_destination' | 'heygen_avatar_consent' | 'heygen_person_profile' | 'heygen_style_operation' | 'heygen_voice_setup' | 'heygen_video_scope' | 'heygen_performance_plan' | 'heygen_performance_preference' | 'heygen_performance_feedback';
 export type JsonValueV1 = null | boolean | number | string | JsonValueV1[] | { [key: string]: JsonValueV1 };
 export interface SocialFactoryRecordV1<T = unknown> {
   organizationId: string; kind: SocialFactoryKindV1; id: string; revision: number;

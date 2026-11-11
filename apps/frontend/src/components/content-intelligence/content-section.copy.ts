@@ -15,10 +15,10 @@
  */
 export const contentSectionCopy = {
   ru: {
-    title: 'Заготовки',
+    title: 'Черновики',
     avatarDescription: 'Ваш голос: образцы текстов и настройки того, как вы пишете.',
     description:
-      'От мысли к заготовке: новые тексты, поводы написать и факты, на которые они опираются.',
+      'Черновики, идеи и источники для ваших публикаций.',
     tabs: 'Разделы контента',
     avatars: 'Аватар',
     // `content-factory-next-odb8.3`: «Откуда идеи» — подписки на чужие ленты
@@ -36,20 +36,20 @@ export const contentSectionCopy = {
     // нет, — владелец прочитал подпись как «здесь заполняют восемь полей».
     // Ключ `brief` не менялся: по нему живут адреса, тесты и
     // `ContentIntelligenceSection`.
-    brief: 'Новая заготовка',
+    brief: 'Новый черновик',
     // `content-factory-next-tu3k.9` (06.09.2026): вкладка называется
     // «Заготовки» и стоит первой. Ключ `materials` не менялся — по нему живут
     // адреса, тесты и `ContentIntelligenceSection`.
-    materials: 'Заготовки',
+    materials: 'Черновики',
     // Ключ вкладки не менялся (`tab === 'provenance'` держат несколько
     // тестов и `ContentIntelligenceSection`), поменялась только подпись:
     // экран за ней теперь витрина фактов, а не проверка происхождения.
     provenance: 'Откуда факты',
     // Вкладка называется «Заготовки», и пустое состояние говорит тем же
     // словом (аудит 97dq.39, B9): «материал» остался от первого поколения.
-    materialsTitle: 'Заготовок пока нет',
+    materialsTitle: 'Черновиков пока нет',
     materialsBody:
-      'Заготовка — суть вашей мысли без площадки: из неё делаются адаптации под каналы. Первая появится здесь, когда вы соберёте её на вкладке «Новая заготовка».',
+      'Соберите факты и источники на вкладке «Новый черновик». Из одного черновика можно подготовить несколько материалов.',
     // Not «Раздел готовится», which promised a tab under construction over a
     // library that already read and recut. It is simply empty until the brief
     // has been used once, and the body says where the first row comes from.
@@ -60,20 +60,20 @@ export const contentSectionCopy = {
     /* Зачем второй вид вообще нужен — одной строкой рядом с самой полосой. */
   },
   en: {
-    title: 'Pieces',
+    title: 'Drafts',
     avatarDescription: 'Your voice: writing samples and how you write.',
     description:
-      'From a thought to a piece: new texts, reasons to write and facts they rely on.',
+      'Drafts, ideas and sources for your publications.',
     tabs: 'Content sections',
     avatars: 'Avatar',
     leads: 'Ideas',
     sources: 'Sources',
-    brief: 'New piece',
-    materials: 'Pieces',
+    brief: 'New draft',
+    materials: 'Drafts',
     provenance: 'Facts',
-    materialsTitle: 'No pieces yet',
+    materialsTitle: 'No drafts yet',
     materialsBody:
-      'A piece is the core of your thought without a platform: channel adaptations are made from it. The first one appears here once you build it on the New piece tab.',
+      'Collect facts and sources on the New draft tab. One draft can be adapted into several formats.',
   },
 } as const;
 

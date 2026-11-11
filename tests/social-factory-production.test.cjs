@@ -89,7 +89,7 @@ async function fixture({ draft = false, sourceBound = false, count = 1, platform
  const videoRecords = { piece: async (_org, id) => ({ id, title: 'Title', body: 'Body', brief: {}, language: 'en', updatedAt: new Date('2026-11-03T00:00:00Z') }), job: async () => video.job };
  const localReels={produce:async(org,source,material,images,checkpoint,onCheckpoint,assertCurrent)=>{await assertCurrent();const next={...checkpoint,rendered:{renderKey:'render-1'},asset:{id:'movie',mediaId:'movie',kind:'video',role:'final',mimeType:'video/mp4',width:1080,height:1920,durationSeconds:60,provenance:{revision:source.ref.revision,sourceIds:[]}}};await onCheckpoint(next);calls.localRender=(calls.localRender??0)+1;await assertCurrent();return {...material,assets:[...material.assets,next.asset]};}};
  const make = (localCompositions,localExecution) => new SocialFactoryProductionService(store, campaigns, autonomy, decisions, profiles, editorial, native, learning, publishing, video, videoRecords, planning, sourceBound?sourceArtifacts:undefined, localReels,localCompositions,localExecution);
- const service = make(), input = { campaignId: campaign.id, requestId: 'prepare', ...(sourceBound?{sourceArtifact:currentSource.value.ref}:{}), instruction: 'Explain safe workshop maintenance choices to a new owner.', ...(format === 'reel' ? { targetSeconds: 60 } : {}) };
+ const service = make(), input = { campaignId: campaign.id, requestId: 'prepare', ...(autopilot?{editorialReview:'complex'}:{}), ...(sourceBound?{sourceArtifact:currentSource.value.ref}:{}), instruction: 'Explain safe workshop maintenance choices to a new owner.', ...(format === 'reel' ? { targetSeconds: 60 } : {}) };
  return { store, campaigns, autonomy, campaign, grant, calls, context, planning, editorial, native, video, videoRecords, decisions, input, service, make, currentSource, sourceArtifacts, localReels };
 }
 const operations = f => [...f.store.rows.values()].filter(row => row.kind === 'editorial' && row.payload.version === 2);
@@ -927,4 +927,26 @@ test('a planning route changing after lease acquisition is blocked and releases 
  const plan=[...f.store.rows.values()].find(row=>row.payload.type==='campaign_destination_plan').payload;
  expect(plan).toMatchObject({state:'preflight_failed',blocker:costUnavailable});expect(plan.owner).toBeUndefined();expect(plan.leaseUntil).toBeUndefined();expect(f.calls.discover).toBe(0);expect(f.calls.model).toBe(0);
  expect((await f.make().prepare('org','owner',{...f.input,allowWebSearch:true})).items[0].code).toBe(costUnavailable);
+});
+
+
+test('routine autopilot preparation uses no expert and needs no advanced model',async()=>{
+ const f=await fixture({autopilot:true,platform:'telegram'});delete f.input.editorialReview;advancedConfigured=false;
+ const result=await f.service.prepare('org','owner',f.input);
+ expect(result.items[0].state).toBe('ready');expect(f.calls.decisions).toBe(0);expect(f.calls.model).toBe(1);
+ expect(f.calls.requests[0].brief.lengthChoiceId).toBeTruthy();expect(f.calls.requests[0].brief.lengthGuidance).toContain('characters');
+ expect(operations(f)[0].payload.decision).toBeUndefined();
+});
+test('routine autopilot retains grant and source guards before generation',async()=>{
+ const f=await fixture({autopilot:true,sourceBound:true});delete f.input.editorialReview;
+ await f.autonomy.revoke('org',f.grant.id,'owner');
+ const result=await f.service.prepare('org','owner',f.input);
+ expect(result.items[0].state).toBe('needs_input');expect(f.calls.decisions).toBe(0);expect(f.calls.model).toBe(0);
+});
+test('complex editor intent is frozen and a retry cannot silently drop it',async()=>{
+ const f=await fixture({autopilot:true});f.editorial.artwork=async()=>{throw Error('local artwork interrupted');};
+ await f.service.prepare('org','owner',f.input);expect(operations(f)[0].payload.editorialReview).toBe('complex');
+ const retry={...f.input};delete retry.editorialReview;
+ const result=await f.make().prepare('org','owner',retry);
+ expect(result.items[0].code).toBe('CAMPAIGN_PRODUCTION_INTENT_CHANGED');expect(f.calls.decisions).toBe(1);expect(f.calls.model).toBe(1);
 });

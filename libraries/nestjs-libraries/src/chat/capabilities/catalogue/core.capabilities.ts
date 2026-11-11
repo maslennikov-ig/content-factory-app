@@ -56,7 +56,7 @@ const currentCore = async (ctx: CapabilityRunContext, id: string) => {
   if (!detail.core) {
     throw codedFailure(
       'PIECE_CORE_MISSING',
-      ctx.language === 'ru' ? 'У заготовки ещё нет сути.' : 'The piece has no core yet.'
+      ctx.language === 'ru' ? 'У черновика ещё нет сути.' : 'The piece has no core yet.'
     );
   }
   return detail.core;

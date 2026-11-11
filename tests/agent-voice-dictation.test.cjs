@@ -243,6 +243,7 @@ describe('POST /agent/voice/transcribe door (bxeb.1)', () => {
     },
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
     '@contentfactory/nestjs-libraries/chat/mastra.service': { MastraService: class {} },
+    '@contentfactory/nestjs-libraries/videos/video-access.service': { VideoAccessService: class {} },
     '@contentfactory/nestjs-libraries/locale/backend-strings': backendLocale,
   });
 

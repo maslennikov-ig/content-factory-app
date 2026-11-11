@@ -72,6 +72,114 @@ const run = (id, value, built, identity = {}, resume = {}) => {
 const unwrap = output => output.summary?.untrustedData?.value ?? output.summary;
 beforeEach(() => { answers = []; calls = []; });
 
+const nativeResearchReady = async (built, { officialGap = false } = {}) => {
+  const original = officialGap
+    ? 'Подготовь черновик о саммите в Дубае. Дату и место подтверди официальным источником организатора.'
+    : input;
+  const understood = brief();
+  understood.understanding.goal = original;
+  understood.understanding.materials = [];
+  if (officialGap) understood.understanding.constraints.requirements = ['Официальное подтверждение даты и места организатором.'];
+  const gap = 'Официальный источник организатора с датой и местом не найден; вторичные каталоги расходятся в датах.';
+  answers = [understood, { verdicts: [], findings: findings.map((row, index) => ({ statement: row.statement,
+    evidenceId: `ev-${index + 1}`, quote: row.quote })), assessment: { status: officialGap ? 'partial' : 'sufficient',
+      summary: officialGap ? 'Есть только вторичные сведения.' : 'Нужные сведения подтверждены источниками.',
+      coveredNeeds: ['Сведения из найденных источников'], gaps: officialGap ? [gap] : [], suggestedQueries: [] } }];
+  built.research.mockResolvedValue({ provider: 'exa', ...researchResult(), sources: researchResult().sources.map((row, index) => ({
+    ...row, fullText: row.text,
+    ...(officialGap ? { url: index ? 'https://directory.example/old-2024' : 'https://directory.example/summit', title: 'Неофициальный каталог' } : {}),
+  })), facts: findings.map((row, index) => ({ ...row, text: row.quote,
+    ...(officialGap ? { sourceUrl: index ? 'https://directory.example/old-2024' : 'https://directory.example/summit' } : {}),
+  })) });
+  const result = await run('piece.create', { text: original, inputKind: 'instruction', research: 'standard' }, built);
+  expect(result.output.ok).toBe(true);
+  expect(result.output.summary.outcome).toBe('research-ready');
+  expect(typeof result.output.summary.snapshotKey).toBe('string');
+  return { original, result, snapshotKey: result.output.summary.snapshotKey, gap };
+};
+
+test('ordinary chat resumes a retained research-ready result after interruption without research, extraction or source refetch', async () => {
+  const built = build();
+  built.snapshots.set = jest.fn(built.snapshots.set);
+  const { original, result, snapshotKey } = await nativeResearchReady(built);
+  expect(result.output.summary.note).toContain('Use piece.create.from-research with this snapshot');
+  expect(result.output.summary.note).toContain('do not repeat unchanged reads');
+  const readInstruction = registry.CAPABILITY_CATALOGUE.find(row => row.id === 'piece.read').description;
+  expect(readInstruction).toContain('only when the next page is needed for the specific request');
+  expect(readInstruction).toContain('user explicitly requested exhaustive coverage');
+  expect(readInstruction).not.toContain('follow nextRead to enumerate all rows');
+  expect(built.writes).not.toHaveBeenCalled();
+  expect(built.snapshots.set).toHaveBeenCalledWith(
+    `intake:snapshot:${IDENTITY.organizationId}:${IDENTITY.userId}:${snapshotKey}`, expect.any(String), 'EX', 3_600);
+  const captured = await built.service.readResearchSnapshot(IDENTITY.organizationId, IDENTITY.userId, snapshotKey);
+  const selected = captured.facts.filter(row => row.verified && row.status === 'confirmed').map(row => row.factKey);
+  expect(selected).toHaveLength(2);
+  // The outer chat model can time out after successful reads; the domain
+  // snapshot outlives it and a new service instance uses that exact plan.
+  for (let index = 0; index < 8; index++) {
+    const read = await run('piece.read', { researchId: snapshotKey, part: 'research_source', sourceIndex: index % 2 }, built);
+    expect(read.output.ok).toBe(true);
+  }
+  const restart = build(); restart.service.snapshots = built.snapshots;
+  const callsBefore = calls.length;
+  answers = [{ text: 'Alpha поддерживает сессии. Beta сохраняет поток.' }];
+  const continued = await run('piece.create.from-research', { snapshotKey, factKeys: selected,
+    text: 'Продолжи после сбоя. Это не замена исходного задания.' }, restart);
+  expect(continued.output).toMatchObject({ ok: true, summary: { outcome: 'created', pieceId: 'piece-1', reusedResearchId: snapshotKey } });
+  expect(calls.slice(callsBefore).map(call => call.role)).toEqual(['draft']);
+  expect(restart.research).not.toHaveBeenCalled();
+  expect(restart.fetch).not.toHaveBeenCalled();
+  expect(restart.writes).toHaveBeenCalledTimes(1);
+  expect(restart.writes.mock.calls[0][1].brief.inputText).toBe(original);
+  expect(restart.writes.mock.calls[0][1].brief.request.goal).toBe(original);
+  const repeat = await run('piece.create.from-research', { snapshotKey, factKeys: selected }, restart);
+  expect(repeat.output).toMatchObject({ ok: true, summary: { pieceId: 'piece-1' } });
+  expect(restart.writes).toHaveBeenCalledTimes(1);
+  expect(built.research).toHaveBeenCalledTimes(1);
+});
+
+test('research-ready with missing official authority retains that gap and does not imply source sufficiency or start a draft', async () => {
+  const built = build();
+  const { result, snapshotKey, original, gap } = await nativeResearchReady(built, { officialGap: true });
+  expect(result.output.summary.note).toContain('Check required official confirmation first');
+  expect(result.output.summary.note).toContain('a supported directory quote is not official evidence');
+  expect(result.output.summary.note).toContain('Mark missing authority or conflicting dates');
+  expect(result.output.summary.note).toContain('If the task permits a partial draft, write confirmed facts with those gaps');
+  expect(result.output.summary.note).toContain('only when the user requested exhaustive coverage');
+  expect(result.output.summary.note).toContain('does not authorize another paid search');
+  const retained = await built.service.readResearchSnapshot(IDENTITY.organizationId, IDENTITY.userId, snapshotKey);
+  expect(retained.request.goal).toBe(original);
+  expect(retained.request.constraints.requirements).toEqual(['Официальное подтверждение даты и места организатором.']);
+  expect(retained.summary.gaps).toContain(gap);
+  expect(retained.evidence.every(row => row.url.startsWith('https://directory.example/'))).toBe(true);
+  expect(built.writes).not.toHaveBeenCalled();
+  expect(built.research).toHaveBeenCalledTimes(1);
+  expect(built.fetch).not.toHaveBeenCalled();
+});
+
+test.each(['expired', 'foreign-actor', 'foreign-workspace', 'tampered-binding'])('ordinary research continuation refuses %s without a fresh search or writer', async scenario => {
+  const built = build();
+  const { snapshotKey } = await nativeResearchReady(built);
+  const key = `intake:snapshot:${IDENTITY.organizationId}:${IDENTITY.userId}:${snapshotKey}`;
+  if (scenario === 'expired') built.rows.delete(key); // Redis EX expiry removes this owned key.
+  if (scenario === 'tampered-binding') {
+    const captured = JSON.parse(built.rows.get(key)); captured.actorUserId = 'another-person';
+    built.rows.set(key, JSON.stringify(captured));
+  }
+  const callsBefore = calls.length;
+  const identity = scenario === 'foreign-actor' ? { userId: 'another-person' }
+    : scenario === 'foreign-workspace' ? { organizationId: 'another-workspace' } : {};
+  const read = await run('piece.read', { researchId: snapshotKey, part: 'research_source' }, built, identity);
+  expect(read.output).toMatchObject({ ok: false, code: 'MATERIAL_NOT_AVAILABLE' });
+  const continued = await run('piece.create.from-research', { snapshotKey, factKeys: ['arbitrary-key'] }, built, identity);
+  expect(continued.output).toMatchObject({ ok: false, code: 'INTAKE_RESEARCH_SNAPSHOT_UNAVAILABLE' });
+  expect(calls).toHaveLength(callsBefore);
+  expect(built.writes).not.toHaveBeenCalled();
+  expect(built.research).toHaveBeenCalledTimes(1);
+  expect(built.fetch).not.toHaveBeenCalled();
+  expect([...built.rows.keys()].some(row => row.endsWith(':continuation'))).toBe(false);
+});
+
 test.each(['choice', 'delegate'])('fresh create preserves an explicit human fact choice despite sufficient supplied material and resumes one %s', async mode => {
   const built = build();
   const now = new Date('2026-10-20T09:00:00Z');

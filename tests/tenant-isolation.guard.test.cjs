@@ -307,6 +307,10 @@ const ALLOWED = new Map([
     'Same-grant renewal must refuse active or unknown-liability jobs across every organisation sharing this personal connection, because rotating its global token can interrupt those jobs. repository.connection first verifies the current actor, live activated editor membership, ownerId and enabled current-org grant, then assertParent verifies the pilot. The query uses only that verified connectionId and selects id solely for a Boolean busy refusal; no foreign job is returned. hgg-workspace-lease.test.cjs proves other-org running and failed possibly-billed jobs both prevent refresh, while completed same-org retry does not refresh again.',
   ],
   [
+    `${LIBRARY}/videos/video-access.service.ts videoSubscriptionJob.findFirst in launch`,
+    'One native HeyGen account shares its submission fence across all workspace grants. Before this existence check, launch verifies the owned preflight, editor membership, personal connection grant and the frozen account identity. It selects only id for a Boolean busy refusal, and never returns a foreign job.',
+  ],
+  [
     `${LIBRARY}/videos/subscriptions/video-hgg-workspace.service.v1.ts videoAccessPreflight.findUnique in json`,
     'withContext uses a server-derived connection-only hash for one global control lease across the owner\'s granted organisations. Before this existence read, repository.connection verifies current actor, activated editor membership, connection ownerId and enabled current-org grant. The row is never returned; scoping it to the calling org would split or strand the connection-wide workspace lock. Controlled two-org contention and denied-owner/grant proof: hgg-workspace-lease.test.cjs.',
   ],

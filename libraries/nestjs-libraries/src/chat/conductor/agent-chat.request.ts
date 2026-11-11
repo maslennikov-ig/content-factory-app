@@ -1,3 +1,4 @@
+import { normalizeAgentChatMode, type AgentChatMode } from './chat-mode';
 import { randomUUID } from 'node:crypto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
@@ -128,6 +129,9 @@ export type AgentChatInput =
       threadId?: string;
       workContext?: AgentWorkContextV1 | null;
       writingSelection?: AgentWritingSelection;
+      chatMode?: AgentChatMode;
+      /** Explicit continuation of the owned current failed task, not a new material. */
+      continueFromRequestId?: string;
       /** The new user message, reduced to text and file parts (a samples receipt becomes text). */
       message: { id: string; role: 'user'; parts: Record<string, unknown>[] };
       text: string;
@@ -596,6 +600,10 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
   // approval/question card. Answers retain the validated thread selection.
   const workContext = body.workContext === undefined ? undefined : parseAgentWorkContext(body.workContext);
   const writingSelection = body.writingSelection === undefined ? undefined : parseAgentWritingSelection(body.writingSelection);
+  if (body.chatMode !== undefined && !normalizeAgentChatMode(body.chatMode)) throw badRequest('Invalid chat mode.');
+  const continueFromRequestId = body.continueFromRequestId === undefined ? undefined : idOrNull(body.continueFromRequestId);
+  if (body.continueFromRequestId !== undefined && (!continueFromRequestId || !threadId || body.runId !== undefined || body.resumeData !== undefined))
+    throw badRequest('A continuation must name its existing thread and failed request.');
 
   if (body.runId !== undefined || body.resumeData !== undefined) {
     const runId = runIdOrNull(body.runId);
@@ -642,6 +650,8 @@ export const parseAgentChatBody = (body: unknown): AgentChatInput => {
       text,
       ...(workContext !== undefined ? { workContext } : {}),
       ...(writingSelection !== undefined ? { writingSelection } : {}),
+      ...(body.chatMode !== undefined ? { chatMode: normalizeAgentChatMode(body.chatMode)! } : {}),
+      ...(continueFromRequestId ? { continueFromRequestId } : {}),
       ...(samplesAvatarId !== undefined ? { samplesAvatarId } : {}),
       ...(mediaIds ? { mediaIds, mediaPart } : {}),
       ...(pictures ? { pictures } : {}),

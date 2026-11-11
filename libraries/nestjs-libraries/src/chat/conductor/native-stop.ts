@@ -41,6 +41,23 @@ export type NativeStopBinding = {
   requestId: string;
 };
 
+/** A retained SDK registry entry is not an executing driver after its exact fence settled. */
+export async function nativeLocalExecutionSettled(
+  entry: {executionFence?: {runId: string; executionId: string; generation?: number; whenSettled: Promise<void>}} | undefined,
+  runId: string,
+  owner: {ownerId?: string; generation?: number; live?: boolean} | null | undefined
+): Promise<boolean> {
+  if (!entry) return true;
+  const fence = entry.executionFence;
+  if (!fence || typeof fence.whenSettled?.then !== 'function' ||
+      typeof fence.executionId !== 'string' || !fence.executionId.trim() ||
+      typeof owner?.ownerId !== 'string' || !owner.ownerId.trim() ||
+      fence.runId !== runId || owner.live !== false ||
+      fence.executionId !== owner.ownerId || fence.generation !== owner.generation) return false;
+  const pending = Symbol('native-execution-pending');
+  return await Promise.race([fence.whenSettled, Promise.resolve(pending)]) !== pending;
+}
+
 export class NativeStopOwnerPendingError extends Error {
   readonly code = 'NATIVE_STOP_OWNER_PENDING';
   constructor() {

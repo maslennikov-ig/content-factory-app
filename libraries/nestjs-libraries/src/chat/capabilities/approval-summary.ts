@@ -134,7 +134,7 @@ export const approvalContentDigest = async (
   const capability = capabilities.find(
     (candidate) => toolNameOf(candidate.id) === toolName
   );
-  if (!capability || (capability.risk !== 'confirm' && !['video.launch', 'video.launch_v2'].includes(capability.id)) || !capability.approvalContent) {
+  if (!capability || (capability.risk !== 'confirm' && !['video.launch', 'video.launch_v2', 'video.heygen_style_submit', 'video.heygen_voice_execute'].includes(capability.id)) || !capability.approvalContent) {
     return null;
   }
   const parsed = validateToolInput(toStandardSchema(capability.input), args);

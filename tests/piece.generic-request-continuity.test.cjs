@@ -196,6 +196,52 @@ test('adaptation proof hints retain selected quotes even when the short editoria
   expect(prompts).toHaveLength(0);
 });
 
+test('an explicit Telegram invitation inherits the saved draft facts, exact quotes and research gaps without rewriting its parent', async () => {
+  const { RunnableLambda } = require('@langchain/core/runnables');
+  const { loadAgentGraph } = require('../scripts/evidence/voice-eval/product-graph.cjs');
+  const { service, piece } = build();
+  const sourceUrl = 'https://official.example/dubai-summit';
+  piece.body = `Кратко для руководителя: саммит в Дубае пройдёт 12 ноября.\n\n[Программа](${sourceUrl}): заявлены 12 команд.\n\nСостав спикеров пока неизвестен.`;
+  piece.brief.request = { version: 'intake-request/v1', goal: 'Подготовь для руководителя черновик о саммите в Дубае.',
+    requestedOutputs: ['Черновик с фактами и источниками'], constraints: { research: 'required' } };
+  piece.brief.researchSummary = { ...clone(summary), gaps: ['Состав спикеров пока неизвестен.'] };
+  piece.brief.brief.facts = [{ factKey: 'summit:date', evidenceId: 'summit', kind: 'found', origin: 'search',
+    statement: 'Саммит в Дубае пройдёт 12 ноября; заявлены 12 команд.', sourceUrl,
+    quote: 'The Dubai summit takes place on 12 November with 12 teams.', selected: true, verified: true, status: 'confirmed' }];
+  service.pieces.listIntegrations = async () => [{ id: 'channel', name: 'Telegram', providerIdentifier: 'telegram', contentLanguage: 'ru' }];
+  service.integrationManager = { getSocialIntegration: () => ({ maxLength: () => 4096, editor: 'none' }) };
+  const before = clone(piece);
+  const currentAuthorRequest = 'Сделай приглашение в Telegram из этого черновика. Сохрани дату и число команд; не придумывай спикеров.';
+  const plan = await service.prepareAdapt('org', piece.id, { integrationId: 'channel', kind: 'post' }, 'ru', { currentAuthorRequest });
+  const selected = service.briefMaterial(plan);
+  const hints = service.hintsOf(plan, [], selected.material);
+  expect(hints.researchSummary).toEqual(piece.brief.researchSummary);
+  expect(hints.evidenceQuotes).toEqual([expect.objectContaining({ sourceUrl, quote: piece.brief.brief.facts[0].quote })]);
+  hints.channel.writingProfile = loadWithMocks('libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts').defaultWritingProfileFor('telegram', 'ru');
+  const calls = [];
+  const invitation = `Приглашаем на саммит в Дубае 12 ноября: заявлены 12 команд. Состав спикеров пока неизвестен. [Программа](${sourceUrl})`;
+  const model = { withStructuredOutput: () => RunnableLambda.from(async prompt => {
+    calls.push(String(prompt));
+    return calls.length === 1 ? { content: { content: invitation, usedCitationIds: [] } }
+      : { status: 'complete', missingRequirements: [], unsupportedClaims: [] };
+  }) };
+  const graph = loadAgentGraph({ chatModel: model }).service;
+  graph.aiUsage = { executeAiOperation: async (_org, _operation, callback) => callback() };
+  const state = { orgId: 'org', language: 'ru', format: 'one_long', tone: 'personal',
+    messages: [{ content: currentAuthorRequest }], popularPosts: [], researchAvailable: false,
+    hook: '', contentContext: { facts: [], evidence: [] }, intake: hints };
+  const generated = await graph.generateContent(state);
+  const reviewed = await graph.fixArray({ ...state, ...generated });
+  expect(calls[0]).toContain(currentAuthorRequest);
+  expect(calls[0]).toContain('Saved parent draft research coverage');
+  expect(calls[0]).toContain('Состав спикеров пока неизвестен.');
+  expect(calls[0]).toContain('Саммит в Дубае пройдёт 12 ноября; заявлены 12 команд.');
+  const review = JSON.parse(calls[1].slice(calls[1].indexOf('Human: ') + 7));
+  expect(review.researchSummary).toEqual(piece.brief.researchSummary);
+  expect(reviewed.content[0].content).toBe(invitation);
+  expect(clone(piece)).toEqual(before);
+});
+
 test.each(['request', 'requestUnderstanding'])('native author answer and rebuild retain saved %s, research provenance and explicit title', async meaningField => {
   const { service, piece, saved } = build({ meaningField });
   // Read the actual native pending-question record through the public service.
@@ -219,7 +265,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   expect(piece.brief.questions.items).toEqual([]);
   expect(piece.brief.questions.answered).toContainEqual(expect.objectContaining({ key: 'ask-1', text: AUTHOR_REPLY, origin: 'person' }));
   expect(answered.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
-  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v21');
+  expect(prompts[0].prompt).toContain('PROMPT VERSION: core-write/v22');
   expect(prompts[0].prompt).toContain(summary.gaps[0]);
   expect(prompts[0].prompt).toContain(request().goal);
   expect(prompts[0].prompt).toContain(AUTHOR_REPLY);
@@ -241,7 +287,7 @@ test.each(['request', 'requestUnderstanding'])('native author answer and rebuild
   const reread = await service.detail('org', 'piece-1', 'ru');
   expect(reread.core).toMatchObject({ request: request(), researchSelection: selection, researchSummary: summary });
   expect(prompts.map(call => call.role)).toEqual(['draft', 'draft']);
-  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v21');
+  expect(prompts[1].prompt).toContain('PROMPT VERSION: core-write/v22');
   expect(prompts[1].prompt).toContain(summary.gaps[0]);
   expect(prompts[1].prompt).toContain(AUTHOR_REPLY);
 });
@@ -255,6 +301,16 @@ test('the original requested title cannot replace a later title edited by the au
   expect(piece.brief.request.constraints.title).toBe(TITLE);
   await service.rebuildCore('org', 'piece-1', 'ru');
   expect(piece.title).toBe('Заголовок, исправленный автором');
+});
+
+test('a person-selected research summary also survives the native answer and rebuild writers', async () => {
+  const { service, piece } = build();
+  piece.brief.researchSelection.origin = 'person';
+  await answer(service);
+  await service.rebuildCore('org', 'piece-1', 'ru');
+  expect(writers.map(call => call.input.researchSummary)).toEqual([summary, summary]);
+  expect(piece.brief.researchSelection.origin).toBe('person');
+  expect(piece.brief.researchSummary).toEqual(summary);
 });
 
 test('legacy native cores remain answerable and rebuildable without manufacturing new request or research fields', async () => {

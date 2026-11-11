@@ -65,9 +65,9 @@ const pieceId = z
 export const pieceRename = defineCapability({
   id: 'piece.rename',
   group: 'content',
-  label: { ru: 'Переименовать заготовку', en: 'Rename a piece' },
+  label: { ru: 'Переименовать черновик', en: 'Rename a piece' },
   description:
-    'Rename a piece (заготовка). Needs the piece id from workspace.snapshot. Reversible: the old title is not special.',
+    'Rename a piece (черновик). Needs the piece id from workspace.snapshot. Reversible: the old title is not special.',
   input: z.object({
     pieceId,
     // The door's own limit (`PieceTitleDto`).
@@ -118,7 +118,7 @@ const screenInputKind = (
 };
 
 const SELECTION_QUESTION = {
-  ru: 'Поиск нашёл опоры. Отметьте, на чём строить заготовку.',
+  ru: 'Поиск нашёл опоры. Отметьте, на чём строить черновик.',
   en: 'The search found facts. Mark the ones the piece stands on.',
 };
 
@@ -334,7 +334,7 @@ const originalWords = async (
 export const pieceCreate = defineCapability({
   id: 'piece.create',
   group: 'content',
-  label: { ru: 'Написать заготовку', en: 'Write a piece' },
+  label: { ru: 'Написать черновик', en: 'Write a piece' },
   description:
     'Create a new piece from the original request and optional labelled material, or from already-completed research (researchId) without running another search. Paid. In native chat prefer requestMessageId with omitted text so the server reads the exact author message; otherwise pass the person’s original words verbatim in text; use material for relevant earlier conversation or selected material with its actual role/source labels. A model paraphrase in material does not become confirmed research evidence. Each factId selects only its own captured statement and quote, not the entire source URL; reading more of that source does not expand the old fact. To use later source evidence, pass passages with exact sourceUrl/revision/quote from piece.read alongside researchId (or use piece.create.from-research). To combine captures use references, pairing each snapshotKey with its own factKeys; exact passages may accompany either selection. The existing brief model interprets the goal, roles, dates and constraints and assesses the selected evidence; do not manually serialize another task schema. Choose inputKind by meaning, not keywords; choose research explicitly when missing/current evidence is required, none for self-contained/no-search work. Reusing research disables new search inside this write call; it does not report global search availability. A previous post, dates or channel are optional. With research this returns actual facts/summary/gaps and snapshotKey before any draft: assess them, then continue with relevant confirmed factKeys or exact retained passages. Do not claim a piece exists until a piece id is returned. Use selection:person only for requested human review or a real person-owned choice; old signed fact cards continue natively. A lead taken with ideas.take may be given by sourceLeadId; the service reads its owned original rather than a retyped lead. Verify the saved title and content. Do not repeat paid create after a confirmed piece or an uncertain write.',
   input: z.object({
@@ -589,7 +589,8 @@ export const pieceCreate = defineCapability({
     opens: (summary) =>
       Number(summary.questions) > 0 && typeof summary.pieceId === 'string' ? summary.pieceId : null,
   },
-  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}), note: 'Research ran; no piece was written. Assess the evidence and gaps. Read later retained source sections through piece.read using find/ranges, then use confirmed factKeys or exact sourceUrl/revision/quote passages with piece.create.from-research without another search. Refine search only for still-missing evidence. No human card is waiting.' } : {
+  summarize: (output) => ('outcome' in output ? { ...researchModelView(output), ...('pieceId' in output ? { pieceId: output.pieceId } : {}),
+    note: 'No draft is saved yet. Check required official confirmation first; a supported directory quote is not official evidence. Mark missing authority or conflicting dates. If the task permits a partial draft, write confirmed facts with those gaps; do not wait for complete coverage. Use piece.create.from-research with this snapshot and relevant factKeys, without new search. Read only for a specific gap; do not repeat unchanged reads. Enumerate every source only when the user requested exhaustive coverage. A timeout does not authorize another paid search.' } : {
     ...(output.selectionOrigin || output.reusedResearchId ? { outcome: 'created' as const } : {}),
     pieceId: output.pieceId,
     code: output.code,
@@ -678,7 +679,7 @@ const questionId = z
 export const pieceAnswer = defineCapability({
   id: 'piece.answer',
   group: 'content',
-  label: { ru: 'Ответить на вопросы заготовки', en: 'Answer the piece\'s questions' },
+  label: { ru: 'Ответить на вопросы черновика', en: 'Answer the piece\'s questions' },
   description:
     'Open the piece’s exact saved manual questions in the conversation, then rewrite its core once after every question is answered or explicitly delegated. In native chat pass only pieceId; the human answers on the native card, never through model-generated answers. Choice, own words, confirmation and explicit delegation retain their provenance. Unanswered questions do not imply delegation. Over MCP the existing manual answers/decide request applies. Returns how many questions remain.',
   input: z.object({
@@ -754,9 +755,9 @@ type PieceListed = {
 export const pieceList = defineCapability({
   id: 'piece.list',
   group: 'content',
-  label: { ru: 'Найти заготовки', en: 'Find pieces' },
+  label: { ru: 'Найти черновики', en: 'Find pieces' },
   description:
-    `List the workspace's pieces (заготовки), newest last, as the «Контент» table: id, code, title, date. Optional words to search in titles and cores, and archived ones on request. At most ${PIECE_LIST_MAX} rows; \`total\` says how many matched.`,
+    `List the workspace's pieces (черновики), newest last, as the «Контент» table: id, code, title, date. Optional words to search in titles and cores, and archived ones on request. At most ${PIECE_LIST_MAX} rows; \`total\` says how many matched.`,
   input: z.object({
     search: z.string().max(200).optional().describe('Words to find in titles and cores'),
     includeArchived: z.boolean().optional().describe('Also list archived pieces'),
@@ -821,7 +822,7 @@ type PieceOpened = {
 export const pieceOpen = defineCapability({
   id: 'piece.open',
   group: 'content',
-  label: { ru: 'Открыть заготовку', en: 'Open a piece' },
+  label: { ru: 'Открыть черновик', en: 'Open a piece' },
   description:
     'Open one piece: shows its native editor and returns code/title, adaptation ids with channel/state, open questions, pending material and earlier core versions. For the actual full core, original material, task or adaptation text call piece.read, continuing ranges when needed. Do not ask the person to copy accessible text from the card.',
   input: z.object({ pieceId }),
@@ -884,7 +885,7 @@ export const pieceOpen = defineCapability({
 export const pieceArchive = defineCapability({
   id: 'piece.archive',
   group: 'content',
-  label: { ru: 'Убрать заготовку в архив', en: 'Archive a piece' },
+  label: { ru: 'Убрать черновик в архив', en: 'Archive a piece' },
   description:
     'Move a piece to the archive (hidden from the list, kept with its adaptations), or bring it back with `archived: false`. Reversible. Only when the person asked to archive or hide the piece. A request to delete is not a request to archive: where deleting is not offered, say it is done in Content Factory and offer the archive in one line — do not archive, unschedule or change anything by yourself.',
   input: z.object({
@@ -906,9 +907,9 @@ export const pieceArchive = defineCapability({
 export const pieceDelete = defineCapability({
   id: 'piece.delete',
   group: 'content',
-  label: { ru: 'Удалить заготовку', en: 'Delete a piece' },
+  label: { ru: 'Удалить черновик', en: 'Delete a piece' },
   description:
-    'Delete a piece (заготовка) for good, with its adaptations. The person approves it on a card first. To only hide a piece, archive it instead.',
+    'Delete a piece (черновик) for good, with its adaptations. The person approves it on a card first. To only hide a piece, archive it instead.',
   input: z.object({ pieceId }),
   risk: 'confirm',
   door: door(ContentPieceController, 'deletePiece'),
@@ -935,12 +936,12 @@ export const pieceDelete = defineCapability({
     const ru = ctx.language === 'ru';
     if (!piece) {
       return ru
-        ? `Удалить заготовку ${input.pieceId} — в этом пространстве её нет, удалять нечего`
+        ? `Удалить черновик ${input.pieceId} — в этом пространстве его нет, удалять нечего`
         : `Delete piece ${input.pieceId} — there is no such piece in this workspace`;
     }
     const title = piece.title.trim() || (ru ? 'без названия' : 'untitled');
     return ru
-      ? `Удалить заготовку ${piece.code} «${title}» вместе с её адаптациями`
+      ? `Удалить черновик ${piece.code} «${title}» вместе с его адаптациями`
       : `Delete piece ${piece.code} “${title}” with its adaptations`;
   },
   run: async (ctx, input) => {

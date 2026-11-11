@@ -470,7 +470,10 @@ const videoFixtures = () => {
     },
     VideoAccessService: {
       choices: async (org) => { own(org); return {workspaceEnabled: false, connections: [], providers: []}; },
+      presenterPreview: async (org,actor,input) => {own(org);if(actor!==IDENTITY.userId||input.connectionId!==personalConnectionId||input.draftId!==draftId)throw new Error('not found');return {...draft,access:{kind:'subscription',connectionId:personalConnectionId},selection:{avatar:INJECTION,voice:'Synthetic owned voice',locale:'ru'},preview:{kind:'script_review',script:draft.brief.script,generated:false,submitted:false,renderReady:false,price:null}};},
       assets: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {avatars:[{id:'owned-avatar',name:INJECTION,ownership:'owned',state:'available',engines:['avatar_iv'],locales:['ru']}],voices:[],engines:['avatar_iv'],ownedOnly:true,accountGeneration:1,status:'needs_owned_assets',blockers:['VIDEO_OWNED_VOICE_UNAVAILABLE'],guidance:null}; },
+      avatarConsentStatus: async (org, actor, input) => { own(org); if(actor!==IDENTITY.userId||input.connectionId!==personalConnectionId||input.avatarId!=='owned-avatar')throw new Error('not found'); return {avatarId:input.avatarId,groupId:'owned-group',name:INJECTION,avatarType:'photo_avatar',groupType:null,consentStatus:null,consentState:'unknown',consentRequirement:'unknown',readOnly:true,renderQualified:false}; },
+      requestAvatarConsent: async (org, actor, threadId, author, input) => {own(org);if(actor!==IDENTITY.userId||input.connectionId!==personalConnectionId||author.messageId!==requestMessageId)throw new Error('not found');return {handle:'a'.repeat(64),ownerThreadId:threadId,name:INJECTION,state:'ready',issuedAt:'2030-01-01T00:00:00.000Z',expiresAt:'2030-01-02T00:00:00.000Z',readOnly:false,renderQualified:false};},
       personalReadiness: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {connectionId,provider:'heygen',accountGeneration:1,walletVerified:false,unit:'heygen_credit',schema:{digest:null,reviewed:false,observedToolNames:[]},operations:[{kind:'presenter',ready:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED','VIDEO_PRICE_UNAVAILABLE']}]}; },
       discoverPersonal: async (org, actor, connectionId) => { own(org); if(actor!==IDENTITY.userId||connectionId!==personalConnectionId)throw new Error('not found'); return {connectionId,provider:'heygen',accountGeneration:1,walletVerified:false,unit:'heygen_credit',schema:{digest:null,reviewed:false,observedToolNames:[]},operations:[{kind:'presenter',ready:false,blockers:['VIDEO_WALLET_IDENTITY_UNVERIFIED','VIDEO_SCHEMA_UNSUPPORTED','VIDEO_PRICE_UNAVAILABLE']}]}; },
       preflight: async (org) => { own(org); return approval; },
@@ -520,6 +523,9 @@ const videoFixtures = () => {
     'video.retry-save': call({jobId}),
     'video.access_v2': call({}),
     'video.personal_assets': call({connectionId:personalConnectionId}),
+    'video.avatar_consent_status': call({connectionId:personalConnectionId,avatarId:'owned-avatar'}),
+    'video.avatar_consent_request': {...call({connectionId:personalConnectionId,avatarId:'owned-avatar',groupId:'owned-group',requestMessageId}),originalAuthorRequest:{messageId:requestMessageId,text:'Если нужно, покажи ссылку на согласие для моего аватара.'}},
+    'video.presenter_preview': call({draftId,version:1,connectionId:personalConnectionId,avatarId:'synthetic_owned_avatar',voiceId:'synthetic_owned_voice',engine:'avatar_iv',durationSeconds:15}),
     'video.personal_readiness': call({connectionId:personalConnectionId}),
     'video.personal_discover': call({connectionId:personalConnectionId}),
     'video.preflight_v2': call({draftId, version: 1, access}),
@@ -648,6 +654,7 @@ const productionFixtures = () => {
 };
 const fixtures = () => ({
   ...videoFixtures(),
+  ...require('./agent-heygen-fixtures.cjs')(INJECTION, IDENTITY),
   ...campaignFixtures(),
   ...productionFixtures(),
   'workspace.snapshot': {
@@ -1570,6 +1577,17 @@ const executeFixture = async (tool, fixture, { requestContext }) => {
     requestContext.set(MASTRA_RESOURCE_ID_KEY, `${IDENTITY.organizationId}:${IDENTITY.userId}`);
     requestContext.set(MASTRA_THREAD_ID_KEY, 'video-fixture-thread');
     requestContext.set('cf.originalAuthorRequest', JSON.stringify(fixture.originalAuthorRequest));
+  }
+  if (fixture.chatMode) requestContext.set('cf.chatMode', fixture.chatMode);
+  if (fixture.nativeApproval) {
+    const { approvalFingerprint } = loadCapabilityModule('approval-fingerprint.ts');
+    const { approvalContentFingerprint } = loadCapabilityModule('approval-summary.ts');
+    const prints = [approvalFingerprint(tool.id, fixture.input)];
+    if (fixture.nativeApproval.content !== undefined) {
+      const digest = approvalFingerprint(`content:${tool.id}`, { content: fixture.nativeApproval.content });
+      prints.push(approvalContentFingerprint(tool.id, fixture.input, digest));
+    }
+    requestContext.set('cf.approvals', prints.join(','));
   }
   if (fixture.resumeData === undefined) {
     return executeTool(tool, fixture.input, { requestContext, mastra: fixture.mastra, toolCallId: fixture.nativeToolCallId });

@@ -40,7 +40,7 @@ stage moves fresh module-graph/mock creation into per-case fixture preparation;
 all22 behavior assertions, fixture isolation and5000ms deadlines remain.
 The affected22/22 check passes with coverage and handle diagnostics. Root owns
 one complete configured release set on the frozen candidate before artifacts.
-No passing release receipt, image, public CI or deployed result is claimed yet.
+The following local delivery receipt supersedes the verification status of the frozen source snapshot.
 Exact progress and artifact facts are kept in the private task evidence directory
 and canonical task; this source snapshot is not a future success assertion.
 
@@ -56,3 +56,59 @@ Production switch, live schema apply, live provider/account acceptance, paid
 calls, active HeyGen work and unaccepted historical branch heads are excluded.
 Public source/registry delivery is a distinct reviewed artifact step; public
 history must never receive private commits. No test skip is a passing scenario.
+
+## Local release preparation accepted
+
+Frozen private source `c5ef8ab7a794bd01ef02bc2a4bd53471e1356d03` passed all
+configured checks. Three app typechecks, four-app build, branding, docs,
+process and diff checks passed. Exact Jest population 946 files, 16,153 passed
+and 276 skipped, with zero failures. Node 343 passed and 38 skipped, Python
+51 passed. The former PlanCard timeout passed inside the full population. The
+[local receipt](acceptance-receipt.deploy-preparation.json) records original
+skips and exact evidence. The production and provider boundaries remain separate.
+
+The public candidate `588bb1fa244c1fd3126a3d117d9c9b821082a708` is staged in
+an isolated clone. Its 6,077 files match the private candidate by Git object
+and mode, with 7,296 stage-evidence files omitted. The AGPL archive is
+16,269,026 bytes, SHA-256 `08a27aa0b2deb7162357802cd69f851f2527555a50cdf299fca66b70fc0931ff`.
+The canonical WSL build command stopped at missing Docker socket. The Windows
+Docker Desktop CLI reached the local Linux single-node builder, confirmed
+capacity with the same helper image and 24 GiB threshold, and built the same
+runtime Dockerfile target after passing the exact suite and source archive
+checks. nginx, isolated CLI help, eight SDK file hashes, archive identity,
+HTML sanitizer, and the weight comparison to `3d6b8c326e0e` passed.
+
+The existing 23-statement SQL guard passed against the schema diff derived
+from current production source and the candidate. Deployment still requires a
+fresh live diff and verified backup. A read-only production check returned
+healthy, zero restarts, and version `3d6b8c326e0e`. Owner controls live apply and
+switch. The local build manifest ID is not a registry digest.
+
+Public source publication, Build/CodeQL and registry delivery are pending
+owner authorization. The exact artifacts and Russian deployment handoff are
+under `/home/me/.local/share/content-factory-orchestration/release-preparation-20261108`.
+Use the already prepared public commit and built image without rebuilding or
+changing its source. Verify the remote base and ownership before any push.
+
+Cleanup removed 129,883 bytes of duplicate focused coverage and private
+Python bytecode. Retained the current source and branch refs, private receipts,
+ready image, archive, isolated public checkout, and all excluded/dirty or
+recovery work. No worktree, branch, production data or shared Docker resource
+was removed. GitHub issue publication remains server-managed.
+
+## Production delivery and cleanup — 11 November 2026
+
+Private `main` advanced to `a75673ac7`, which contains the tested source
+`c5ef8ab7a`. The exact prepared public commit and image were published without
+rebuilding. Public Build and CodeQL passed before the production switch. The
+owner approved the 23-statement migration after the fresh live diff matched the
+prepared SQL. Backup and release details are in the [production runbook](../../../docs/operations/production-deploy.md#current-release-11-november-2026-588bb1fa244c).
+
+Local cleanup removed three inactive build worktrees with commits reachable
+from `main` and retained their release receipts. Free space increased by
+1,327,824,896 bytes during removal. Both canonical checkouts advanced to their
+respective `origin/main` after byte-verified backups of 41 private and 30 public
+local changes. The existing local hook overrides and branch references were
+preserved. Host retention removed one superseded Content Factory image and two
+old configuration copies after production acceptance. Active HeyGen code and
+private local evidence remain in place.

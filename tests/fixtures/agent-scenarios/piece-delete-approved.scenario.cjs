@@ -17,7 +17,7 @@ module.exports = {
     expect(ask.approvals).toEqual([
       expect.objectContaining({
         toolName: 'piece_delete',
-        reason: 'Удалить заготовку cnt-1 «Про созвоны» вместе с её адаптациями',
+        reason: 'Удалить черновик cnt-1 «Про созвоны» вместе с его адаптациями',
       }),
     ]);
     // Mastra's own approval data shows the real call, not a placeholder.

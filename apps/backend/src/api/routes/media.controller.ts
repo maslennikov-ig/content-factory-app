@@ -50,7 +50,7 @@ export class MediaController {
   constructor(private _mediaService: MediaService, private readonly videos: VideoJobService, private readonly videoCredentials: VideoCredentialsService) {}
 
   @Get('/video-catalog')
-  videoCatalog(@GetOrgFromRequest() org: Organization) { return this.videos.catalog(org.id); }
+  videoCatalog(@GetOrgFromRequest() org: Organization, @Query('assets') assets?: string) { return assets === 'none' ? this.videos.catalog(org.id, {includeAssets:false}) : this.videos.catalog(org.id); }
 
   @Get('/video-provider-settings')
   @CheckPolicies([AuthorizationActions.Read, Sections.ADMIN])
@@ -61,10 +61,12 @@ export class MediaController {
   saveVideoProviderSettings(@GetOrgFromRequest() org: Organization, @Body() body: VideoProviderSettingsDto) { return this.videoCredentials.saveWorkspace(org.id, body); }
 
   @Get('/video-prompts')
-  listVideoPrompts(@GetOrgFromRequest() org: Organization, @Query('pieceId') pieceId?: string) { return this.videos.listDrafts(org.id, pieceId); }
+  listVideoPrompts(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Query('pieceId') pieceId?: string, @Query('ids') ids?: string, @Query('metadata') metadata?: string) {
+    return this.videos.listDrafts(org.id, pieceId, typeof ids === 'string' ? ids.split(',') : ids, metadata === '1', user.id);
+  }
 
   @Get('/video-prompts/:id')
-  getVideoPrompt(@GetOrgFromRequest() org: Organization, @Param('id') id: string) { return this.videos.readDraft(org.id, id); }
+  getVideoPrompt(@GetOrgFromRequest() org: Organization, @GetUserFromRequest() user: User, @Param('id') id: string) { return this.videos.readDraft(org.id, id, user.id); }
 
   @Post('/video-prompts')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])

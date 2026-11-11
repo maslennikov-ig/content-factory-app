@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, type FC } from 'react';
+import { useRef, type FC, type ReactElement } from 'react';
 import { Button, type ButtonVariant } from './button';
 
 /**
@@ -26,6 +26,8 @@ import { Button, type ButtonVariant } from './button';
 export const FileInput: FC<{
   /** The button's caption, and the hidden control's accessible name. */
   label: string;
+  /** Compact trigger. The label is still announced and shown on hover. */
+  icon?: ReactElement;
   name: string;
   onFiles: (files: readonly File[]) => void;
   /** A filter for the dialog, never a rule: the server checks regardless. */
@@ -36,6 +38,7 @@ export const FileInput: FC<{
   className?: string;
 }> = ({
   label,
+  icon,
   name,
   onFiles,
   accept,
@@ -49,13 +52,16 @@ export const FileInput: FC<{
   return (
     <>
       <Button
+        iconOnly={!!icon}
+        aria-label={label}
+        title={icon ? label : undefined}
         type="button"
         variant={variant}
         disabled={disabled}
         className={className}
         onClick={() => picker.current?.click()}
       >
-        {label}
+        {icon ?? label}
       </Button>
       <input
         ref={picker}

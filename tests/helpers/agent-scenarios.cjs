@@ -13,6 +13,7 @@
  *   capability (the «help» answers, kcxz.24); the guard checks they exist
  *   and that any requested references exist; instructions are preloaded;
  * - `role` (default `EDITOR`) and `world` (overrides of the base rows);
+ * - `services()` can replace domain service fixtures for a particular scenario;
  * - `turns`: requests to `POST /agent/chat`, in order — `{ say }` a message
  *   (with `samples`: the receipt of files the composer uploaded, kcxz.18),
  *   `{ approve: true | false }` an answer on the last approval card (or, with

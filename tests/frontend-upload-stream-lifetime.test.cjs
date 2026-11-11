@@ -136,6 +136,68 @@ test('missing-file stat failure creates no orphan ReadStream', async () => {
   expect(streams.length).toBe(0);
 });
 
+test.each([
+  ['bytes=0-99', 0, 99],
+  [`bytes=${FILE_BYTES - 100}-`, FILE_BYTES - 100, FILE_BYTES - 1],
+  ['bytes=-100', FILE_BYTES - 100, FILE_BYTES - 1],
+  [`bytes=${FILE_BYTES - 10}-999999999999999999999999`, FILE_BYTES - 10, FILE_BYTES - 1],
+  ['bytes=-999999999999999999999999', 0, FILE_BYTES - 1],
+])('single range %s returns exact bounded bytes and metadata', async (range, start, end) => {
+  const bytes = Buffer.alloc(FILE_BYTES);
+  for (let index = 0; index < bytes.length; index++) bytes[index] = index % 251;
+  fs.writeFileSync(path.join(directory, 'sample.txt'), bytes);
+  const response = await download(['sample.txt'], { headers: { Range: range } });
+  expect(response.status).toBe(206);
+  expect(response.headers.get('accept-ranges')).toBe('bytes');
+  expect(response.headers.get('content-range')).toBe(`bytes ${start}-${end}/${FILE_BYTES}`);
+  expect(response.headers.get('content-length')).toBe(String(end - start + 1));
+  expect(response.headers.get('content-type')).toBe('text/plain');
+  expect(Buffer.from(await response.arrayBuffer()).equals(bytes.subarray(start, end + 1))).toBe(true);
+  expect(await closesWithin(streams[0])).toBe(true);
+});
+
+test.each([`bytes=${FILE_BYTES}-`, 'bytes=99-10', 'bytes=-0', 'bytes=999999999999999999999999-'])('unsatisfiable range %s returns 416 without opening a stream', async range => {
+  const response = await download(['sample.txt'], { headers: { Range: range } });
+  expect(response.status).toBe(416);
+  expect(response.headers.get('content-range')).toBe(`bytes */${FILE_BYTES}`);
+  expect(response.headers.get('accept-ranges')).toBe('bytes');
+  expect(await response.text()).toBe(''); expect(streams).toHaveLength(0);
+});
+
+test.each(['bytes=0-1,3-4', 'items=0-5', 'bytes=nope', 'bytes=-'])('unsupported range %s preserves full download behavior', async range => {
+  const response = await download(['sample.txt'], { headers: { Range: range } });
+  expect(response.status).toBe(200);
+  expect(response.headers.get('content-range')).toBeNull();
+  expect(response.headers.get('content-length')).toBe(String(FILE_BYTES));
+  await response.body.cancel();
+});
+
+test('HEAD advertises full bytes/type/cache without opening a stream, including when Range is supplied', async () => {
+  const response = await head(new Request('http://localhost/uploads/sample.txt', {method: 'HEAD', headers: {Range: 'bytes=0-99'}}),
+    {params: Promise.resolve({path: ['sample.txt']})});
+  expect(response.status).toBe(200); expect(response.body).toBeNull();
+  expect(response.headers.get('accept-ranges')).toBe('bytes');
+  expect(response.headers.get('content-length')).toBe(String(FILE_BYTES));
+  expect(response.headers.get('content-type')).toBe('text/plain');
+  expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  expect(response.headers.get('content-range')).toBeNull(); expect(streams).toHaveLength(0);
+  const missing = await head(new Request('http://localhost/uploads/missing.txt', {method: 'HEAD'}), {params: Promise.resolve({path: ['missing.txt']})});
+  expect(missing.status).toBe(404); expect(missing.body).toBeNull();
+});
+
+test('If-Range preserves partial delivery only for the matching Last-Modified validator', async () => {
+  const modified = fs.statSync(path.join(directory, 'sample.txt')).mtime.toUTCString();
+  const partial = await download(['sample.txt'], { headers: { Range: 'bytes=0-99', 'If-Range': modified } });
+  expect(partial.status).toBe(206); expect((await partial.arrayBuffer()).byteLength).toBe(100);
+  const full = await download(['sample.txt'], { headers: { Range: 'bytes=0-99', 'If-Range': 'Wed, 01 Jan 2020 00:00:00 GMT' } });
+  expect(full.status).toBe(200); expect(full.headers.get('content-range')).toBeNull(); await full.body.cancel();
+});
+
+test('directory paths do not become file streams', async () => {
+  const response = await download([]);
+  expect(response.status).toBe(404); expect(streams).toHaveLength(0);
+});
+
 test('path confinement refuses traversal without opening a file', async () => {
   const response = await download(['..', 'outside.txt']);
   expect(response.status).toBe(404);
@@ -208,8 +270,7 @@ test('HEAD returns the same public asset headers without reading the file body',
   expect(response.body).toBe(null);
   expect(response.headers.get('content-length')).toBe(String(FILE_BYTES));
   expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
-  expect(await closesWithin(streams[0])).toBe(true);
-  expect(streams[0].bytesRead).toBe(0);
+  expect(streams).toHaveLength(0);
 });
 
 test('valid local byte ranges return exact206 segments and invalid ranges return416', async () => {

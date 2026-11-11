@@ -1,0 +1,110 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "duration_seconds": 26.14,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "duration_seconds": 16.397,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "duration_seconds": 19.383,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 113.48,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "duration_seconds": 2753.41,
+      "environment_gates": [
+        {
+          "environment_variable": "SOURCE_REGISTRY_POSTGRES_URL",
+          "reason": "SOURCE_REGISTRY_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL serializable lease crossing rolls back snapshot and forbids late completion"
+        },
+        {
+          "environment_variable": "EDITORIAL_STAGE_POSTGRES_URL",
+          "reason": "EDITORIAL_STAGE_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "existing process tags carry over to Post.editorialStage one-to-one"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL rejects foreign post id and group before mutation"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL atomically commits or rolls back an AutoPost V2 draft and provenance set"
+        }
+      ],
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 25 skipped, 921 passed, 946 total",
+        "Tests:       276 skipped, 0 todo, 16153 passed, 16429 total",
+        "# tests 381",
+        "# pass 343",
+        "# fail 0",
+        "# skipped 38",
+        "# todo 0",
+        "Ran 51 tests in 0.745s",
+        "OK",
+        "Test Suites: 25 skipped, 921 passed, 946 total / Tests:       276 skipped, 0 todo, 16153 passed, 16429 total"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "duration_seconds": 0.09,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "duration_seconds": 0.342,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.14,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.008,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+    "pnpm run build",
+    "bash scripts/release/record-suite-receipt.sh",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-11-08T17:44:35.226514+00:00",
+  "diff_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "c5ef8ab7a794bd01ef02bc2a4bd53471e1356d03",
+  "idempotency_key": "e820d4bdb73e20dd2a2e2adca5e54fdb3c734af7de5764221ba24f76b624c90c",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "release-preparation-20261108",
+  "started_at": "2026-11-08T16:55:45.801598+00:00",
+  "verification_fingerprint": "e820d4bdb73e20dd2a2e2adca5e54fdb3c734af7de5764221ba24f76b624c90c"
+}

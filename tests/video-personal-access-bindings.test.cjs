@@ -77,3 +77,24 @@ test('personal MCP calls recheck a role downgrade before any connection or provi
   }
   for (const method of Object.values(service)) expect(method).not.toHaveBeenCalled();
 });
+
+test.each(['video.presenter_preview','video.preflight_v2'])('known pre-write refusal is correctable instead of an uncertain write: %s',async name=>{
+  const failure=Object.assign(new Error('synthetic pre-write refusal'),{getResponse:()=>({code:'VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE'})});
+  const service={presenterPreview:jest.fn(async()=>{throw failure;}),preflight:jest.fn(async()=>{throw failure;})};
+  const input=name==='video.presenter_preview'?{draftId:DRAFT,version:2,connectionId:CONNECTION,avatarId:'owned',voiceId:'owned_voice',engine:'avatar_iv',durationSeconds:20}
+    :{draftId:DRAFT,version:2,access:{kind:'subscription',connectionId:CONNECTION}};
+  const result=await invoke(name,service,input);
+  expect(result.output).toMatchObject({ok:false,code:'VIDEO_SUBSCRIPTION_OPTION_UNAVAILABLE',canReviseInput:true});
+  expect(result.parts).toEqual([]);
+});
+
+test('invalid access kind repair retains subscription and manual choices without echoing rejected values',async()=>{
+  const gate={check:jest.fn()};
+  const result=await registry.admitCapabilityCall(find('video.preflight_v2'),{draftId:DRAFT,version:3,access:{kind:'personal_subscription',connectionId:CONNECTION}},
+    requestContextFor(registry),gate,{countPaid:false,webChat:true});
+  expect(result).toMatchObject({ok:false,code:'CAPABILITY_INPUT_INVALID'});
+  expect(result.reason).toContain('"kind":"subscription"');
+  expect(result.reason).toContain('"kind":"manual"');
+  expect(result.reason).not.toContain(CONNECTION);
+  expect(gate.check).not.toHaveBeenCalled();
+});

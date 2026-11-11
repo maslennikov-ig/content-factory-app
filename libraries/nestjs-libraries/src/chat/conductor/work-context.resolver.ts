@@ -230,7 +230,7 @@ export class AgentWorkContextResolver {
             let draft: Awaited<ReturnType<VideoJobService['readDraft']>> | undefined;
             if (draftId) {
               await this.allow(identity, 'video.draft');
-              draft = await videos.readDraft(identity.organizationId, draftId);
+              draft = await videos.readDraft(identity.organizationId, draftId, identity.userId);
               if (target.pieceId && draft.pieceId !== target.pieceId || job && draft.pieceId !== job.pieceId) throw missingWorkContext();
             }
             canonical = {...canonical, id: 'library', pieceId: draft?.pieceId ?? job?.pieceId};
@@ -270,7 +270,20 @@ export class AgentWorkContextResolver {
     return { context: { ...canonical, revision }, ...boundedWorkData(data) };
   }
 
-  async validateArtifact(identity: CapabilityIdentity, ref: AgentArtifactRef): Promise<AgentArtifactRef> {
+  async validateArtifact(identity: CapabilityIdentity, ref: AgentArtifactRef, options: {threadId?: string} = {}): Promise<AgentArtifactRef> {
+    if (ref.clipPilotId) {
+      if (ref.kind !== 'piece' || !options.threadId) throw missingWorkContext();
+      await this.allow(identity, 'video.preproduction_open');
+      const pilot = await this.deps.services(NativeClipPreproductionServiceV1).open(identity.organizationId, identity.userId, options.threadId, ref.clipPilotId).catch(error => {
+        if (error?.code === 'CLIP_PREPRODUCTION_ACCESS_DENIED') throw forbiddenWorkContext();
+        if (error?.code === 'CLIP_PREPRODUCTION_NOT_FOUND') throw missingWorkContext();
+        throw error;
+      });
+      if (pilot.pilotId !== ref.clipPilotId || pilot.pieceId !== ref.id || ref.pieceId && ref.pieceId !== pilot.pieceId || pilot.threadId !== options.threadId) throw missingWorkContext();
+      // Retained scenarios remain readable after a source edit. Action context
+      // still goes through resolve(), including its existing freshness check.
+      return ref;
+    }
     if (ref.kind === 'media' && (ref.videoJobId || ref.videoDraftId)) {
       const jobs = this.deps.services(VideoJobService);
       if (ref.videoJobId) {
@@ -280,8 +293,15 @@ export class AgentWorkContextResolver {
       }
       if (ref.videoDraftId) {
         await this.allow(identity, 'video.draft');
-        const draft = await jobs.readDraft(identity.organizationId, ref.videoDraftId);
+        const draft = await jobs.readDraft(identity.organizationId, ref.videoDraftId, identity.userId);
         if (ref.pieceId && draft.pieceId !== ref.pieceId) throw missingWorkContext();
+      }
+      if (ref.videoPersonalConnectionId) {
+        await this.allow(identity, 'video.personal_assets');
+        const {VideoAccessService} = require('../../videos/video-access.service') as {VideoAccessService:typeof UnifiedVideoAccessService};
+        const access = this.deps.services<UnifiedVideoAccessService>(VideoAccessService);
+        const connection = await access.repository.connection(identity.organizationId, identity.userId, ref.videoPersonalConnectionId, undefined, false);
+        if (connection.provider !== 'heygen') throw missingWorkContext();
       }
     }
     await this.resolve(identity, workContextForArtifact(ref));

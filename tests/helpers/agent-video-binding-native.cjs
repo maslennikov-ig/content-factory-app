@@ -12,10 +12,12 @@ const noOp=()=>()=>undefined;
 class VideoJobService {}
 class MastraService {}
 class AiUsageService {}
+class VideoAccessService {}
 const markers={
   '@contentfactory/nestjs-libraries/videos/video-job.service':{VideoJobService},
   '@contentfactory/nestjs-libraries/chat/mastra.service':{MastraService},
   '@contentfactory/nestjs-libraries/openai/ai.usage.service':{AiUsageService},
+  '@contentfactory/nestjs-libraries/videos/video-access.service':{VideoAccessService},
   '@mastra/ai-sdk':{handleChatStream:()=>{throw Error('No model');}},
   '@mastra/ai-sdk/ui':{toAISdkMessages:messages=>messages},
   '@mastra/core/processors':{RegexFilterProcessor:class{},UnicodeNormalizer:class{}},
@@ -43,7 +45,7 @@ async function main(){
  const resolver=new AgentWorkContextResolver({services:token=>{assert.equal(token,VideoJobService);return jobs;},gate:{check:async()=>({allowed:true})},capabilities:[{id:'video.status',door:{}},{id:'video.draft',door:{}},{id:'media.library',door:{}}]});
  const mastra={conductor:async()=>({getMemory:async()=>memory,listSuspendedRuns:async()=>({runs:[]})}),validateWorkArtifact:(...args)=>resolver.validateArtifact(...args)};
  const threads=new AgentThreadsService(mastra);
- const module=await Test.createTestingModule({imports:[ThrottlerModule.forRoot([{ttl:60000,limit:20}])],controllers:[AgentController],providers:[{provide:MastraService,useValue:mastra},{provide:AgentThreadsService,useValue:threads},{provide:AiUsageService,useValue:{}}]}).compile();
+ const module=await Test.createTestingModule({imports:[ThrottlerModule.forRoot([{ttl:60000,limit:20}])],controllers:[AgentController],providers:[{provide:MastraService,useValue:mastra},{provide:AgentThreadsService,useValue:threads},{provide:AiUsageService,useValue:{}},{provide:VideoAccessService,useValue:{}}]}).compile();
  const app=module.createNestApplication({logger:false});
  app.use((req,res,next)=>{req.org={id:req.headers['x-org']||'org-a',createdAt:'2026-01-01T00:00:00Z',users:[{role:'EDITOR'}]};req.user={id:req.headers['x-user']||'user-a',language:'ru'};next();});
  await app.listen(0,'127.0.0.1');

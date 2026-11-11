@@ -385,15 +385,15 @@ export function AgentScreen({ contextual = false }: { contextual?: boolean }) {
   const listed = session.threadId ? threads.data?.find((thread) => thread.id === session.threadId)?.title : null;
   const shownTitle = listed ?? title ?? words.threads.newThread;
   const loadedPiece = useLoadedPiece(artifact ? pieceIdOf(artifact) : null);
-  const metadata = useArtifactMetadata(artifact ? [artifact] : []);
+  const metadata = useArtifactMetadata(artifact ? [artifact] : [], true, session.threadId);
   const resolved = artifact && loadedPiece ? withPieceData(artifact, loadedPiece) : artifact;
-  const materialName = resolved ? resolved.kind === 'piece' && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
-  const picker = <AgentArtifactPicker artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
+  const materialName = resolved ? resolved.kind === 'piece' && !resolved.data.clipPilotId && loadedPiece?.piece.title ? loadedPiece.piece.title : metadata.get(resolved)?.name || artifactName(resolved, words) : t('assistant_material', 'Material');
+  const picker = <AgentArtifactPicker chatThreadId={session.threadId} artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />;
 
   const toolbar = <ThreadSwitcher compact contextual={contextual} threadId={session.threadId} title={shownTitle} language={language} onOpen={openThread} onNew={startNew} onRemoved={removeThread} words={words} actions={<>
-              <AgentArtifactPicker compact artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />
+              <AgentArtifactPicker chatThreadId={session.threadId} compact artifacts={workspace.artifacts} active={workspace.active} unread={workspace.unread.length} onSelect={selectArtifact} onRemove={(key) => dispatch({ type: 'remove', key })} words={words} />
               <AgentWorkspaceBrowser compact onSelect={selectArtifact} words={words} />
-              <AgentContextChip key={session.key} context={workContext} artifact={assistant?.contextArtifact} writingSelection={writingSelection} choices={writingChoices} onWritingSelection={(next) => storeWritingSelection(session.key, next)} onRemove={() => assistantRef.current?.setWorkContext(null)} />
+              <AgentContextChip chatThreadId={session.threadId} key={session.key} context={workContext} artifact={assistant?.contextArtifact} writingSelection={writingSelection} choices={writingChoices} onWritingSelection={(next) => storeWritingSelection(session.key, next)} onRemove={() => assistantRef.current?.setWorkContext(null)} />
               {workspace.hidden && artifact ? <Button data-assistant-restore="" type="button" density="dense" variant="quiet" iconOnly aria-label={t('assistant_restore', 'Restore')} title={t('assistant_restore', 'Restore')} onClick={() => selectArtifact(artifact)}><AgentGlyph name="right" /></Button> : null}
             </>} />;
 
@@ -536,6 +536,7 @@ function SessionView({
     <AgentConversation
       visible={visible}
       threadId={session.threadId}
+      initialChatMode={loaded.thread?.chatMode}
       initialMessages={loaded.messages}
       initialPagination={loaded.pagination}
       initialExecution={loaded.execution}

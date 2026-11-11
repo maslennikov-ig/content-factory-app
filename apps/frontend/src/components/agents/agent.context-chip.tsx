@@ -12,10 +12,11 @@ import { pieceIdOf, useLoadedPiece } from './agent.piece-data';
 import { defaultWritingAvatarId, effectiveWritingSelection, type useAgentWritingChoices } from './agent.writing-selection';
 import { AgentGlyph } from './agent.icons';
 
-export function AgentContextChip({ context, artifact, onRemove, writingSelection, choices, onWritingSelection }: {
+export function AgentContextChip({ context, artifact, onRemove, writingSelection, choices, onWritingSelection, chatThreadId }: {
   context: AgentWorkContextV1 | null; artifact?: AgentArtifact | null; onRemove: () => void;
   writingSelection?: AgentWritingSelection; choices: ReturnType<typeof useAgentWritingChoices>;
   onWritingSelection: (selection: AgentWritingSelection) => void;
+  chatThreadId?: string | null;
 }) {
   const t = useT();
   const language = useInterfaceLanguage();
@@ -23,9 +24,9 @@ export function AgentContextChip({ context, artifact, onRemove, writingSelection
   const entityId = context?.id ?? context?.adaptationId;
   useEffect(() => setOpen(false), [context?.kind, entityId, context?.from, context?.to]);
   const selected: AgentArtifact | null = context && entityId && context.kind !== 'calendar' ? {
-    kind: context.kind, id: entityId, title: artifact?.id === entityId && artifact.kind === context.kind ? artifact.title : null, code: null, data: { pieceId: context.pieceId, channelId: context.channelId, adaptationId: context.adaptationId },
+    kind: context.kind, id: entityId, title: artifact?.id === entityId && artifact.kind === context.kind ? artifact.title : null, code: null, data: { pieceId: context.pieceId, channelId: context.channelId, adaptationId: context.adaptationId, ...(context.clipPilotId ? {clipPilotId: context.clipPilotId} : {}) },
   } : null;
-  const metadata = useArtifactMetadata(selected ? [selected] : []);
+  const metadata = useArtifactMetadata(selected ? [selected] : [], true, chatThreadId);
   const piece = useLoadedPiece(selected ? pieceIdOf(selected) : null);
   const effective = effectiveWritingSelection(writingSelection, context, choices.channels);
   const channel = choices.channels.find(item => item.id === effective?.channelId);
@@ -42,7 +43,7 @@ export function AgentContextChip({ context, artifact, onRemove, writingSelection
     ideas: t('assistant_ideas', 'Ideas'), facts: t('assistant_facts', 'Facts'), media: t('media', 'Media'),
   };
   const unavailable = selected && metadata.known(selected) && !metadata.get(selected);
-  const name = unavailable ? t('assistant_context_unavailable', 'This object is no longer available') : piece?.piece.title || (selected ? metadata.get(selected)?.name || selected.title : null) || (context ? labels[context.kind] : '');
+  const name = unavailable ? t('assistant_context_unavailable', 'This object is no longer available') : (!selected?.data.clipPilotId && piece?.piece.title) || (selected ? metadata.get(selected)?.name || selected.title : null) || (context ? labels[context.kind] : '');
   const explanation = t('assistant_context_help', 'This object is included with your next message to the assistant. Detaching it removes that link; the chat history and object are kept.');
   const formatDate = (iso: string) => {
     try { return new Intl.DateTimeFormat(language.replace('_', '-'), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso)); } catch { return iso.slice(0, 10); }

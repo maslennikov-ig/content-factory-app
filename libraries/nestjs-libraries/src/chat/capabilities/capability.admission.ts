@@ -11,6 +11,7 @@ import {
   consumeApproval,
   CAPABILITY_CONTEXT_KEYS,
   hasApproval,
+  grantApproval,
   markQuestionsOpened,
   proposalOpenHere,
   questionsOpenedHere,
@@ -91,8 +92,13 @@ const inputStructure = (schema: JSONSchema7Definition): unknown => {
   if (schema.properties) return Object.fromEntries(Object.entries(schema.properties)
     .map(([key, value]) => [key, inputStructure(value)]));
   const variants = schema.anyOf ?? schema.oneOf;
-  if (variants) return inputStructure(variants.find((value) =>
-    typeof value === 'object' && value.type !== 'null') ?? true);
+  if (variants) {
+    const choices = variants.filter(value => typeof value !== 'object' || value.type !== 'null');
+    // A nullable field needs one shape; a real union must retain every choice.
+    // Showing only its first branch could steer a personal-subscription repair
+    // into the unrelated API-funded route.
+    return choices.length === 1 ? inputStructure(choices[0]) : {oneOf: choices.map(inputStructure)};
+  }
   if (schema.items) return [inputStructure(Array.isArray(schema.items) ? schema.items[0] ?? true : schema.items)];
   return schema.enum ?? schema.const ?? schema.type ?? 'value';
 };
@@ -239,6 +245,14 @@ export const admitCapabilityCall = async (
       'PERMISSION_DENIED',
       `The person's role or plan does not allow this action (${verdict.refused}). Say so; do not try another way around it.`
     );
+  }
+  if ((confirm || asksHere) && options.webChat && typeof (requestContext as ContextLike).set === 'function') {
+    // The exact stored input and current content/door passed above. Mastra
+    // executes validation.data (optional native nulls become absent), so the
+    // domain's human guard needs proof for that same validated representation.
+    // Never derive it while merely displaying a card or from normalized input
+    // whose original raw approval did not pass.
+    grantApproval(requestContext as ContextLike, approvalFingerprint(toolName, validation.data));
   }
   return null;
 };
@@ -395,6 +409,8 @@ export const createCapabilityHooks = (
       // Spent whether the call succeeded or threw: one «Да», one call. The
       // content-bound print of the same call goes with it.
       consumeApproval(requestContext, approvalFingerprint(toolName, input));
+      const validated = validateToolInput(toStandardSchema(capability.input), input);
+      if (!validated.error) consumeApproval(requestContext, approvalFingerprint(toolName, validated.data));
     },
   };
 };

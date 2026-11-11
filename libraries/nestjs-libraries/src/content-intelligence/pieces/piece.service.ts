@@ -596,7 +596,7 @@ const keptInput = (core: ZagotovkaCoreV1) =>
 /** Refusals of the piece's own edits (`97dq.75`), in both languages. */
 const CORE_EDIT_WORDS = {
   changed: {
-    ru: 'Заготовка изменилась в другом окне. Обновите страницу — ваш текст не сохранён.',
+    ru: 'Черновик изменился в другом окне. Обновите страницу — ваш текст не сохранён.',
     en: 'The piece changed in another window. Reload the page — your text was not saved.',
   },
   empty: {
@@ -624,7 +624,7 @@ const CORE_EDIT_WORDS = {
     en: 'This version is no longer in the history. Reload the page.',
   },
   materialFull: {
-    ru: 'Материала уже слишком много, чтобы дописывать ещё. Пересоберите суть или начните новую заготовку.',
+    ru: 'Материала уже слишком много, чтобы дописывать ещё. Пересоберите суть или начните новый черновик.',
     en: 'There is already too much material to add more. Rebuild the core or start a new piece.',
   },
 } as const;
@@ -732,7 +732,7 @@ const PLAN_NOTES = {
     en: 'The version is saved but could not be planned. Pick a time and press “Schedule”.',
   },
   published: {
-    ru: 'Эта заготовка уже вышла в канале, поэтому автопилот не ставит новую версию в очередь — она осталась в плане.',
+    ru: 'Материал из этого черновика уже вышел в канале, поэтому автопилот не ставит новую версию в очередь — она осталась в плане.',
     en: 'This piece already went out in the channel, so the autopilot does not queue the new version; it stays planned.',
   },
   consentNeeded: {
@@ -2514,7 +2514,7 @@ export class PieceService {
       throw new AdaptationReviewError(
         'PIECE_FACT_NOT_FOUND',
         409,
-        'Такой опоры в актуальной заготовке уже нет. Обновите страницу.'
+        'Такой опоры в актуальном черновике уже нет. Обновите страницу.'
       );
     const facts = core.brief.facts.map((fact: PieceFactV2) => matches(fact) ? { ...fact, selected } : fact);
     await this.briefs.updateCoreMetadata(organizationId, pieceId, { expectedBody: piece.body, expectedBrief: piece.brief, brief: { ...(piece.brief as object), brief: { ...core.brief, facts } } });
@@ -2974,7 +2974,7 @@ export class PieceService {
         brief: selectedFactsBrief(core.brief),
         ...(core.request ? { request: core.request } : {}),
         ...(core.contextMaterial ? { contextMaterial: core.contextMaterial } : {}),
-        ...(core.researchSelection?.origin === 'model' && core.researchSummary ? { researchSummary: core.researchSummary } : {}),
+        ...(core.researchSummary ? { researchSummary: core.researchSummary } : {}),
         answers: core.answers,
         // Every answer goes with its question, the model's decisions included.
         questionTextByKey: Object.fromEntries(
@@ -3292,7 +3292,7 @@ export class PieceService {
           brief: selectedFactsBrief(answeredBrief),
           ...(plan.core.request ? { request: plan.core.request } : {}),
           ...(plan.core.contextMaterial ? { contextMaterial: plan.core.contextMaterial } : {}),
-          ...(plan.core.researchSelection?.origin === 'model' && plan.core.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
+          ...(plan.core.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
@@ -5131,7 +5131,7 @@ export class PieceService {
     if (!piece) throw pieceError('PIECE_NOT_FOUND', saved.language, pieceId);
     if (piece.body !== saved.body || piece.title !== saved.title || !isDeepStrictEqual(piece.brief, saved.brief))
       throw new AdaptationReviewError('PIECE_RESEARCH_STALE', 409,
-        'Заготовка уже изменилась. Обновите страницу перед новым исследованием.');
+        'Черновик уже изменился. Обновите страницу перед новым исследованием.');
     const core = this.coreOf(piece);
     if (!core) throw expired();
     const allowed = new Set(saved.state.filled.brief.facts.map((fact: PieceFactV2) => fact.factKey));
@@ -5164,7 +5164,7 @@ export class PieceService {
       delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedBrief, answers: core.answers, questionTextByKey: {},
       ...(state.resumePlan?.request ? { request: state.resumePlan.request } : {}),
-      ...(origin === 'model' && state.summary ? { researchSummary: state.summary } : {}),
+      ...(state.summary ? { researchSummary: state.summary } : {}),
       personText: core.personText ?? '', instruction: researchInstruction, existingCore: state.correctedInput || saved.body,
       ...(intent?.eventInterval ? { eventUpdate: { ...intent.eventInterval, timezone: intent.timezone } } : {}),
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
@@ -5215,7 +5215,7 @@ export class PieceService {
       throw new AdaptationReviewError(
         'PIECE_CORE_MISSING',
         409,
-        'Сначала ответьте на вопросы к заготовке.'
+        'Сначала ответьте на вопросы к черновику.'
       );
     if (input.instruction !== undefined && !input.instruction.trim())
       throw new AdaptationReviewError(
@@ -6255,6 +6255,7 @@ export class PieceService {
       ...(plan.authorReferenceUrls?.length ? { authorReferenceUrls: [...plan.authorReferenceUrls] } : {}),
       ...(plan.currentAuthorRequest ? { currentAuthorRequest: plan.currentAuthorRequest } : {}),
       ...(plan.core?.request ? { request: plan.core.request } : {}),
+      ...(plan.core?.researchSummary ? { researchSummary: plan.core.researchSummary } : {}),
       ...(plan.core?.contextMaterial ? { contextMaterial: plan.core.contextMaterial } : {}),
       ...(plan.core?.addedMaterial?.length ? { authorAdditions: plan.core.addedMaterial.map(({ text, addedAt }) => ({ text, addedAt })) } : {}),
       ...(trimmed(plan.core?.instructionText) ? { instructionText: plan.core!.instructionText } : {}),

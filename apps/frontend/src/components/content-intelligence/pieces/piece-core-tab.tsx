@@ -38,6 +38,7 @@ import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { SectionLabel } from '../../ui/section-label';
 import { MenuChevron } from '../../ui/split-button';
 import { WorkspaceMenu } from './workspace-menu';
+import { formatStoredMarkup } from './adaptation-markup';
 
 /**
  * Вкладка «Суть» (`97dq.37`, §3.1).
@@ -365,7 +366,7 @@ export function PieceCoreTab({
                     coreAnswer && coreAnswer.body === core.text ? (
                       <CoreAnswerDiff {...coreAnswer} locale={locale} />
                     ) : (
-                      core.text
+                      formatStoredMarkup(core.text)
                     )
                   ) : (
                     detail.legacyBody ?? ''

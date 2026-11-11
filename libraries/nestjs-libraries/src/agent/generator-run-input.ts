@@ -18,7 +18,7 @@
  */
 
 import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
-import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { IntakeFormatV1, IntakeResearchSummaryV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { StoredEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { IntakeUnderstandingV1 } from '../content-intelligence/intake/request-understanding';
@@ -104,6 +104,8 @@ export type IntakeGenerationHintsV1 = {
   allowQuestion?: boolean;
   /** Saved selected quotes, outside the short editorial material budget. All are untrusted until registry validation. */
   evidenceQuotes?: PieceEvidenceInputV1['quotes'];
+  /** Saved research coverage and gaps are data, never approval or fresh evidence. */
+  researchSummary?: IntakeResearchSummaryV1;
   version:
     | typeof INTAKE_HINTS_VERSION
     | typeof INTAKE_HINTS_VERSION_V2

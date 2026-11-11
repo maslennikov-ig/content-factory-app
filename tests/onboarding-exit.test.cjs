@@ -131,7 +131,7 @@ test('the adaptation step opens the latest piece and its tour', () => {
   expect(doc.querySelector('[aria-current="step"]').getAttribute('data-onboarding-step')).toBe('adaptation');
   const action = doc.querySelector('[data-onboarding-action="adaptation"]');
   expect(action.getAttribute('href')).toBe('/content/pieces/p-9');
-  expect(action.textContent).toBe('Открыть последнюю заготовку');
+  expect(action.textContent).toBe('Открыть последний черновик');
   expect(doc.querySelector('[data-onboarding-tour="adaptation"]').getAttribute('href')).toBe(
     '/content/pieces/p-9?tour=adaptation'
   );

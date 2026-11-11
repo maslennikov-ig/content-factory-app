@@ -577,7 +577,7 @@ describe('«Спросить агента» fills the composer from the post win
     await open(handoff.AGENT_FROM_EDITOR_HREF);
     expect(field().value).toBe(FROM.piece('Весенний запуск', 'cnt-07', 'Кофейня'));
     // The code names the piece where two share a title (review W6-28 F3).
-    expect(field().value).toBe('Про пост из заготовки «Весенний запуск» (cnt-07) для канала «Кофейня»: ');
+    expect(field().value).toBe('Про пост из черновика «Весенний запуск» (cnt-07) для канала «Кофейня»: ');
     expect(world.sent).toEqual([]);
     expect(world.submitted).toEqual([]);
     expect(window.location.search).toBe('');
@@ -587,7 +587,7 @@ describe('«Спросить агента» fills the composer from the post win
   test('a post written by hand: its text, with the offer to make a piece of it', async () => {
     leave({ piece: null, channel: null, text: 'Первый абзац\n\nВторой абзац' });
     await open(handoff.AGENT_FROM_EDITOR_HREF);
-    expect(field().value).toBe('Сделай из этого текста заготовку и пост:\n\nПервый абзац\n\nВторой абзац');
+    expect(field().value).toBe('Сделай из этого текста черновик и пост:\n\nПервый абзац\n\nВторой абзац');
     expect(world.sent).toEqual([]);
   });
 
@@ -606,7 +606,7 @@ describe('«Спросить агента» fills the composer from the post win
     await act(async () => {
       fireEvent.submit(document.querySelector('form'));
     });
-    expect(world.submitted).toEqual(['Про пост из заготовки «Весенний запуск»: сделай короче']);
+    expect(world.submitted).toEqual(['Про пост из черновика «Весенний запуск»: сделай короче']);
     expect(world.sent).toEqual([]);
   });
 

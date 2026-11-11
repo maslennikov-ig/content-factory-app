@@ -735,6 +735,8 @@
   "assistant_context": "Contesto",
   "assistant_context_help_label": "A cosa serve questa selezione?",
   "assistant_context_help": "Questo oggetto accompagna il prossimo messaggio all’assistente. Scollegarlo rimuove il collegamento; la cronologia della chat e l’oggetto vengono conservati.",
+  "assistant_draft_waiting_review": "La bozza attende la tua revisione. Controllala nella scheda prima di accettare modifiche.",
+  "assistant_review_draft": "Rivedi la bozza",
   "assistant_draft_review_title": "Versione proposta",
   "assistant_accept_draft": "Accetta",
   "assistant_keep_draft": "Mantieni il testo attuale",

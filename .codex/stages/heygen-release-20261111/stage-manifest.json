@@ -1,0 +1,59 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "heygen-release-20261111",
+  "goal_id": "content-factory-next-ekqe.22.5",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 1,
+  "acceptance_boundary_id": "owner-accepted-heygen-production-delivery",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "native-chat",
+      "heygen-video",
+      "release"
+    ],
+    "risk_models": [
+      "paid-admission",
+      "media-confinement",
+      "workflow-compatibility"
+    ],
+    "test_environments": [
+      "isolated-local",
+      "public-ci",
+      "production-readback"
+    ],
+    "rollback_boundary": "preserve-heygen-records-and-inflight-jobs",
+    "acceptance_proofs": [
+      "exact-release-suite",
+      "public-build-and-codeql",
+      "production-readback"
+    ]
+  },
+  "work_areas": [
+    "contract",
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-ekqe.22.5",
+    "source_digest": "5a0249ec313d66ea23af10b4ffa084edc970d358055a89fcc70037310d449603",
+    "criteria": [
+      {
+        "criterion_id": "content-factory-next-ekqe.22.5",
+        "text_digest": "83df2ee1704e006458d6bda8db4fe7bd07a9dd563860f7097e0be8715baa5c13",
+        "text": "Integrate and deploy the owner-accepted native HeyGen changes\nDeliver the approved presenter controls and dependent chat changes on current main. Preserve the original preview and private material. New paid provider calls, new provider connections and real social publication are outside this delivery.\n\n## Acceptance Criteria\n- Exact integrated candidate passes the release checks, including approval, scope, isolation and upload regressions.\n- Public source and image match the tested candidate and public CI passes.\n- Verify production schema compatibility and live runtime, record rollback limits, and clean up release-owned intermediates."
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-ekqe.22.5/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "5a0249ec313d66ea23af10b4ffa084edc970d358055a89fcc70037310d449603",
+  "scope_ledger": "none",
+  "stream_artifacts": [],
+  "branch": "codex/heygen-release-20261111"
+}

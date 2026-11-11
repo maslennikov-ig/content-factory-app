@@ -1,3 +1,8 @@
+import { HeygenCreativeAdapterV1 } from './subscriptions/video-heygen-creative-adapter.v1';
+import { HeygenVoiceSetupServiceV1 } from './subscriptions/video-heygen-voice-setup.service.v1';
+import { HeygenStyleVoiceServiceV1 } from './subscriptions/video-heygen-style-voice.service.v1';
+import { HEYGEN_STYLE_ADAPTER_TOKEN_V1 } from './subscriptions/video-heygen-style.service.v1';
+import { HeygenStyleServiceV1 } from './subscriptions/video-heygen-style.service.v1';
 import { HggPilotServiceV1 } from './subscriptions/video-hgg-pilot.service.v1';
 import { HggPilotWorkspaceServiceV1 } from './subscriptions/video-hgg-workspace.service.v1';
 import { HggPilotJobServiceV1 } from './subscriptions/video-hgg-pilot-job.service.v1';
@@ -36,12 +41,20 @@ import { VideoSubscriptionExecution, VideoSubscriptionRecovery } from './subscri
 import { HiggsfieldSubscriptionProvider } from './providers/higgsfield-subscription.provider';
 import { HeygenSubscriptionProvider } from './providers/heygen-subscription.provider';
 import { VideoAccessService } from './video-access.service';
+import { HeygenConsentIntentServiceV1 } from './subscriptions/video-heygen-consent-intent.v1';
 import { HggPilotParentPortV1 } from './subscriptions/video-hgg-pilot-parent.port.v1';
+import { HeygenPersonProfileServiceV1 } from './subscriptions/video-heygen-person-profile.service.v1';
+import { HeygenChatControlsServiceV1 } from './subscriptions/video-heygen-chat-controls.service.v1';
+import { HeygenAutopilotScopeServiceV2 } from './subscriptions/video-heygen-autopilot-scope.v2';
+import { HeygenPerformanceServiceV1 } from './subscriptions/video-heygen-performance.service.v1';
+import { HeygenPerformanceSceneServiceV1 } from './subscriptions/video-heygen-performance-scene.service.v1';
 
 @Global()
 @Module({
   providers: [HggPilotServiceV1,HggPilotWorkspaceServiceV1,HggPilotJobServiceV1,HggPilotExecutionV1,HiggsfieldPilotProviderV1,HggPilotMediaV1,{provide:HGG_PILOT_SERVICE_V1,useExisting:HggPilotServiceV1},HggPilotParentPortV1,VideoCompositionProviderV1,HeygenStudioCompositionProviderV1,HyperframesCompositionProviderV1,VideoProductionRepository,VideoProductionService,VideoProductionPersonalServiceV2,VideoProductionExecutionV1,VideoProductionRecoveryV1,{provide:VIDEO_PRODUCTION_EXECUTION_V1,useExisting:VideoProductionExecutionV1},VideoSubscriptionRepository, VideoSubscriptionRuntime, VideoConnectionService, VideoOAuthClient, VideoMcpClient, VideoSubscriptionJobService, VideoSubscriptionExecution, VideoSubscriptionRecovery, HiggsfieldSubscriptionProvider, HeygenSubscriptionProvider, VideoAccessService, {provide: VIDEO_SUBSCRIPTION_EXECUTION, useExisting: VideoSubscriptionExecution}, ImagesSlides, Veo3, VideoManager, VideoJobService, VideoGenerationRepository,
-    VideoCredentialsService, VideoMediaV1, HiggsfieldProviderV1, HeygenProviderV1,
+    VideoCredentialsService, VideoMediaV1, HiggsfieldProviderV1, HeygenProviderV1, HeygenConsentIntentServiceV1,
+    HeygenPersonProfileServiceV1, HeygenChatControlsServiceV1, HeygenPerformanceServiceV1, HeygenPerformanceSceneServiceV1, HeygenAutopilotScopeServiceV2, HeygenStyleServiceV1, HeygenCreativeAdapterV1, HeygenVoiceSetupServiceV1, HeygenStyleVoiceServiceV1,
+    {provide: HEYGEN_STYLE_ADAPTER_TOKEN_V1, inject: [HeygenCreativeAdapterV1], useFactory: (adapter: HeygenCreativeAdapterV1) => adapter.styleAdapter},
     VideoExecutionV1, VideoExecutionRecoveryV1, {provide: VIDEO_EXECUTION_V1, useExisting: VideoExecutionV1}],
   get exports() {
     return this.providers;

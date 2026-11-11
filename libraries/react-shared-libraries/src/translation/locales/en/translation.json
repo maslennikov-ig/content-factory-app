@@ -736,6 +736,8 @@
   "assistant_context": "Context",
   "assistant_context_help_label": "What does this selection do?",
   "assistant_context_help": "This object is included with your next message to the assistant. Detaching it removes that link; the chat history and object are kept.",
+  "assistant_draft_waiting_review": "The draft is waiting for your review. Review it in the card before accepting any changes.",
+  "assistant_review_draft": "Review draft",
   "assistant_draft_review_title": "Proposed draft",
   "assistant_accept_draft": "Accept",
   "assistant_keep_draft": "Keep current draft",

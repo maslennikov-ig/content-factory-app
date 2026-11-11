@@ -8,7 +8,7 @@ module.exports = {
   role: 'ADMIN',
   world: campaignRows(),
   turns: [
-    { say: 'Покажи профиль канала и темы из своего брифа без поиска в интернете', model: [
+    { chatMode: 'autopilot', say: 'Покажи профиль канала и темы из своего брифа без поиска в интернете', model: [
       [['tool', 'channel_editorial_profile', { channelId: 'c1' }]],
       [['tool', 'channel_discover', { channelId: 'c1', sourceIds: [], allowWebSearch: false }]],
       [['text', 'Аудитория задана владельцем, сравнительные показатели неизвестны.']],

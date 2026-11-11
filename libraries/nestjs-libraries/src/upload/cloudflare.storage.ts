@@ -28,6 +28,7 @@ const ALLOWED_MIME_TYPES = new Set<string>([
   'audio/mpeg',
   'audio/mp4',
   'audio/wav',
+  'audio/vnd.wave',
   'audio/ogg',
 ]);
 

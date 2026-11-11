@@ -177,10 +177,10 @@ describe('the Content screen', () => {
   // one-thought intake, which makes a piece — the eight-field form it was
   // named after is not what opens there. The key stayed `brief`.
   test.each([
-    ['en', ['Pieces', 'New piece', 'Ideas', 'Facts']],
+    ['en', ['Drafts', 'New draft', 'Ideas', 'Facts']],
     [
       'ru',
-      ['Заготовки', 'Новая заготовка', 'Откуда идеи', 'Откуда факты'],
+      ['Черновики', 'Новый черновик', 'Откуда идеи', 'Откуда факты'],
     ],
   ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
@@ -280,7 +280,7 @@ describe('the Content screen', () => {
       )
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Новая заготовка' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Новый черновик' }));
     expect(dom.window.location.search).toBe('?tab=brief');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Откуда идеи' }));
@@ -298,7 +298,7 @@ describe('the Content screen', () => {
     );
 
     // A workspace with no pieces sees this, and it must not read as a fault.
-    expect(screen.getByText(/No pieces yet/)).toBeTruthy();
+    expect(screen.getByText(/No drafts yet/)).toBeTruthy();
     expect(document.querySelector('[role="alert"]')).toBeNull();
   });
 
@@ -377,7 +377,7 @@ describe('the Content frame is reviewable without a network', () => {
     expect(markup).toContain('data-production-surface="content/section"');
     expect(markup).toContain('data-interface-review-state="' + state + '"');
     expect(markup).not.toContain('<h1');
-    expect(markup).toMatch(/Ваш голос:|От мысли к заготовке:/);
+    expect(markup).toMatch(/Ваш голос:|Черновики, идеи и источники/);
   });
 
   test('the scene shows the frame, never the container behind it', () => {

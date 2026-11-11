@@ -678,6 +678,8 @@ describe('actual Nest wiring and public routes', () => {
         './routes/social-factory.controller': { SocialFactoryController: class SocialFactoryController {} },
         './routes/video-connections.controller': { VideoConnectionsController: class VideoConnectionsController {} },
         './routes/video-access.controller': { VideoAccessController: class VideoAccessController {} },
+        './routes/video-heygen-controls.controller.v2': { VideoHeygenControlsControllerV2: class VideoHeygenControlsControllerV2 {} },
+        './routes/video-heygen-style-voice.controller.v1': { VideoHeygenStyleVoiceControllerV1: class VideoHeygenStyleVoiceControllerV1 {} },
       },
       {
         sources,

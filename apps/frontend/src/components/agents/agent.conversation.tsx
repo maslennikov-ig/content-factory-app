@@ -41,6 +41,8 @@ import {
   provisionalTitle,
   questionWaits,
   readThreadHistory,
+  savedResearchContinuation,
+  nativeTurnTimedOut,
   readDoorError,
   readAttachedText,
   readMessageBlocks,
@@ -53,6 +55,7 @@ import {
   waitingApprovalIds,
   withoutRepeatedQuestionLines,
   type AgentArtifact,
+  type AgentChatMode,
   type AgentBlock,
   type AgentMessage,
   type AgentPagination,
@@ -92,6 +95,7 @@ import { SeriesCard } from './agent.series-card';
 import { groupSeriesBlocks } from './agent.series';
 import { SecretCard } from './agent.secret-card';
 import { ClipPreproductionCard } from './agent.preproduction-card';
+import { HeygenConsentCard } from './agent.heygen-consent-card';
 import { ChannelConnectCard } from './agent.channel-card';
 import { SelectionCard } from './agent.selection-card';
 import { InterviewCard } from './agent.interview-card';
@@ -119,6 +123,16 @@ const isCompletedStep = (block: AgentBlock): block is CompletedStep =>
   block.type === 'done' && block.stale !== true;
 
 const isSourceAttempt = (block: AgentBlock) => block.type === 'error' && !!block.sourceRead;
+const isInputRevision = (block: AgentBlock) => block.type === 'error' && (
+  block.toolName === 'campaign_plan_materials' && block.code === 'CAPABILITY_INPUT_INVALID' && block.inputRecovered === true ||
+  block.canReviseInput === true && ['MATERIAL_FORMAT_REQUIRED', 'CAPABILITY_INPUT_INVALID', 'INTAKE_INPUT_INSUFFICIENT',
+    'VIDEO_PREPARATION_EMPTY', 'VIDEO_PROMPT_EMPTY', 'VIDEO_REQUIRED_NUMBER_MISSING', 'VIDEO_UNSUPPORTED_NUMBER', 'VIDEO_REQUIRED_NEGATION_MISSING'].includes(block.code ?? '') ||
+  block.toolName === 'ask_user' && (block.code === null || block.code === 'CAPABILITY_INPUT_INVALID')
+);
+const uncertainEffect = (blocks: readonly AgentBlock[], code?: string | null) => {
+  const codes = ['CAPABILITY_OUTCOME_UNCERTAIN', 'CAPABILITY_RECEIPT_UNAVAILABLE', 'AGENT_TASK_UNCERTAIN', 'AGENT_TASK_OPERATION_IN_FLIGHT'];
+  return codes.includes(code ?? '') || blocks.some(block => block.type === 'error' && codes.includes(block.code ?? ''));
+};
 const isActivityStep = (block: AgentBlock) => isCompletedStep(block) || isSourceAttempt(block);
 
 /** Presentation only: cards/text/stale actions always keep their own position. */
@@ -206,6 +220,7 @@ const questionFailureCode = (failure: unknown): string | null => failure instanc
 
 export function AgentConversation({
   threadId,
+  initialChatMode = 'collaborative',
   initialMessages,
   initialPagination,
   initialExecution,
@@ -232,6 +247,7 @@ export function AgentConversation({
   words,
 }: {
   threadId: string | null;
+  initialChatMode?: AgentChatMode;
   initialMessages: AgentMessage[];
   initialPagination?: AgentPagination;
   initialExecution?: AgentThreadExecution;
@@ -281,6 +297,34 @@ export function AgentConversation({
   const revalidateUnder = useRevalidateUnder();
   const revalidateArtifact = useRevalidateArtifact();
   const thread = useRef(threadId);
+  const [chatMode, setChatMode] = useState<AgentChatMode>(initialChatMode);
+  const selectedChatMode = useRef(chatMode);
+  const [modeSaving, setModeSaving] = useState(false);
+  const modeRequestPending = useRef(false);
+  const [modeError, setModeError] = useState(false);
+  const changeChatMode = async (next: AgentChatMode) => {
+    if (modeRequestPending.current || next === selectedChatMode.current) return;
+    setModeError(false);
+    const id = thread.current;
+    if (id) {
+      modeRequestPending.current = true;
+      setModeSaving(true);
+      try {
+        const response = await request(`/agent/threads/${encodeURIComponent(id)}/chat-mode`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatMode: next }),
+        });
+        if (!response.ok || (await response.json()).chatMode !== next) throw new Error('chatMode');
+      } catch {
+        setModeError(true);
+        return;
+      } finally {
+        modeRequestPending.current = false;
+        setModeSaving(false);
+      }
+    }
+    selectedChatMode.current = next;
+    setChatMode(next);
+  };
   useEffect(() => {
     if (threadId) thread.current = threadId;
   }, [threadId]);
@@ -291,9 +335,11 @@ export function AgentConversation({
   submissionKey.current = draftStorageKey;
   const cachedSubmission = useRef(readSubmissionDraft(draftStorageKey));
   const submittedMessage = useRef<{ message: ComposerSubmit; context?: AgentWorkContextV1 | null; writingSelection?: AgentWritingSelection;
+    continueFromRequestId?: string;
     userMessage?: AgentMessage; storageKey?: string; attachments?: boolean; diagnostic?: SubmissionFailure;
   } | null>(null);
   const refusedMessage = useRef<typeof submittedMessage.current>(null);
+  const continuationCheck = useRef(false);
   const [composerRecovery, setComposerRecovery] = useState<ComposerRecovery | null>(null);
   const [reconciled, setReconciled] = useState<'missing' | 'newer-draft' | 'saved' | 'running' | 'failed' | 'unavailable' | 'unconfirmed' | null>(null);
   const replayComplete = useRef<() => Promise<void>>(async () => undefined);
@@ -303,6 +349,7 @@ export function AgentConversation({
       createAgentTransport({
         request,
         currentThread: () => thread.current,
+        currentChatMode: () => selectedChatMode.current,
         currentContext: () => currentContext.current,
         currentWritingSelection: () => currentWritingSelection.current,
         prepareWritingSelection: selection => prepareWriting.current?.(selection),
@@ -350,6 +397,7 @@ export function AgentConversation({
   const [serverExecution, setServerExecution] = useState<AgentThreadExecution | undefined>(initialExecution);
   const [signalReceipts, setSignalReceipts] = useState(initialSignalReceipts);
   const [pendingKnown, setPendingKnown] = useState(true);
+  const reviewCards = useRef(new Map<string, HTMLDivElement>());
   const questionSent = useRef<{
     cardId: string;
     toolCallId: string | null;
@@ -432,8 +480,15 @@ export function AgentConversation({
         // A lost response can reach the next native call while this tab still
         // holds the previous tool input. Its pending payload needs that saved
         // tool part; changing only the pending list cannot draw a new card.
+        // A saved question belongs to this active native owner even while
+        // the provider still reports running. Hydrate a missing tool input
+        // before detaching its observer; the same message may contain it.
+        const ownedNativeWait = !submittedMessage.current?.userMessage && !!history.execution?.runId &&
+          history.pending.every((run) => run.runId === history.execution!.runId) &&
+          history.pending.some((run) => !!run.toolCallId &&
+            (run.kind === 'question' && !!pendingCardId(run) || nativeWaitObserved && run.kind === 'approval'));
         const canRestorePending = !explicitStop.current && history.pending.length > 0 &&
-          (interruptedAtRead || (!busyAtRead && !transportBusy.current));
+          (ownedNativeWait || interruptedAtRead || (!busyAtRead && !transportBusy.current));
         if ((withMessages || mergeMessages || canRestorePending) && (history.messages.length || submittedMessage.current?.userMessage)) {
           replaceMessages.current?.((current) => {
             const restorePending = canRestorePending && history.pending.some((run) => run.toolCallId &&
@@ -816,9 +871,11 @@ export function AgentConversation({
     void stop();
   }, [confirmStopped, interrupt, messages, refreshPending, request, serverExecution?.requestId, stop]);
   const reconcile = useCallback(async () => {
+    if (checking || continuationCheck.current) return;
     const generation = turnGeneration.current;
     const submitted = submittedMessage.current;
     setChecking(true);
+    setReconciled(null);
     try {
       const history = await refreshPending(true, false, generation);
       if (generation !== turnGeneration.current) return;
@@ -850,7 +907,7 @@ export function AgentConversation({
       } else setReconciled('running');
       void revalidateUnder(PIECES_API.list);
     } finally { setChecking(false); }
-  }, [refreshPending, clearError, revalidateUnder, interrupt]);
+  }, [checking, refreshPending, clearError, revalidateUnder, interrupt]);
   useEffect(() => {
     const cached = cachedSubmission.current;
     cachedSubmission.current = null;
@@ -873,7 +930,7 @@ export function AgentConversation({
   const approvalSent = useRef(false);
 
   const send = useCallback(
-    (message: ComposerSubmit, context?: AgentWorkContextV1 | null, prepared?: AgentMessage, selectedWriting = currentWritingSelection.current) => {
+    (message: ComposerSubmit, context?: AgentWorkContextV1 | null, prepared?: AgentMessage, selectedWriting = currentWritingSelection.current, continueFromRequestId?: string) => {
       if (interruptedNow.current) return;
       turnGeneration.current++;
       setReconciled(null);
@@ -884,12 +941,14 @@ export function AgentConversation({
       refusedMessage.current = null;
       clearError();
       approvalFailed.current = false;
-      if (!prepared && retry && message.text === retry.message.text && !message.files.length && !message.samples && !message.media) {
+      if (!prepared && retry && message.text === retry.message.text && !message.files.length && !message.samples && !message.media &&
+          (!continueFromRequestId || continueFromRequestId === retry.continueFromRequestId)) {
         // Explicit Enter retries the same SDK user message, including its
         // already prepared files/receipts, rather than appending it twice.
         submittedMessage.current = retry;
         if (retry.userMessage) writeSubmissionDraft(retry.storageKey, { id: retry.userMessage.id, text: retry.message.text, attachments: retry.attachments });
-        void regenerate({ body: { ...(retry.context !== undefined ? { workContext: retry.context } : {}), writingSelection: retry.writingSelection } });
+        void regenerate({ body: { ...(retry.context !== undefined ? { workContext: retry.context } : {}), writingSelection: retry.writingSelection,
+          ...(retry.continueFromRequestId ? { continueFromRequestId: retry.continueFromRequestId } : {}) } });
         return;
       }
       if (retry) {
@@ -901,8 +960,9 @@ export function AgentConversation({
           return index >= 0 ? current.slice(0, index) : current;
         });
       }
-      submittedMessage.current = { message, context, writingSelection: selectedWriting };
-      const options = { body: { ...(context !== undefined ? { workContext: context } : {}), writingSelection: selectedWriting } };
+      submittedMessage.current = { message, context, writingSelection: selectedWriting, ...(continueFromRequestId ? { continueFromRequestId } : {}) };
+      const options = { body: { ...(context !== undefined ? { workContext: context } : {}), writingSelection: selectedWriting,
+        ...(continueFromRequestId ? { continueFromRequestId } : {}) } };
       if (prepared) {
         void sendMessage(prepared, options);
         return;
@@ -1538,13 +1598,14 @@ export function AgentConversation({
     .reverse()
     .find((message) => message.role === 'assistant');
 
-  const chatError = error
-    ? {
-        code: errorCodeOf(error.message) ?? readDoorError(error.message),
-        network: isNetworkFailure(error),
-      }
-    : !submittedMessage.current && status === 'ready' && serverExecution?.outcome === 'failed' && serverExecution.errorCode
-      ? { code: serverExecution.errorCode, network: false } : null;
+  const failedOwner = !submittedMessage.current && serverExecution?.state === 'settled' && serverExecution.outcome === 'failed';
+  const retainedResearch = !busy && !interrupted && pendingKnown && !submittedMessage.current
+    ? savedResearchContinuation(messages, serverExecution, serverPending) : null;
+  const researchRecoveryGeneration = turnGeneration.current;
+  const refreshFailedOwner = interrupted || reconciled === 'failed' || failedOwner;
+  const latestUserIndex = messages.map(message => message.role).lastIndexOf('user');
+  const latestOwnerMessageIds = new Set((latestUserIndex < 0 ? [] : messages.slice(latestUserIndex + 1))
+    .filter(message => message.role === 'assistant').map(message => message.id));
 
   const renderBlock = (
     block: AgentBlock,
@@ -1555,6 +1616,8 @@ export function AgentConversation({
     activityHistory?: readonly ReactNode[]
   ): ReactNode => {
     switch (block.type) {
+      case 'heygen-consent':
+        return <HeygenConsentCard key={block.key} consent={block.consent} words={words} />;
       case 'clip-preproduction':
         return <ClipPreproductionCard key={block.key} preproduction={block.preproduction} threadId={thread.current}
           busy={busy || attachedRunning || interrupted || openPending.length > 0}
@@ -1750,8 +1813,10 @@ export function AgentConversation({
         if (selection.kind === 'selection' && block.runId) {
           const runId = block.runId;
           return (
+            <div key={block.key} data-agent-review-card="" tabIndex={-1}
+              className="min-w-0 rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+              ref={(node) => { if (node) reviewCards.current.set(block.key, node); else reviewCards.current.delete(block.key); }}>
             <SelectionCard
-              key={block.key}
               question={selection}
               failure={questionFailures.has(selection.cardId ?? '')}
               busy={busy || interrupted}
@@ -1765,6 +1830,7 @@ export function AgentConversation({
               }
               words={words}
             />
+            </div>
           );
         }
         // The adaptation interview (`kcxz.16`), the channel tab's own card.
@@ -1849,6 +1915,7 @@ export function AgentConversation({
           <TaskChecklistCard
             key={block.key}
             tasks={block.tasks}
+            interrupted={failedOwner && !serverPending.length && block.key === latestTaskPlanKey}
             words={words}
           />
         );
@@ -1877,6 +1944,12 @@ export function AgentConversation({
             words={words}
           />
         );
+      case 'research-ready':
+        return <div key={block.key} role="status" data-agent-research-saved=""
+          className="flex min-w-0 items-center gap-[8px] cf-body-sm text-cf-ink-muted">
+          <AgentGlyph name="info" size={14} />
+          <span>{block.retained ? words.researchRecovery.saved : words.researchRecovery.ready}</span>
+        </div>;
       case 'artifact':
         // A plan slot is a card: its way back (cancel, take off) is here, not
         // only beside the chat (`kcxz.16`, spec §6.2).
@@ -1909,6 +1982,10 @@ export function AgentConversation({
           />
         );
       case 'error':
+        if (isInputRevision(block) && (block.inputRecovered || latestOwnerMessageIds.has(message.id) &&
+            (busy || attachedRunning || serverExecution?.state === 'running' || serverPending.some(run => run.kind === 'question')))) {
+          return <Note key={block.key} tone="neutral">{block.title ? `${block.title}: ` : ''}{block.inputRecovered ? words.error.inputRecovered : words.error.inputClarification}</Note>;
+        }
         // The agent tried to answer the person's questions itself and the
         // product stopped it: nothing failed, the questions wait for the
         // person (`kcxz.31`, D1).
@@ -1988,8 +2065,74 @@ export function AgentConversation({
     })()
   );
   const lastBlocks = lastAssistant ? (blocksOf.get(lastAssistant.id) ?? []) : [];
+  const latestTaskPlanKey = [...blocksOf.values()].flat().reverse().find(block => block.type === 'tasks')?.key;
+  const latestTurnBlocks = [...blocksOf].filter(([id]) => latestOwnerMessageIds.has(id)).flatMap(([, blocks]) => blocks);
+  const lastTurnError = [...latestTurnBlocks].reverse().find((block): block is Extract<AgentBlock, { type: 'error' }> =>
+    block.type === 'error' && !!block.code && !block.sourceRead &&
+    !(block.inputRecovered && isInputRevision(block)) &&
+    !['INPUT_NEEDS_PERSON', 'PROPOSAL_CARD_OPEN', 'PAID_CAP_REACHED'].includes(block.code));
+  const terminalFailure = failedOwner && !busy && !serverPending.length;
+  const checkResultOnly = terminalFailure && uncertainEffect(latestTurnBlocks, serverExecution?.errorCode);
+  const canContinue = terminalFailure && !checkResultOnly && !interrupted && !!serverExecution?.requestId && latestUserIndex >= 0;
+  const genericFailure = !serverExecution?.errorCode || ['AGENT_FAILED', 'AGENT_TASK_OPERATION_FAILED'].includes(serverExecution.errorCode);
+  const nativeFailureWords = terminalFailure && genericFailure && lastTurnError?.code
+    ? errorWordsFor(words, lastTurnError.code, true) : null;
+  const hasSavedTurnArtifacts = latestTurnBlocks.some(block => block.type === 'artifact' && !block.removed);
+  const sdkErrorCode = error ? errorCodeOf(error.message) ?? readDoorError(error.message) : null;
+  const handledSdkInput = !!sdkErrorCode && !lastTurnError &&
+    (serverExecution?.state === 'running' || serverExecution?.outcome === 'completed' || serverPending.some(run => run.kind === 'question')) &&
+    latestTurnBlocks.some(block => block.type === 'error' && block.inputRecovered && isInputRevision(block) && block.code === sdkErrorCode);
+  // A terminal receipt without a code still needs an explanation. Use only
+  // this authored turn's saved native failures, never an old SDK exception.
+  const chatError = terminalFailure
+    ? { code: serverExecution?.errorCode ?? lastTurnError?.code ?? 'AGENT_TASK_OPERATION_FAILED', network: false }
+    : error && !handledSdkInput ? { code: sdkErrorCode, network: isNetworkFailure(error) } : null;
+  const hasSavedTurnReply = latestTurnBlocks.some(block => block.type === 'text' && block.text.trim());
+  const reconciliationFeedback = checking ? words.error.checkingStatus : !reconciled ? null
+    : reconciled === 'running' && serverPending.some(run => run.kind === 'question') ? words.error.checkedWaiting
+    : reconciled === 'failed' ? hasSavedTurnReply ? words.error.checkedFailedWithReply : words.error.checkedFailed
+    : t(`assistant_reconcile_${reconciled.replace('-', '_')}`, reconciled === 'missing'
+      ? 'The new message was not found in saved history. Its text is back in the input; it was not sent again.'
+      : reconciled === 'newer-draft' ? 'The message was not found in saved history. Its copy remains above; your newer draft was kept.'
+      : reconciled === 'unconfirmed' ? 'The message is not yet in saved history. The task is still active; no message was sent again.'
+      : reconciled === 'running' ? 'The saved task is still running or waiting for an answer.'
+      : reconciled === 'unavailable' ? 'Could not refresh status. Your message has been kept; try refreshing status again.'
+      : 'Status refreshed. The saved messages and task result are shown.');
   const hasWorkingBlock = lastBlocks.some((block) => block.type === 'working');
   const agentStages = stages.agent ?? [];
+  const waitingReview = !explicitStop.current && !interrupted && !busy
+    ? [...blocksOf.values()].flat().find((block) => block.type === 'question' &&
+        block.question.kind === 'selection' &&
+        (block.question.fullPreview || block.toolName === 'piece_rewrite' || block.toolName === 'piece_review') &&
+        questionWaits(openPending, { runId: block.runId, toolCallId: block.toolCallId, cardId: block.question.cardId }) &&
+        !closedCards.has(block.question.cardId ?? ''))
+    : undefined;
+
+  const continueSavedWork = async () => {
+    if (!canContinue || checking || continuationCheck.current || turnGeneration.current !== researchRecoveryGeneration ||
+        submittedMessage.current || transportBusy.current || modeRequestPending.current || explicitStop.current) return;
+    const generation = turnGeneration.current;
+    const owner = serverExecution?.requestId;
+    const humanId = messages[latestUserIndex].id;
+    const context = currentContext.current ?? null;
+    const writing = currentWritingSelection.current;
+    continuationCheck.current = true;
+    setChecking(true); setReconciled(null);
+    try {
+      const history = await refreshPending(true, false, generation);
+      if (generation !== turnGeneration.current || submittedMessage.current || transportBusy.current || modeRequestPending.current || explicitStop.current) return;
+      if (!history) { setReconciled('unavailable'); return; }
+      setReconciled(history.pending.length || history.execution?.state === 'running' ? 'running' : history.execution?.outcome === 'failed' ? 'failed' : 'saved');
+      const boundary = history.messages.map(message => message.role).lastIndexOf('user');
+      if (history.execution?.requestId !== owner || history.messages[boundary]?.id !== humanId || history.pending.length ||
+          history.execution?.state !== 'settled' || history.execution.outcome !== 'failed') return;
+      const blocks = history.messages.slice(boundary + 1).filter(message => message.role === 'assistant')
+        .flatMap(message => readMessageBlocks(message, history.pending));
+      if (uncertainEffect(blocks, history.execution.errorCode)) return;
+      const research = savedResearchContinuation(history.messages, history.execution, history.pending);
+      send({ text: research ? words.researchRecovery.message(research.snapshotKey) : words.error.continueMessage, files: [] }, context, undefined, writing, history.execution.requestId!);
+    } finally { continuationCheck.current = false; setChecking(false); }
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -2121,15 +2264,18 @@ export function AgentConversation({
             <ErrorCard
               title={null}
               code={chatError.code}
+              what={nativeFailureWords?.known ? nativeFailureWords.what : terminalFailure && genericFailure && nativeTurnTimedOut(messages) ? words.researchRecovery.timeout : undefined}
               network={(interrupted || chatError.network) && !chatError.code}
-              retryLabel={interrupted || reconciled === 'failed' ? t('assistant_reconcile', 'Refresh status') : undefined}
-              nextStep={interrupted || reconciled === 'failed' ? t('assistant_reconcile_help', 'Refresh saved messages and task status. This does not send the message again.') : undefined}
+              retryLabel={checkResultOnly ? words.error.checkResult : canContinue ? words.researchRecovery.prepare : refreshFailedOwner ? t('assistant_reconcile', 'Refresh status') : undefined}
+              nextStep={refreshFailedOwner && reconciliationFeedback ? reconciliationFeedback : retainedResearch ? words.researchRecovery.next : canContinue ? words.error.continueNext : terminalFailure && hasSavedTurnArtifacts ? words.error.savedResultsNext : refreshFailedOwner ? t('assistant_reconcile_help', 'Refresh saved messages and task status. This does not send the message again.') : undefined}
               // An approval that did not go through is asked again on its own
               // card; regenerating would re-run the last message instead.
               onRetry={
-                interrupted || reconciled === 'failed'
+                canContinue
+                  ? () => void continueSavedWork()
+                  : refreshFailedOwner
                   ? () => void reconcile()
-                  : approvalFailed.current || chatError.network
+                  : approvalFailed.current || chatError.network || busy || attachedRunning
                   ? undefined
                   : () => {
                       const retry = refusedMessage.current;
@@ -2140,7 +2286,9 @@ export function AgentConversation({
                       }
                       turnGeneration.current++;
                       clearError();
-                      void regenerate({ body: { ...(retry?.context !== undefined ? { workContext: retry.context } : {}), writingSelection: (retry ?? submittedMessage.current)?.writingSelection } });
+                      const continuationId = (retry ?? submittedMessage.current)?.continueFromRequestId;
+                      void regenerate({ body: { ...(retry?.context !== undefined ? { workContext: retry.context } : {}), writingSelection: (retry ?? submittedMessage.current)?.writingSelection,
+                        ...(continuationId ? { continueFromRequestId: continuationId } : {}) } });
                     }
               }
               words={words}
@@ -2150,6 +2298,17 @@ export function AgentConversation({
       </div>
       <div className="shrink-0 px-[16px] pb-[16px] pt-[8px] md:px-[20px]">
         <div className="w-full min-w-0">
+          {waitingReview ? (
+            <div role="status" className="mb-[12px] flex min-w-0 flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink">
+              <AgentGlyph name="pen" size={14} />
+              <span className="min-w-0 flex-1">{t('assistant_draft_waiting_review', 'The draft is waiting for your review. Review it in the card before accepting any changes.')}</span>
+              <Button type="button" variant="secondary" density="dense" onClick={() => {
+                const card = reviewCards.current.get(waitingReview.key);
+                card?.scrollIntoView({ block: 'center' });
+                card?.focus({ preventScroll: true });
+              }}>{t('assistant_review_draft', 'Review draft')}</Button>
+            </div>
+          ) : null}
           {interrupted && !chatError ? (
             <div role="status" className="mb-[12px] flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink-muted">
               <span>
@@ -2166,15 +2325,8 @@ export function AgentConversation({
               ) : null}
             </div>
           ) : null}
-          {reconciled ? <p role="status" className="mb-[12px] cf-body-sm text-cf-ink-muted">
-            {t(`assistant_reconcile_${reconciled.replace('-', '_')}`, reconciled === 'missing'
-              ? 'The new message was not found in saved history. Its text is back in the input; it was not sent again.'
-              : reconciled === 'newer-draft' ? 'The message was not found in saved history. Its copy remains above; your newer draft was kept.'
-              : reconciled === 'unconfirmed' ? 'The message is not yet in saved history. The task is still active; no message was sent again.'
-              : reconciled === 'running' ? 'The saved task is still running or waiting for an answer.'
-              : reconciled === 'failed' ? 'Status refreshed: the task did not complete. Its saved result remains in the conversation.'
-              : reconciled === 'unavailable' ? 'Could not refresh status. Your message has been kept; try refreshing status again.'
-              : 'Status refreshed. The saved messages and task result are shown.')}
+          {reconciliationFeedback && !chatError ? <p role="status" className="mb-[12px] cf-body-sm text-cf-ink-muted">
+            {reconciliationFeedback}
           </p> : null}
           {reconciled && submittedMessage.current?.diagnostic ? <Disclosure className="mb-[12px] min-w-0"
             summary={t('assistant_delivery_details', 'Delivery details')} contentClassName="cf-caption text-cf-ink-muted pb-[8px]">
@@ -2184,7 +2336,8 @@ export function AgentConversation({
             ? <p className="mb-[12px] cf-body-sm text-cf-ink-muted">{t('assistant_recovered_attachments', 'The text was recovered. Attach the files again if they are still needed.')}</p> : null}
           <fieldset disabled={interrupted && !busy} className="min-w-0">
           <AgentComposer
-            busy={busy || attachedRunning}
+            chatModeControl={{ value: chatMode, onChange: changeChatMode, saving: modeSaving, error: modeError }}
+            busy={busy || attachedRunning || modeSaving}
             queued={false}
             onSubmit={submit}
             onStop={stopAndReconcile}

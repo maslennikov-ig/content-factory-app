@@ -1137,7 +1137,7 @@ describe('F3: вышедшую заготовку автопилот снова 
     expect(calls.status.length).toBe(statusBefore);
     expect(queued()).toEqual([]);
     expect(second.plan).toMatchObject({ status: 'reserved', autopilot: false });
-    expect(second.plan.note).toContain('уже вышла');
+    expect(second.plan.note).toContain('уже вышел в канале');
   });
 });
 

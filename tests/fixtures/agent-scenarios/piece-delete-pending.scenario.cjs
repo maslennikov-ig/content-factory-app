@@ -20,7 +20,7 @@ module.exports = {
   check: (run) => {
     const [ask] = run.turns;
     const live = ask.approvals[0].reason;
-    expect(live).toBe('Удалить заготовку cnt-1 «Про созвоны» вместе с её адаптациями');
+    expect(live).toBe('Удалить черновик cnt-1 «Про созвоны» вместе с его адаптациями');
     expect(run.pendingCards).toEqual([
       expect.objectContaining({
         kind: 'approval',

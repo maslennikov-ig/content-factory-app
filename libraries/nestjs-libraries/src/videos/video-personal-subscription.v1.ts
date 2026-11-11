@@ -2,6 +2,7 @@ import type { PersonalVideoOperation, SubscriptionProvider } from './subscriptio
 import type { VideoSubscriptionRequest, VideoChargeUnitV2 } from './video-access.v2';
 import type { VideoSettingsV1 } from './video-provider.v1';
 import type { VideoProductionManifestV1 } from './production/video-production.v1';
+import type { HeygenOwnedCatalogV1 } from './subscriptions/video-heygen-owned-catalog.v1';
 
 /** Public, credential-free inspection contracts. No provider text/claims enter UI. */
 export interface VideoPersonalAssetV1 {
@@ -9,8 +10,10 @@ export interface VideoPersonalAssetV1 {
 }
 export interface VideoPersonalAssetsV1 {
   avatars: VideoPersonalAssetV1[]; voices: VideoPersonalAssetV1[]; engines: string[];
-  status: 'ready' | 'needs_owned_assets' | 'discovery_required' | 'unavailable';
+  status: 'ready' | 'catalog_only' | 'needs_owned_assets' | 'discovery_required' | 'unavailable';
   blockers: string[]; ownedOnly: true; accountGeneration: number;
+  /** Account-visible private assets are readable before wallet/render qualification. */
+  catalog?: HeygenOwnedCatalogV1;
   guidance: {
     avatar: {url: 'https://app.heygen.com/'; requiresConsent: true};
     voice: {url: 'https://app.heygen.com/'; requiresConsent: true};
@@ -21,6 +24,8 @@ export interface VideoPersonalReadinessV1 {
   walletVerified: boolean; unit: VideoChargeUnitV2;
   schema: {digest: string | null; reviewed: boolean; observedToolNames: string[]};
   operations: Array<{kind: PersonalVideoOperation; ready: boolean; blockers: string[]}>;
+  /** Separate bounded native profile; does not qualify the legacy general renderer. */
+  nativeAvatarPreflightAvailable?: boolean;
 }
 /** Private operator evidence. Raw provider schemas must never be forwarded to chat/model context. */
 export interface VideoPersonalQualificationV1 {

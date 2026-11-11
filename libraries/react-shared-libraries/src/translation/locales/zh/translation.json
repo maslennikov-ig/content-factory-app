@@ -735,6 +735,8 @@
   "assistant_context": "上下文",
   "assistant_context_help_label": "此选择有什么作用？",
   "assistant_context_help": "此对象会随下一条消息提供给助手。取消关联只会解除连接，聊天记录和对象本身都会保留。",
+  "assistant_draft_waiting_review": "草稿正等待您的审核。请先在卡片中检查内容，再接受更改。",
+  "assistant_review_draft": "审核草稿",
   "assistant_draft_review_title": "建议稿",
   "assistant_accept_draft": "接受",
   "assistant_keep_draft": "保留当前内容",

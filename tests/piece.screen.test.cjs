@@ -249,6 +249,20 @@ const drawChannel = (props = {}, adaptations = [adaptation()]) => {
   );
 };
 
+test('a saved researched draft renders its source links safely without changing the stored text', () => {
+  const text = 'Кратко для руководителя: подтверждено участие 12 команд.\n\nИсточник: [Программа саммита](https://official.example/summit).\n\nНеизвестно: состав спикеров. [Небезопасная ссылка](javascript:alert(1))';
+  const detail = detailOf([], { ...CORE, text });
+  const before = JSON.stringify(detail);
+  wrap(coreTab(detail));
+  const article = document.querySelector('[data-piece-core="core"]');
+  const link = within(article).getByRole('link', { name: 'Программа саммита' });
+  expect(link.getAttribute('href')).toBe('https://official.example/summit');
+  expect(link.getAttribute('rel')).toContain('noopener');
+  expect(article.querySelector('a[href^="javascript:"]')).toBeNull();
+  expect(article.textContent).toContain('Неизвестно: состав спикеров.');
+  expect(JSON.stringify(detail)).toBe(before);
+});
+
 describe('saved series navigation', () => {
   const seriesRows = () => [
     ...Array.from({ length: 12 }, (_, i) => adaptation({ id: `old-${i + 1}`, createdAt: '2026-10-30T15:52:00Z', series: { id: 'old', index: i + 1, total: 12 } })),
@@ -368,10 +382,10 @@ describe('the page is one workspace with tabs', () => {
 
   test('the header keeps a quiet way to a new piece and back to the list', () => {
     drawPage();
-    const link = screen.getByRole('link', { name: 'Новая заготовка' });
+    const link = screen.getByRole('link', { name: 'Новый черновик' });
     expect(link.getAttribute('href')).toBe(adapter.NEW_PIECE_PATH);
     expect(link.className).not.toContain('bg-cf-accent');
-    expect(screen.getByRole('link', { name: 'Все заготовки' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Все черновики' })).toBeTruthy();
   });
 });
 
@@ -926,7 +940,7 @@ describe('the channel tab with an adaptation', () => {
     const view = drawPage({ tab: 'core', onDelete: oldDelete });
     fireEvent.click(document.querySelector('[data-workspace-menu="piece-actions"] button'));
     fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
-    expect(screen.getByRole('dialog', { name: 'Удалить всю заготовку?' })).not.toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Удалить весь черновик?' })).not.toBeNull();
     const detail = detailOf();
     detail.piece.id = 'piece-2';
     detail.piece.title = 'Другая заготовка';
@@ -937,12 +951,12 @@ describe('the channel tab with an adaptation', () => {
         renderChannelTab: () => null, onTabChange: noop, onArchive: noop,
         onDelete: newDelete, onRetry: noop,
       })));
-    expect(screen.queryByRole('dialog', { name: 'Удалить всю заготовку?' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Удалить весь черновик?' })).toBeNull();
     expect(oldDelete).not.toHaveBeenCalled();
     expect(newDelete).not.toHaveBeenCalled();
     fireEvent.click(document.querySelector('[data-workspace-menu="piece-actions"] button'));
     fireEvent.click(document.querySelector('[data-workspace-menu-item="delete"]'));
-    const dialog = screen.getByRole('dialog', { name: 'Удалить всю заготовку?' });
+    const dialog = screen.getByRole('dialog', { name: 'Удалить весь черновик?' });
     expect(dialog.textContent).toContain('Другая заготовка');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отменить' }));
     expect(newDelete).not.toHaveBeenCalled();
@@ -1012,7 +1026,7 @@ describe('the channel tab with an adaptation', () => {
     expect(piece.getAttribute('data-confirm-armed')).toBe('false');
     fireEvent.click(piece);
     expect(onDelete).not.toHaveBeenCalled();
-    expect(piece.textContent).toContain('Удалить всю заготовку?');
+    expect(piece.textContent).toContain('Удалить весь черновик?');
   });
 
   test('on «Суть» the same place deletes the piece; a channel tab with nothing to delete has no button', () => {

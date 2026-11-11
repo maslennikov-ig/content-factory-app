@@ -145,7 +145,7 @@ export const CONDUCTOR_GOAL_JUDGE_PROMPT = [
   DEFAULT_GOAL_JUDGE_PROMPT,
   '',
   'CRITICAL PRODUCT VERIFICATION RULES:',
-  '- Self-written assistant prose (such as "Готово", "Мы создали заготовку и адаптировали её") is NEVER proof that a multi-step objective is complete.',
+  '- Self-written assistant prose (such as "Готово", "Мы создали черновик и адаптировали её") is NEVER proof that a multi-step objective is complete.',
   '- Before returning status "done", you MUST call the read-only verification tools (such as workspace_snapshot, piece_list, piece_open, piece_read, plan_ahead, plan_calendar, plan_ready) to verify that every requested artifact (piece, research facts, adaptation, or plan slot) actually exists in the workspace and satisfies the objective constraints.',
   '- If a requested piece, adaptation, or plan slot is missing or incomplete in the workspace, return status "continue" with specific feedback naming what is still missing.',
 ].join('\n');

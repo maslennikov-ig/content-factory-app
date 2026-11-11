@@ -278,7 +278,7 @@ test('native campaign reload opens its exact persisted current video revision th
  const opened=await call(after.video_production_open,find('video.production_open').input.parse({productionId:selected.productionId}));
  expect(opened.output.ok).toBe(true);expect(unwrap(opened.output)).toMatchObject({id:productionId,revision:2,parentId:'saved-parent',manifest});
  expect(repo.read).toHaveBeenCalledWith(IDENTITY.organizationId,productionId);
- await expect(call(after.video_production_open,{productionId:selected.productionId},{...IDENTITY,organizationId:'foreign'})).rejects.toMatchObject({response:{code:'VIDEO_PRODUCTION_NOT_FOUND'},status:404});
+ await expect(call(after.video_production_open,{productionId:selected.productionId},{...IDENTITY,organizationId:'foreign'})).resolves.toMatchObject({output:{ok:false,code:'VIDEO_PRODUCTION_NOT_FOUND'}});
 });
 
 test('native open exposes bounded historical decision provenance without prompt, evidence, actor or audit payloads',async()=>{

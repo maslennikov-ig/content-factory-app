@@ -1,4 +1,4 @@
-import type { Type } from '@nestjs/common';
+import { HttpException, type Type } from '@nestjs/common';
 import { setMcpAppPrivateResult } from './mcp-app-result';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import { createTool, validateToolInput } from '@mastra/core/tools';
@@ -171,11 +171,27 @@ const validatedInputRecovery = (code: string, canReviseInput: unknown, input: un
  * any other coded error (a driver, the network) reaches them as a code and a
  * fixed sentence (correctness review W2 F13).
  */
+const productFailureCode = (error: unknown): string | null => {
+  const direct = (error as {code?: unknown})?.code;
+  if (isProductErrorCode(direct)) return direct;
+  if (!(error instanceof HttpException) || error.getStatus() < 400 || error.getStatus() >= 500) return null;
+  const response = error.getResponse();
+  const code = response && typeof response === 'object' && !Array.isArray(response)
+    ? (response as {code?: unknown}).code : undefined;
+  return isProductErrorCode(code) ? code : null;
+};
+
 export const codedRefusal = (error: unknown) => {
-  const code = (error as { code?: unknown })?.code;
-  if (typeof code !== 'string' || !code) return null;
-  if (!isProductErrorCode(code)) return refusal('CAPABILITY_FAILED', UNKNOWN_FAILURE);
-  const message = (error as { message?: unknown })?.message;
+  const code = productFailureCode(error);
+  if (!code) {
+    const direct = (error as {code?: unknown})?.code;
+    return typeof direct === 'string' && direct ? refusal('CAPABILITY_FAILED', UNKNOWN_FAILURE) : null;
+  }
+  // A Nest response can carry arbitrary upstream details. Only its explicit
+  // product code is trusted; retry/unspent flags still require server markers
+  // on the exception itself, never fields copied from the response body.
+  const message = (error as {code?: unknown})?.code === code
+    ? (error as {message?: unknown})?.message : code;
   const result = refusal(
     code,
     typeof message === 'string' && message ? message.slice(0, 1_000) : code
@@ -588,7 +604,7 @@ export const buildCapabilityTool = (
         return askPerson(error.question);
       }
       const refused = codedRefusal(error);
-      if (refused) {
+      if (refused && (!receiptScope || productFailureCode(error))) {
         // A paid run refused before it spent anything (`unspentFailure`)
         // gives the turn's slot back, as a run that answers `spentNothing`
         // does (review W4-23 F2).

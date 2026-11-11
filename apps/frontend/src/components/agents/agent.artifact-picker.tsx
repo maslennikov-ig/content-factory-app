@@ -41,7 +41,7 @@ function ArtifactPickerRow({ artifact, selected, onSelect, onRemove, words, meta
       <Button type="button" variant={selected ? 'secondary' : 'quiet'} className="min-w-0 flex-1 justify-start" innerClassName="min-w-0 flex-1 justify-start" disabled={!!unavailable} onClick={() => onSelect({ ...artifact, title: name })}>
         <span className="flex min-w-0 flex-1 flex-col items-start text-start">
           <span className="max-w-full break-words [overflow-wrap:anywhere] cf-label-md">{name}</span>
-          <span className="cf-caption text-cf-ink-muted">{unavailable ? t('assistant_context_unavailable', 'This object is no longer available') : words.card.kinds[artifact.kind]}</span>
+          <span className="cf-caption text-cf-ink-muted">{unavailable ? t('assistant_context_unavailable', 'This object is no longer available') : artifact.data.clipPilotId ? words.card.clipScenario : words.card.kinds[artifact.kind]}</span>
           {!unavailable ? <AgentArtifactLiveStatus artifact={enriched} metadata={metadata} /> : null}
         </span>
       </Button>
@@ -52,7 +52,7 @@ function ArtifactPickerRow({ artifact, selected, onSelect, onRemove, words, meta
 }
 
 /** Distinct objects of this personal thread; opening the chooser never sends a message. */
-export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRemove, words, compact = false }: {
+export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRemove, words, compact = false, chatThreadId }: {
   artifacts: readonly AgentArtifact[];
   active: string | null;
   unread: number;
@@ -60,6 +60,7 @@ export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRem
   onRemove: (key: string) => void;
   words: AgentWords;
   compact?: boolean;
+  chatThreadId?: string | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -70,7 +71,7 @@ export function AgentArtifactPicker({ artifacts, active, unread, onSelect, onRem
   const search = query.trim().toLocaleLowerCase();
   const visible = ordered.filter((artifact) => !search || (knownNames.current.get(artifactKey(artifact)) || artifactName(artifact, words)).toLocaleLowerCase().includes(search));
   const paged = visible.slice(page * 24, (page + 1) * 24);
-  const metadata = useArtifactMetadata(paged, open);
+  const metadata = useArtifactMetadata(paged, open, chatThreadId);
   for (const artifact of paged) {
     const name = metadata.get(artifact)?.name;
     if (name) knownNames.current.set(artifactKey(artifact), name);

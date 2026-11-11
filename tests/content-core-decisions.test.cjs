@@ -23,10 +23,10 @@ let responses = [];
 const modelCalls = [];
 const mocks = {
   '@contentfactory/nestjs-libraries/openai/ai.clients': {
-    getChatModel: async (_org, _temp, _limit, role) => ({
+    getChatModel: async (_org, _temp, limit, role) => ({
       withStructuredOutput: () => ({
         invoke: async (prompt) => {
-          modelCalls.push({ role, prompt });
+          modelCalls.push({ role, prompt, limit });
           const value = responses.shift();
           if (value instanceof Error) throw value;
           if (!value) throw new Error('Unexpected model call');
@@ -308,8 +308,9 @@ describe('writeCoreWithDecisions', () => {
       ...(withResearch ? { researchSummary: { status: 'partial', gaps: ['Один аспект требует проверки.'] } } : {}),
     }), deps);
     expect(modelCalls).toHaveLength(1);
+    expect(modelCalls[0].limit).toBe(withResearch ? 8_192 : 2_048);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain(withResearch ? 'PROMPT VERSION: core-write/v21' : 'PROMPT VERSION: core-write/v19');
+    expect(prompt).toContain(withResearch ? 'PROMPT VERSION: core-write/v22' : 'PROMPT VERSION: core-write/v19');
     expect(prompt).toContain('This call writes exactly one cohesive core');
     expect(prompt).toContain('do not write them in the core');
     expect(prompt).toContain('substantive sections, examples, distinctions and comparisons');
