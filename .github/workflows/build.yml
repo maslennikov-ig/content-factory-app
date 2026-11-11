@@ -77,7 +77,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-    runs-on: ubuntu-latest
+    # Locked Playwright 1.58.2 needs a supported Chromium runner.
+    runs-on: ubuntu-24.04
     # The October native suite exceeded 45 minutes without a failed test.
     # Leave headroom for runner setup and all three halves; probe budgets remain bounded.
     timeout-minutes: 60
@@ -172,7 +173,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
-    runs-on: ubuntu-latest
+    # Locked Playwright 1.58.2 needs a supported Chromium runner.
+    runs-on: ubuntu-24.04
     # The growing native suite can exceed 30 minutes on a hosted runner.
     # Keep the same job budget as the complete ordinary suite.
     timeout-minutes: 60

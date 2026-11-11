@@ -211,13 +211,27 @@ test('ordinary read response limit stays 1 MiB inside the schema-qualified sessi
 
 test('the whole fixed read session has a deadline and does not continue after a stalled response', () => fixture(async f => {
   const nativeTimeout = global.setTimeout;
-  const clock = jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms, ...args) => nativeTimeout(fn, ms === 180_000 ? 100 : ms, ...args));
+  let expireSession;
+  const clock = jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms, ...args) => {
+    if (ms === 180_000) expireSession = () => fn(...args);
+    return nativeTimeout(fn, ms, ...args);
+  });
   f.state.respondMcp = ({res, rpc}) => {
     if (rpc.method !== 'tools/call') return false;
-    res.writeHead(200, {'content-type': 'application/json'}); res.write('{'); return true;
+    if (!expireSession) throw new Error('The read session did not schedule its deadline');
+    res.writeHead(200, {'content-type': 'application/json'});
+    res.write('{');
+    // Expire after the partial response starts so setup speed cannot affect this test.
+    setImmediate(expireSession);
+    return true;
   };
-  try {await rejects(f.inspect(), 'VIDEO_RESPONSE_TIMEOUT'); expect(f.state.toolCalls).toHaveLength(1);}
-  finally {clock.mockRestore();}
+  try {
+    await rejects(f.inspect(), 'VIDEO_RESPONSE_TIMEOUT');
+    expect(f.state.toolCalls).toHaveLength(1);
+    expect(f.hooks.afterRead).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+  }
 }));
 
 test.each([{}, {credits: '20', subscription_plan_type: 'synthetic'}, {error: 'private remote error text'}])('missing/error balance is captured privately then stops all subsequent reads (%j)', value => fixture(async f => {
