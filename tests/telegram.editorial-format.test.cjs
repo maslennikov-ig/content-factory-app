@@ -17,6 +17,7 @@ class TelegramBot { _request = request; sendMessage = sendMessage; sendPhoto = s
 const filename = path.resolve(__dirname, '../libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts');
 const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021, esModuleInterop: true } }).outputText;
 const mocks = {
+    './telegram-formatting':require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/telegram-formatting.ts'),
     './provider-error-diagnostic':providerDiagnostic,
     './media-upload-sources':{openMediaUploadStreams:async paths=>({sources:paths.map(()=>({stream:Readable.from(['synthetic-media'])})),close:()=>{}})},
   '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface': {},

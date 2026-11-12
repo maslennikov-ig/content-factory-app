@@ -10,7 +10,7 @@
  * after their «да», repeats the call with the code. The code is bound to the
  * person, the workspace, the tool, the arguments and the post's text, works
  * once and lives ten minutes. Scheduling and moving a post ask the same way;
- * deleting, publishing at once, channels and keys stay in the product.
+ * Existing adaptation publish-now, deletion, channels and keys stay in the product.
  */
 
 const {
@@ -45,6 +45,105 @@ const call = async (tool, input, identity = ADMIN) => {
   const output = await tool.execute(input, { requestContext: requestContextFor(registry, identity) });
   return registry.withoutEchoedInput(output);
 };
+
+describe('publish a ready Telegram post over MCP', () => {
+  const caption = process.env.CF_TEST_READY_CAPTION_HTML ||
+    '<p>Открыли доступ к новой модели.</p><p><strong>Цена задачи</strong> · <a href="https://example.org/test">Замеры</a></p>';
+  const input = {
+    requestId: '3ed97ca3-5bfc-4caf-bfa0-12770ee3403e',
+    channelId: 'tg-editorial',
+    coverMediaId: '1926f180-7f69-48fa-b83f-c268ce2c385e',
+    html: caption,
+  };
+  const coverPath = '/uploads/telegram-cover.png';
+
+  function fixture() {
+    const saved = new Map();
+    const channel = {
+      id: input.channelId, internalId: 'editorial_test', organizationId: ADMIN.organizationId,
+      name: 'Редакционный тест', providerIdentifier: 'telegram',
+    };
+    const cover = { id: input.coverMediaId, name: 'telegram-cover.png', path: coverPath, organizationId: ADMIN.organizationId };
+    const createPost = jest.fn(async (org, body) => {
+      const { integration, value } = body.posts[0];
+      const { id } = value[0];
+      if (saved.has(id)) throw Object.assign(new Error('duplicate primary key'), { code: 'P2002' });
+      saved.set(id, { id, integrationId: integration.id, state: 'QUEUE', releaseURL: null, org });
+    });
+    const services = {
+      IntegrationService: { getIntegrationById: async () => channel },
+      MediaService: { getMediaById: async () => cover },
+      PostsRepository: { getPost: async (id, _includeIntegration, org) =>
+        saved.get(id)?.org === org ? saved.get(id) : null },
+      PostsService: {
+        mapTypeToPost: async (body) => body,
+        validatePosts: async () => [{ valid: true, errors: true, emptyContent: false, tooLong: false }],
+        createPost,
+      },
+    };
+    return { saved, channel, cover, createPost, services };
+  }
+
+  test('binds confirmation to formatted text, channel and cover, then reports the Telegram receipt', async () => {
+    const { saved, cover, createPost, services } = fixture();
+    const { tool } = setup('telegram.publish_ready', services);
+    const status = setup('telegram.publication_status', services).tool;
+    const asked = await call(tool, input);
+    expect(asked.summary).toMatchObject({ needsConfirmation: true });
+    expect(asked.summary.question.untrustedData.value).toContain('«Редакционный тест»');
+    expect(asked.summary.question.untrustedData.value).toContain('@editorial_test');
+    expect(asked.summary.question.untrustedData.value).toContain('telegram-cover.png');
+    expect(createPost).not.toHaveBeenCalled();
+    const confirmation = asked.summary.confirmation;
+    expect(await call(tool, { ...input, html: '<p>Другой текст</p>', confirmation }))
+      .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    cover.path = '/uploads/replacement.png';
+    expect(await call(tool, { ...input, confirmation }))
+      .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    cover.path = coverPath;
+
+    const queued = await call(tool, { ...input, confirmation });
+    expect(queued.summary).toMatchObject({ state: 'QUEUE', telegramUrl: null });
+    expect(createPost).toHaveBeenCalledWith(ADMIN.organizationId, expect.objectContaining({
+      type: 'now', shortLink: false,
+      posts: [expect.objectContaining({ value: [{
+        id: queued.summary.postId, content: caption, delay: 0,
+        image: [{ id: input.coverMediaId, path: coverPath }],
+      }] })],
+    }), 'API', { createOnly: true });
+    expect(await call(tool, { ...input, confirmation }))
+      .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    saved.get(queued.summary.postId).state = 'PUBLISHED';
+    saved.get(queued.summary.postId).releaseURL = 'https://t.me/editorial_test/42';
+    expect(await call(status, { requestId: input.requestId })).toMatchObject({
+      ok: true, summary: { state: 'PUBLISHED', telegramUrl: 'https://t.me/editorial_test/42' },
+    });
+    expect(await call(status, { requestId: input.requestId }, { ...ADMIN, userId: 'other' }))
+      .toMatchObject({ ok: true, summary: { state: 'NOT_FOUND' } });
+  });
+
+  test('two confirmations for one request create one post and return the same receipt', async () => {
+    const { saved, services } = fixture();
+    const { tool } = setup('telegram.publish_ready', services);
+    const asked = await Promise.all([call(tool, input), call(tool, input)]);
+    const result = await Promise.all(asked.map(({ summary }) =>
+      call(tool, { ...input, confirmation: summary.confirmation })));
+    expect(result[0]).toMatchObject({ ok: true, summary: { state: 'QUEUE' } });
+    expect(result[1]).toEqual(result[0]);
+    expect(saved.size).toBe(1);
+  });
+
+  test('rejects a foreign cover and a caption beyond the Telegram photo limit before confirmation', async () => {
+    const { cover, createPost, services } = fixture();
+    const { tool } = setup('telegram.publish_ready', services);
+    cover.organizationId = 'another-workspace';
+    expect(await call(tool, input)).toMatchObject({ ok: false, code: 'TELEGRAM_COVER_UNAVAILABLE' });
+    cover.organizationId = ADMIN.organizationId;
+    expect(await call(tool, { ...input, html: `<p>${'я'.repeat(1025)}</p>` }))
+      .toMatchObject({ ok: false, code: 'TELEGRAM_CAPTION_INVALID' });
+    expect(createPost).not.toHaveBeenCalled();
+  });
+});
 
 /** `piece.adapt` into an autopilot channel, every service call recorded. */
 const autopilotAdapt = () => {
@@ -301,6 +400,7 @@ describe('kcxz.49: scheduling and moving over MCP ask in the conversation', () =
   test('only the listed confirmed choices are offered over MCP', () => {
     const offered = catalogue.filter((one) => one.risk === 'confirm' && registry.isMcpCapability(one));
     expect(offered.map(({ id, mcpConfirm }) => [id, mcpConfirm])).toEqual([
+      ['telegram.publish_ready', 'ask'],
       ['video.heygen_voice_intake', 'ask'],
       ['video.heygen_voice_select', 'ask'],
       ['plan.schedule', 'request'],

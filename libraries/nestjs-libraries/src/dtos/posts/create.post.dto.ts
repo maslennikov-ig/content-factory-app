@@ -105,7 +105,7 @@ export class Post {
 
   @IsOptional()
   @IsString()
-  group: string;
+  group?: string;
 
   @ValidateIf((o) => o.type !== 'draft')
   @ValidateNested()

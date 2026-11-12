@@ -120,3 +120,25 @@ describe('post research source persistence', () => {
     );
   });
 });
+
+test('a ready publication with an existing ID never updates the original post', async () => {
+  const id = 'mcp-tg-test';
+  const duplicate = Object.assign(new Error('duplicate primary key'), { code: 'P2002' });
+  const post = {
+    findMany: jest.fn().mockResolvedValue([{ id, organizationId: 'organization-a', deletedAt: null }]),
+    create: jest.fn().mockRejectedValue(duplicate),
+    upsert: jest.fn(),
+  };
+  const repository = new PostsRepository({}, {}, {}, {}, {}, {});
+  await expect(repository.createOrUpdatePost(
+    'now', 'organization-a', '2026-08-13T12:00:00Z',
+    {
+      integration: { id: 'channel-a' },
+      settings: { __type: 'telegram' },
+      value: [{ id, content: 'Same request', image: [] }],
+    },
+    [], 'API', undefined, { post }, { createOnly: true }
+  )).rejects.toBe(duplicate);
+  expect(post.create).toHaveBeenCalledWith({ data: expect.objectContaining({ id, state: 'QUEUE' }) });
+  expect(post.upsert).not.toHaveBeenCalled();
+});

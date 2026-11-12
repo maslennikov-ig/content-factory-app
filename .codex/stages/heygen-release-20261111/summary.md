@@ -23,7 +23,7 @@ receipt records 16,835 Jest, 351 Node and 51 Python passes, build and process
 verification. The exact Stop fix passed the two public jobs that failed on the
 superseded candidate. The serving image, read-only schema comparisons, routes,
 source archive and rollback tag were verified at the production boundary.
-[Production release](../../../docs/operations/production-deploy.md#current-release-11-november-2026-71d44fed1588).
+[Production release](../../../docs/operations/production-deploy.md#previous-release-11-november-2026-71d44fed1588).
 
 Release task `content-factory-next-ekqe.22.5` / HONEY-6420 covers this delivery.
 The owner subsequently confirmed successful acceptance of the HeyGen epic,

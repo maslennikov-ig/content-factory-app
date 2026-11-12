@@ -34,6 +34,7 @@ const serviceClass = (name) =>
 
 /** Service tokens by module path; the suite supplies the instances. */
 const SERVICE_MODULES = {
+  '../conductor/agent-threads.service': 'AgentThreadsService',
   '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1': 'McpMediaUploadServiceV1',
   '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-preproduction.service.v1':'NativeClipPreproductionServiceV1',
   '@contentfactory/nestjs-libraries/content-intelligence/social-factory/native-clip-production.service.v1':'NativeClipProductionServiceV1',
@@ -60,6 +61,8 @@ const SERVICE_MODULES = {
     'SubscriptionService',
   '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service':
     'PostsService',
+  '@contentfactory/nestjs-libraries/database/prisma/posts/posts.repository':
+    'PostsRepository',
   '@contentfactory/nestjs-libraries/database/prisma/webhooks/webhooks.service':
     'WebhooksService',
   '@contentfactory/nestjs-libraries/openai/ai.usage.service': 'AiUsageService',
@@ -657,6 +660,33 @@ const fixtures = () => ({
   ...require('./agent-heygen-fixtures.cjs')(INJECTION, IDENTITY),
   ...campaignFixtures(),
   ...productionFixtures(),
+  'telegram.publish_ready': {
+    input: {
+      requestId: '3ed97ca3-5bfc-4caf-bfa0-12770ee3403e',
+      channelId: 'c1',
+      coverMediaId: '1926f180-7f69-48fa-b83f-c268ce2c385e',
+      html: `<p>${INJECTION}</p>`,
+    },
+    services: {
+      IntegrationService: {
+        getIntegrationById: async (organizationId, id) => ({
+          id, organizationId, internalId: 'test_channel', name: INJECTION,
+          providerIdentifier: 'telegram',
+        }),
+      },
+      MediaService: {
+        getMediaById: async (organizationId, id) => ({
+          id, organizationId, name: 'cover.png', path: '/uploads/cover.png',
+        }),
+      },
+      PostsService: { mapTypeToPost: async body => body },
+      McpConfirmationService: { issue: async () => 'cf-fixture' },
+    },
+  },
+  'telegram.publication_status': {
+    input: { requestId: '3ed97ca3-5bfc-4caf-bfa0-12770ee3403e' },
+    services: { PostsRepository: { getPost: async () => null } },
+  },
   'workspace.snapshot': {
     input: {},
     services: {

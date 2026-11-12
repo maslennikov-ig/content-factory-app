@@ -17,16 +17,21 @@ const capabilityIds = registry.CAPABILITY_CATALOGUE.filter(
 const scenarios = loadScenarios();
 
 describe('recorded scenario coverage of the capability registry', () => {
-  test('MCP-only media capabilities have separate real SDK coverage, not native chat scenarios', () => {
+  test('MCP-only capabilities have separate real SDK coverage', () => {
     const fs = require('node:fs');
     const path = require('node:path');
     const mcpOnly = registry.CAPABILITY_CATALOGUE.filter(capability => capability.entrances && !capability.entrances.includes('chat')).map(capability => capability.id);
-    const sdkCoverage = ['media.upload', 'media.upload_ticket', 'media.upload_status', 'media.inspect'];
-    expect(mcpOnly.sort()).toEqual(sdkCoverage.sort());
-    const test = fs.readFileSync(path.join(__dirname, 'mcp.media-upload.test.cjs'), 'utf8');
-    const runner = fs.readFileSync(path.join(__dirname, 'helpers/mcp-media-upload.runner.cjs'), 'utf8');
-    expect(test).toContain('mcp-media-upload.runner.cjs');
-    for (const id of mcpOnly) expect(runner).toContain(`call('${id.replace(/\./g, '_')}'`);
+    const sdkCoverage = [
+      ['mcp.media-upload.test.cjs', 'mcp-media-upload.runner.cjs', ['media.upload', 'media.upload_ticket', 'media.upload_status', 'media.inspect']],
+      ['mcp.e2e.test.cjs', 'mcp-e2e.runner.cjs', ['telegram.publish_ready', 'telegram.publication_status']],
+    ];
+    expect(mcpOnly.sort()).toEqual(sdkCoverage.flatMap(([, , ids]) => ids).sort());
+    for (const [suiteName, runnerName, ids] of sdkCoverage) {
+      const suite = fs.readFileSync(path.join(__dirname, suiteName), 'utf8');
+      const runner = fs.readFileSync(path.join(__dirname, 'helpers', runnerName), 'utf8');
+      expect(suite).toContain(runnerName);
+      for (const id of ids) expect(runner).toContain(`call('${id.replace(/\./g, '_')}'`);
+    }
   });
   test('the registry is not empty and every scenario names what it covers', () => {
     expect(capabilityIds.length).toBeGreaterThan(0);

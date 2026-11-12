@@ -207,7 +207,7 @@ test('PDF comparison handles an actual indirect creation date across two explici
     expect(xrefStart).toBeGreaterThan(0);
     expect(normalized.slice(xrefStart, trailerStart)).toBe(raw.slice(xrefStart, trailerStart));
   }
-});
+}, 30_000);
 
 test.each([
   ['image content', { background: { r: 20, g: 40, b: 220 } }],

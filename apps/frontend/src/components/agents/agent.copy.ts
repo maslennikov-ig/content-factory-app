@@ -1411,6 +1411,26 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Попросите позже или откройте «Аналитика».',
         },
         // Медиа из чата (kcxz.25).
+        TELEGRAM_CHANNEL_UNAVAILABLE: {
+          what: 'Канал Telegram недоступен для публикации.',
+          next: 'Выберите активный канал, подключённый к этому рабочему пространству.',
+        },
+        TELEGRAM_COVER_UNAVAILABLE: {
+          what: 'Обложка недоступна.',
+          next: 'Выберите изображение из медиатеки этого рабочего пространства.',
+        },
+        TELEGRAM_CAPTION_INVALID: {
+          what: 'Подпись к обложке выходит за пределы Telegram.',
+          next: 'В подписи должно быть от 1 до 1 024 видимых символов.',
+        },
+        TELEGRAM_POST_INVALID: {
+          what: 'Пост не прошёл проверку для выбранного канала.',
+          next: 'Проверьте текст и обложку перед повторным подтверждением.',
+        },
+        TELEGRAM_PUBLICATION_UNKNOWN: {
+          what: 'Статус отправки в Telegram пока неизвестен.',
+          next: 'Проверьте статус публикации по тому же ID запроса.',
+        },
         MEDIA_PROMPT_MISSING: {
           what: 'Рисовать не из чего: нет ни слов о картинке, ни текста поста — ничего не потратили.',
           next: 'Скажите, что на картинке, или назовите пост, к которому она.',
@@ -2432,6 +2452,26 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Ask again later or open “Analytics”.',
         },
         // Media in the chat (kcxz.25).
+        TELEGRAM_CHANNEL_UNAVAILABLE: {
+          what: 'This Telegram channel is unavailable for publishing.',
+          next: 'Choose an active channel connected to this workspace.',
+        },
+        TELEGRAM_COVER_UNAVAILABLE: {
+          what: 'The cover image is unavailable.',
+          next: 'Choose an image from this workspace’s media library.',
+        },
+        TELEGRAM_CAPTION_INVALID: {
+          what: 'The caption is outside Telegram’s length limits.',
+          next: 'Use 1 to 1,024 visible characters in the caption.',
+        },
+        TELEGRAM_POST_INVALID: {
+          what: 'The post did not pass validation for the selected channel.',
+          next: 'Check the text and cover before confirming again.',
+        },
+        TELEGRAM_PUBLICATION_UNKNOWN: {
+          what: 'The Telegram delivery status is unknown.',
+          next: 'Check the publication status with the same request ID.',
+        },
         MEDIA_PROMPT_MISSING: {
           what: 'There is nothing to draw from: no words about the picture and no post text — nothing was spent.',
           next: 'Say what the picture shows, or name the post it is for.',

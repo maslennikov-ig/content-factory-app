@@ -906,7 +906,10 @@ describe('what a request may carry (correctness review W1 F2, F4, F13)', () => {
 
 describe('one answer per suspended run at a time (correctness review W1 F5)', () => {
   const claims = loadCapabilityModule('../conductor/agent-run-claims.ts');
-  const { MockRedis } = loadTypeScriptModule('libraries/nestjs-libraries/src/redis/redis.service.ts');
+  const { MockRedis } = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/redis/redis.service.ts',
+    { ioredis: { Redis: class UnusedRedis {} } },
+  );
 
   test.each([
     ['the shared Redis stand-in', () => new MockRedis()],

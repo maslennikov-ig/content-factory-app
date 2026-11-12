@@ -949,7 +949,8 @@ export class PostsRepository {
     tags: { value: string; label: string }[],
     creationMethod: CreationMethod,
     inter?: number,
-    client?: any
+    client?: any,
+    options?: { createOnly: true }
   ) {
     const hasPerItemCitations = body.value.some(
       (item) => item.usedCitationIds !== undefined
@@ -1008,7 +1009,8 @@ export class PostsRepository {
           tags,
           creationMethod,
           inter,
-          bindings
+          bindings,
+          options
         );
       };
       // Inside the queue gate (`97dq.67`, review F1) the write joins the
@@ -1042,7 +1044,9 @@ export class PostsRepository {
       body,
       tags,
       creationMethod,
-      inter
+      inter,
+      undefined,
+      options
     );
   }
 
@@ -1241,7 +1245,8 @@ export class PostsRepository {
     tags: { value: string; label: string }[],
     creationMethod: CreationMethod,
     inter?: number,
-    contextBindings?: ContentContextDraftBindingV1[]
+    contextBindings?: ContentContextDraftBindingV1[],
+    options?: { createOnly: true }
   ) {
     const posts: Post[] = [];
     const uuid = uuidv4();
@@ -1404,12 +1409,16 @@ export class PostsRepository {
         },
       });
 
-      posts.push(
-        await client.post.upsert({
+      const create = { id: postId, ...updateData('create') };
+      // The ready-post caller uses an ID derived from its request. A retry must
+      // hit the primary key instead of resetting a queued or published post.
+      const stored = options?.createOnly
+        ? await client.post.create({ data: create })
+        : await client.post.upsert({
           where: {
             organizationId_id: { organizationId: orgId, id: postId },
           },
-          create: { id: postId, ...updateData('create') },
+          create,
           update: {
             ...updateData('update'),
             lastMessage: {
@@ -1419,8 +1428,8 @@ export class PostsRepository {
               disconnect: true,
             },
           },
-        })
-      );
+        });
+      posts.push(stored);
 
       /**
        * Снятая привязка к проверенному контексту — скаляром, не `disconnect`.

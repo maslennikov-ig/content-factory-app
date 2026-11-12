@@ -87,6 +87,21 @@ const { McpController } = load('apps/backend/src/api/routes/mcp.controller.ts');
 
 const token = (module, name) => serviceTokens[module][name];
 const paidCalls = [];
+const telegramCover = {
+  id: '1926f180-7f69-48fa-b83f-c268ce2c385e',
+  name: 'cover.png',
+  path: '/uploads/cover.png',
+  organizationId: 'org-1',
+};
+const telegramChannel = {
+  id: 'c1',
+  name: 'Канал',
+  internalId: 'editorial_test',
+  providerIdentifier: 'telegram',
+  organizationId: 'org-1',
+};
+const publications = new Map();
+const publicationWrites = [];
 const fakes = [
   {
     provide: token('@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service', 'IntegrationService'),
@@ -95,6 +110,34 @@ const fakes = [
         organizationId === 'org-1'
           ? [{ id: 'c1', name: 'Канал', providerIdentifier: 'telegram', disabled: false, refreshNeeded: false, _count: { posts: 2 } }]
           : [],
+      getIntegrationById: async (org, id) =>
+        org === telegramChannel.organizationId && id === telegramChannel.id ? telegramChannel : null,
+    },
+  },
+  {
+    provide: token('@contentfactory/nestjs-libraries/database/prisma/media/media.service', 'MediaService'),
+    useValue: {
+      getMediaById: async (org, id) =>
+        org === telegramCover.organizationId && id === telegramCover.id ? telegramCover : null,
+    },
+  },
+  {
+    provide: token('@contentfactory/nestjs-libraries/database/prisma/posts/posts.repository', 'PostsRepository'),
+    useValue: {
+      getPost: async (id, _includeIntegration, org) =>
+        publications.get(id)?.org === org ? publications.get(id) : null,
+    },
+  },
+  {
+    provide: token('@contentfactory/nestjs-libraries/database/prisma/posts/posts.service', 'PostsService'),
+    useValue: {
+      mapTypeToPost: async body => body,
+      validatePosts: async () => [{ valid: true, errors: true, emptyContent: false, tooLong: false }],
+      createPost: async (org, body, source, options) => {
+        const { integration, value: [post] } = body.posts[0];
+        publicationWrites.push({ org, source, options, content: post.content, image: post.image });
+        publications.set(post.id, { id: post.id, org, integrationId: integration.id, state: 'QUEUE', releaseURL: null });
+      },
     },
   },
   {
@@ -170,6 +213,7 @@ Module({
     { provide: McpOAuthRepository, useValue: memory.repository },
     McpServers,
     McpBearerMiddleware,
+    { provide: registry.McpConfirmationService, useValue: new registry.McpConfirmationService() },
     { provide: PermissionsService, useValue: permissions },
     ...fakes,
   ],
@@ -389,7 +433,7 @@ class Assistant {
     return {
       toolNames: tools.map((tool) => tool.name),
       annotations: Object.fromEntries(
-        tools.filter((tool) => ['channels_list', 'piece_create'].includes(tool.name)).map((tool) => [tool.name, tool.annotations])
+        tools.filter((tool) => ['channels_list', 'piece_create', 'telegram_publish_ready'].includes(tool.name)).map((tool) => [tool.name, tool.annotations])
       ),
       channels: JSON.parse(channels.content[0].text),
       paid: JSON.parse(paid.content[0].text),
@@ -400,6 +444,36 @@ class Assistant {
   });
 
   await step('logs', async () => logs.filter((line) => line.includes('tools/call')));
+
+  await step('telegramPublication', async () => {
+    const input = {
+      requestId: '3ed97ca3-5bfc-4caf-bfa0-12770ee3403e',
+      channelId: telegramChannel.id,
+      coverMediaId: telegramCover.id,
+      html: '<p><strong>Formatted caption</strong></p>',
+    };
+    const call = async (name, args) => {
+      const result = await client.callTool({ name, arguments: args });
+      const payload = JSON.parse(result.content[0].text);
+      if (!payload.ok) throw new Error(`Tool ${name} refused with ${payload.code}`);
+      return payload.summary;
+    };
+    const preview = await call('telegram_publish_ready', input);
+    const writesBeforeApproval = publicationWrites.length;
+    const queued = await call('telegram_publish_ready', { ...input, confirmation: preview.confirmation });
+    const saved = publications.get(queued.postId);
+    saved.state = 'PUBLISHED';
+    saved.releaseURL = 'https://t.me/editorial_test/42';
+    const delivered = await call('telegram_publication_status', { requestId: input.requestId });
+    return {
+      needsConfirmation: preview.needsConfirmation,
+      question: preview.question.untrustedData.value,
+      writesBeforeApproval,
+      queued,
+      delivered,
+      writes: publicationWrites,
+    };
+  });
 
   await step('demotion', async () => {
     people.memberships['user-1:org-1'].role = 'USER';

@@ -110,6 +110,9 @@ describe('the tools', () => {
     expect(run.toolNames).toContain('channels_list');
     expect(run.toolNames).toContain('piece_create');
     expect(run.toolNames).toContain('ideas_check');
+    expect(run.toolNames).toContain('telegram_publish_ready');
+    expect(run.toolNames).toContain('telegram_publication_status');
+    expect(run.annotations.telegram_publish_ready).toMatchObject({ destructiveHint: true });
     for (const webOnly of ['piece_delete', 'channel_connect', 'plan_publish_now', 'ai_key_enter', 'ideas_topic_add', 'media_keep']) {
       expect(run.toolNames).not.toContain(webOnly);
     }
@@ -123,6 +126,27 @@ describe('the tools', () => {
     expect(run.channels.summary.untrustedData.value.channels).toEqual([
       expect.objectContaining({ id: 'c1', platform: 'telegram' }),
     ]);
+  });
+
+  test('the SDK publishes the approved Telegram caption and cover and reads the provider receipt', () => {
+    const run = noError('telegramPublication');
+    expect(run.needsConfirmation).toBe(true);
+    expect(run.question).toContain('@editorial_test');
+    expect(run.question).toContain('cover.png');
+    expect(run.writesBeforeApproval).toBe(0);
+    expect(run.queued).toMatchObject({ state: 'QUEUE', telegramUrl: null, channelId: 'c1' });
+    expect(run.delivered).toEqual({
+      ...run.queued,
+      state: 'PUBLISHED',
+      telegramUrl: 'https://t.me/editorial_test/42',
+    });
+    expect(run.writes).toEqual([{
+      org: 'org-1',
+      source: 'API',
+      options: { createOnly: true },
+      content: '<p><strong>Formatted caption</strong></p>',
+      image: [{ id: '1926f180-7f69-48fa-b83f-c268ce2c385e', path: '/uploads/cover.png' }],
+    }]);
   });
 
   test('a paid call reaches the service as the OAuth person (X2)', () => {
@@ -165,6 +189,7 @@ describe('the tools', () => {
     expect(run.tools).toEqual([
       'media_upload_status',
       'media_inspect',
+      'telegram_publication_status',
       'video_catalog',
       'video_drafts',
       'video_draft',

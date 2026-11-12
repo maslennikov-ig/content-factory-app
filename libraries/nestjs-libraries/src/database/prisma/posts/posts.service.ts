@@ -1078,7 +1078,8 @@ export class PostsService {
   async createPost(
     orgId: string,
     body: CreatePostDto,
-    creationMethod: CreationMethod
+    creationMethod: CreationMethod,
+    options?: { createOnly: true }
   ): Promise<any[]> {
     const postList = [];
     for (const post of body.posts) {
@@ -1111,7 +1112,8 @@ export class PostsService {
           body.tags,
           creationMethod,
           body.inter,
-          tx
+          tx,
+          options
         );
       // The editor saving an existing Content Factory variant into the queue
       // goes through the one-queue rule of its piece (`97dq.67`).
@@ -1120,7 +1122,7 @@ export class PostsService {
         .map((item) => item.id)
         .filter((id): id is string => !!id);
       const { posts } =
-        queues && existing.length
+        queues && existing.length && !options?.createOnly
           ? await this.gatedQueueWrite(orgId, existing, write)
           : await write();
 

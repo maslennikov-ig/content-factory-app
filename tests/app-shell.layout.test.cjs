@@ -132,7 +132,7 @@ beforeAll(async () => {
 }, 30_000);
 afterAll(async () => {
   await browser?.close();
-});
+}, 30_000);
 
 const measure = async (options, scroll = 0) => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });

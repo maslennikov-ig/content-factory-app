@@ -26,6 +26,9 @@ const { loadWithMocks, REPO } = require('../../../tests/helpers/load-ts-with-moc
 const SERVICE = 'libraries/nestjs-libraries/src/agent/agent.graph.service.ts';
 
 const standMocks = (chatModel) => ({
+  '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service': {
+    IntegrationService: class {},
+  },
   '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service': {
     PostsService: class {},
   },

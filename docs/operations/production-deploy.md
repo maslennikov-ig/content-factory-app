@@ -30,7 +30,30 @@ Jest выполняется штатными независимыми частя
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 11 November 2026: `71d44fed1588`
+## Current release 11 November 2026: `688ea5901796`
+
+Public source `688ea5901796ca9d6e54a5aeed4a3b639b780145` was copied from private
+`6c6b43f19dee2f28e2aa371292360c05ea6d8e0d`. The scoped reader cache hashes the full
+query. Tests cover leading whitespace and a date qualifier after 5,000 characters.
+The historical reader branch remains at `42412563a`.
+
+The exact local receipt covers 16,837 Jest, 351 Node and 51 Python passes. The
+six hosted Chromium jobs use Ubuntu 24.04 for the locked Playwright version.
+The video read deadline test now starts its timeout after the stalled response
+begins. Public Build passed all ordinary and calendar-shifted shards, Docker
+proofs and the final suite. CodeQL passed.
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43075299316) ·
+[CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43075299309).
+
+The switch completed at 18:54:19 UTC. The serving image digest is
+`sha256:b53c419dab8a5a510031132468628f673fb4daf921017feeee4eab5d420d1c7b`.
+Read-only Prisma checks returned zero SQL lines before and after the switch.
+The container reported healthy with zero restarts, the worker returned `ok`,
+and API, login and source returned HTTP 200. The 16,643,419-byte source archive
+matched SHA-256 `6d69afbb4f1a05fa5b274b312c31da34be4fee679912dc2a099ff8eaf25e466d`.
+Host retention kept `688ea5901796` and verified rollback `71d44fed1588`.
+
+## Previous release 11 November 2026: `71d44fed1588`
 
 Public source `71d44fed1588343fe5b02d189d331923740cd877` corresponds to private
 source `d0a9589f019ce746e80620acd202e74f39b43638`. The release delivers the
