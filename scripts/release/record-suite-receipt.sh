@@ -1,23 +1,7 @@
 #!/usr/bin/env bash
 #
-# Run the whole test suite and, if it passes, record that it passed for this
-# exact commit.
-#
-# Why a receipt and not a checklist line. `AGENTS.md` has named `pnpm test` in
-# release acceptance from the start. Between 25.08.2026 and 30.08.2026 fourteen
-# tests were red and five releases went to production anyway: the guards covered
-# activation atomicity, the immutable published snapshot and the serializable
-# pin, and none of them was guarding anything. Nobody skipped the step on
-# purpose — a step a person can skip is not a gate, and the release order had no
-# way to tell the difference between "ran and passed" and "did not run".
-#
-# GitHub Actions could not tell either. It stopped starting jobs at all on
-# 25.08.2026, about two hours after the commit that turned the tests red, and
-# every run since shows the same red mark it showed before — so the mark stopped
-# carrying information.
-#
-# This script is the half that produces evidence; `check-suite-receipt.sh` is
-# the half that refuses without it, and `push-image.sh` calls that one.
+# Run the complete local suite for this exact commit. Production image gates
+# use the separate hosted Build receipt for the public checkout.
 #
 # Usage: scripts/release/record-suite-receipt.sh
 # Output: var/release/suite-receipt.json, only on a green run.
@@ -49,19 +33,43 @@ mkdir -p "$out_dir/suite-runs"
 run_dir="$(mktemp -d "$out_dir/suite-runs/$commit.XXXXXX")"
 if [ -e "$receipt" ]; then mv "$receipt" "$run_dir/previous-suite-receipt.json"; fi
 log="$run_dir/suite.log"
-trap 'exit 130' INT
-trap 'exit 143' TERM
+suite_group=
+stop_suite() {
+  local signal="$1" code="$2"
+  trap '' INT TERM
+  if [ -n "$suite_group" ]; then
+    kill -s "$signal" -- "-$suite_group" 2>/dev/null || true
+    wait "$suite_group" || true
+  fi
+  exit "$code"
+}
+trap 'stop_suite INT 130' INT
+trap 'stop_suite TERM 143' TERM
 
 echo "Running the full suite for $(git rev-parse --short=12 HEAD). This takes minutes."
 echo
 
+# Job control gives the pipeline a process group we can interrupt even when
+# the caller sends a signal to this script alone. Keep its log open until the
+# release Jest coordinator has removed its Docker fixtures.
+set -m
+(
+  set +m
+  trap ':' INT TERM
+  status=0
+  CF_RELEASE_JEST_MODE=full CF_RELEASE_SUITE_HEAD="$commit" CF_RELEASE_JEST_ARTIFACT_DIR="$run_dir/jest" \
+    pnpm test 2>&1 | (trap '' INT TERM; exec tee "$log") || {
+      pipeline=("${PIPESTATUS[@]}")
+      status="${pipeline[0]}"
+      if [ "$status" -eq 0 ]; then status="${pipeline[1]}"; fi
+    }
+  exit "$status"
+) &
+suite_group=$!
 status=0
-CF_RELEASE_JEST_MODE=full CF_RELEASE_SUITE_HEAD="$commit" CF_RELEASE_JEST_ARTIFACT_DIR="$run_dir/jest" \
-  pnpm test 2>&1 | tee "$log" || {
-    pipeline=("${PIPESTATUS[@]}")
-    status="${pipeline[0]}"
-    if [ "$status" -eq 0 ]; then status="${pipeline[1]}"; fi
-  }
+wait "$suite_group" || status=$?
+suite_group=
+set +m
 
 if [ "$status" -ne 0 ]; then
   echo >&2

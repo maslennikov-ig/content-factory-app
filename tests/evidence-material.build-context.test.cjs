@@ -136,4 +136,10 @@ describe('the measuring stand does not travel in the image', () => {
     expect(dockerfile).toContain('var/source/content-factory-source.tar.gz');
     expect(REQUIRED_THOUGH_UNTRACKED).toEqual(['var/source/']);
   });
+
+  it('keeps release receipts and hosted artifacts outside the image context', () => {
+    expect(isExcludedFromBuildContext('var/release/suite-receipt.json', patterns)).toBe(true);
+    expect(isExcludedFromBuildContext('var/release/hosted-suite-123.zip', patterns)).toBe(true);
+    expect(isExcludedFromBuildContext('var/source/content-factory-source.tar.gz', patterns)).toBe(false);
+  });
 });

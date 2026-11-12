@@ -173,14 +173,8 @@ if [ "$update" -eq 1 ]; then
   # history is the one thing this tree has no copy of.
   rsync --archive --delete --exclude='.git/' "$layout/" "$target/"
 
-  # The clone has its own numbering, so the same code gets a different commit id
-  # there and the suite receipt — which names one commit — stops matching. The
-  # published commit therefore records which private commit it was made from,
-  # and `check-suite-receipt.sh` reads that trailer instead of HEAD.
-  #
-  # This is a defence against a mistake, not against forgery: the trailer is
-  # text and can be typed. Proving it properly would need the private
-  # repository, which a reader of the public one does not have.
+  # The public commit has its own id. Preserve the private source identity
+  # while production gates bind hosted test evidence to the exact public HEAD.
   message_file="$target/.git/PREPARE_PUBLIC_COMMIT_MSG"
   {
     echo "<subject: what changed, in one line>"
@@ -190,28 +184,7 @@ if [ "$update" -eq 1 ]; then
     echo "Source-Commit: $commit"
   } >"$message_file"
 
-  # The receipt travels with the tree it vouches for. The bytes are the same
-  # ones the suite ran against — the layout is this commit's index, and the
-  # difference is the held-back stage evidence, which no test reads.
-  receipt="$root/var/release/suite-receipt.json"
-  receipt_note="no local suite receipt to carry over"
-  if [ -f "$receipt" ]; then
-    receipt_commit="$(python3 -c '
-import json, sys
-try:
-    with open(sys.argv[1], encoding="utf-8") as handle:
-        print(json.load(handle).get("commit", ""))
-except (OSError, ValueError):
-    pass
-' "$receipt")"
-    if [ "$receipt_commit" = "$commit" ]; then
-      mkdir -p "$target/var/release"
-      cp "$receipt" "$target/var/release/suite-receipt.json"
-      receipt_note="suite receipt for $(git rev-parse --short=12 "$commit") carried over"
-    else
-      receipt_note="local suite receipt covers another commit and was not carried over"
-    fi
-  fi
+
 fi
 
 echo "Public tree prepared from $(git rev-parse --short=12 "$commit")"
@@ -223,10 +196,10 @@ echo
 if [ "$update" -eq 1 ]; then
   changed="$(git -C "$target" status --porcelain | wc -l)"
   echo "The clone now matches this tree: $changed path(s) differ from its last commit."
-  echo "  $receipt_note"
+  echo "  After public Build passes, import its suite evidence in this clone."
   echo
   echo "Nothing was committed and nothing was pushed. Review, then:"
-  echo "  git -C $target add -A"
+  echo "  Review git status and stage the changed paths in $target."
   echo "  \$EDITOR $target/.git/PREPARE_PUBLIC_COMMIT_MSG"
   echo "  git -C $target commit -F .git/PREPARE_PUBLIC_COMMIT_MSG"
   echo "  git -C $target push origin main"

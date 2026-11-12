@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { constants } = require('node:os');
 const { createCoverageMap } = require('istanbul-lib-coverage');
 const { createContext } = require('istanbul-lib-report');
@@ -120,9 +120,48 @@ const exitCodeOf = (result) => result.status ?? (result.signal ? 128 + constants
 const write = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2));
 const nonempty = (file) => assert(fs.statSync(file).isFile() && fs.statSync(file).size > 0, `Missing artifact: ${file}`);
 
+function startJest(jest, args, options, processes, shard = {}) {
+  const child = spawn(process.execPath, [jest, ...args], { ...options, detached: true });
+  if (child.pid) processes.add(child);
+  shard.startedAt = Date.now();
+  return new Promise(resolve => {
+    let error;
+    child.once('error', problem => { error = problem.message; });
+    child.once('close', (status, signal) => {
+      processes.delete(child);
+      Object.assign(shard, { finishedAt: Date.now(), exitCode: exitCodeOf({ status, signal }), signal, error });
+      resolve(shard.exitCode);
+    });
+  });
+}
+
+function signalJest(processes, signal) {
+  for (const child of processes) {
+    try { process.kill(-child.pid, signal); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+  }
+}
+
+function assertIsolatedFixtures(shards) {
+  const ids = new Set();
+  const ports = new Set();
+  for (const shard of shards) {
+    for (const name of ['postgres', 'redis']) {
+      const service = shard.fixtures?.[name];
+      assert(service, `Missing ${name} fixture for shard ${shard.index}`);
+      assert.match(service.id, /^[a-f0-9]{64}$/);
+      assert(!ids.has(service.id), 'Shared local fixture container');
+      assert(Number.isInteger(service.port) && service.port > 0 && service.port <= 65535 && !ports.has(service.port),
+        'Invalid or shared local fixture port');
+      ids.add(service.id);
+      ports.add(service.port);
+    }
+  }
+}
+
 // Ordinary invocations, including CI --shard and discovery, remain native Jest.
 // Only the release recorder opts into a bounded complete local run.
-function run(args) {
+async function run(args) {
   const jest = require.resolve('jest/bin/jest');
   if (!process.env.CF_RELEASE_JEST_MODE) {
     return exitCodeOf(spawnSync(process.execPath, [jest, ...args], { stdio: 'inherit' }));
@@ -137,40 +176,93 @@ function run(args) {
   const execution = { commit, root: process.cwd(), shards: [] };
   const executionFile = path.join(directory, 'execution.json');
   write(executionFile, execution);
-  const discoveryOut = fs.openSync(path.join(directory, 'discovery.json'), 'wx');
-  const discoveryErr = fs.openSync(path.join(directory, 'discovery.log'), 'wx');
-  let discovery;
-  try {
-    discovery = spawnSync(process.execPath, [jest, '--listTests', '--json'], { stdio: ['ignore', discoveryOut, discoveryErr] });
-  } finally { fs.closeSync(discoveryOut); fs.closeSync(discoveryErr); }
-  execution.discoveryExitCode = exitCodeOf(discovery);
-  write(executionFile, execution);
-  if (execution.discoveryExitCode) return execution.discoveryExitCode;
-  const expected = read(path.join(directory, 'discovery.json'));
-  assert(Array.isArray(expected) && expected.length > 0, 'Empty discovery population');
-  write(path.join(directory, 'expected.json'), expected);
+
+  const { localDocker, localFixtures, fixtureEnvironment, assertCompatibleFixtureEnvironment } = require('./local-jest-fixtures.cjs');
+  const processes = new Set();
+  const abort = new AbortController();
+  let forceStop;
+  const interrupt = (signal) => {
+    if (abort.signal.aborted) return;
+    abort.abort(signal);
+    signalJest(processes, signal);
+    forceStop = setTimeout(() => signalJest(processes, 'SIGKILL'), 5000).unref();
+  };
+  const stopInt = () => interrupt('SIGINT');
+  const stopTerm = () => interrupt('SIGTERM');
+  process.on('SIGINT', stopInt);
+  process.on('SIGTERM', stopTerm);
+
   const input = path.join(directory, 'shards');
-  fs.mkdirSync(input);
-  let failed = 0;
-  for (let index = 1; index <= 4; index++) {
-    const shardDir = path.join(input, `full-${index}`);
-    record('full', `${index}/4`, shardDir, commit);
-    const shard = { index, startedAt: Date.now() };
-    execution.shards.push(shard); write(executionFile, execution);
-    console.log(`Running complete release Jest shard ${index}/4; raw output: ${path.join(shardDir, 'suite.log')}`);
-    const fd = fs.openSync(path.join(shardDir, 'suite.log'), 'wx');
-    let result;
+  let fixtures;
+  let failed;
+  try {
+    assertCompatibleFixtureEnvironment(process.env);
+    const discoveryOut = fs.openSync(path.join(directory, 'discovery.json'), 'wx');
+    const discoveryErr = fs.openSync(path.join(directory, 'discovery.log'), 'wx');
     try {
-      result = spawnSync(process.execPath, [jest, ...args, `--shard=${index}/4`, '--json',
-        `--outputFile=${path.join(shardDir, 'results.json')}`, `--coverageDirectory=${shardDir}`], {
-        stdio: ['ignore', fd, fd],
-        env: { ...process.env, JEST_JUNIT_OUTPUT_DIR: shardDir, JEST_JUNIT_OUTPUT_NAME: 'junit.xml', JEST_JUNIT_OUTPUT_FILE: path.join(shardDir, 'junit.xml') },
-      });
-    } finally { fs.closeSync(fd); }
-    Object.assign(shard, { finishedAt: Date.now(), exitCode: exitCodeOf(result), signal: result.signal, error: result.error?.message });
+      execution.discoveryExitCode = await startJest(jest, ['--listTests', '--json'],
+        { stdio: ['ignore', discoveryOut, discoveryErr] }, processes);
+    } finally { fs.closeSync(discoveryOut); fs.closeSync(discoveryErr); }
+    abort.signal.throwIfAborted();
+    if (execution.discoveryExitCode) return execution.discoveryExitCode;
+    const expected = read(path.join(directory, 'discovery.json'));
+    assert(Array.isArray(expected) && expected.length > 0, 'Empty discovery population');
+    write(path.join(directory, 'expected.json'), expected);
+
+    fixtures = localFixtures(await localDocker(), abort.signal);
+    fs.mkdirSync(input);
+    execution.shards = [1, 2, 3, 4].map(index => ({ index }));
     write(executionFile, execution);
-    failed ||= shard.exitCode;
+    const prepared = await Promise.allSettled(execution.shards.map(async shard => {
+      shard.fixtures = await fixtures.start(shard.index);
+    }));
+    abort.signal.throwIfAborted();
+    const setupFailure = prepared.find(result => result.status === 'rejected');
+    if (setupFailure) throw setupFailure.reason;
+    assertIsolatedFixtures(execution.shards);
+
+    // Open each log and start each native Jest in the same turn. Every child
+    // keeps its own services, raw logs and reports while the others run.
+    const runs = execution.shards.map(async shard => {
+      const shardDir = path.join(input, `full-${shard.index}`);
+      record('full', `${shard.index}/4`, shardDir, commit);
+      console.log(`Running complete release Jest shard ${shard.index}/4; raw output: ${path.join(shardDir, 'suite.log')}`);
+      const fd = fs.openSync(path.join(shardDir, 'suite.log'), 'wx');
+      try {
+        return startJest(jest, [...args, `--shard=${shard.index}/4`, '--json',
+          `--outputFile=${path.join(shardDir, 'results.json')}`, `--coverageDirectory=${shardDir}`], {
+          stdio: ['ignore', fd, fd],
+          env: fixtureEnvironment(shard.fixtures, {
+            ...process.env,
+            JEST_JUNIT_OUTPUT_DIR: shardDir,
+            JEST_JUNIT_OUTPUT_NAME: 'junit.xml',
+            JEST_JUNIT_OUTPUT_FILE: path.join(shardDir, 'junit.xml'),
+          }),
+        }, processes, shard);
+      } finally { fs.closeSync(fd); }
+    });
+    const results = await Promise.allSettled(runs);
+    abort.signal.throwIfAborted();
+    const spawnFailure = results.find(result => result.status === 'rejected');
+    if (spawnFailure) throw spawnFailure.reason;
+    failed = results.find(result => result.value !== 0)?.value;
+  } catch (error) {
+    if (!abort.signal.aborted) throw error;
+  } finally {
+    try {
+      if (abort.signal.aborted) signalJest(processes, 'SIGKILL');
+      if (fixtures) {
+        await fixtures.cleanup();
+        execution.fixturesCleaned = true;
+      }
+    } finally {
+      clearTimeout(forceStop);
+      process.removeListener('SIGINT', stopInt);
+      process.removeListener('SIGTERM', stopTerm);
+      write(executionFile, execution);
+    }
   }
+  if (abort.signal.aborted) return 128 + constants.signals[abort.signal.reason];
   if (failed) return failed;
   // Raw shard summaries never enter the canonical log. Only the exact complete
   // discovered population, validated with native results and coverage, does.
@@ -186,12 +278,16 @@ function verifyLocal(directory, commit) {
   const execution = read(path.join(directory, 'execution.json'));
   assert(execution.commit === commit && execution.root === process.cwd() && execution.discoveryExitCode === 0, 'Wrong local execution');
   assert(execution.shards.length === 4, 'Missing local execution shard');
+  assert(execution.fixturesCleaned === true, 'Local fixtures were not cleaned up');
+  assertIsolatedFixtures(execution.shards);
   for (const [offset, shard] of execution.shards.entries()) {
     assert(shard.index === offset + 1 && shard.exitCode === 0 && !shard.signal && !shard.error, 'Failed local execution shard');
-    assert(Number.isFinite(shard.startedAt) && shard.finishedAt >= shard.startedAt, 'Invalid shard timing');
-    if (offset) assert(shard.startedAt >= execution.shards[offset - 1].finishedAt, 'Concurrent local shards');
+    assert(Number.isFinite(shard.startedAt) && Number.isFinite(shard.finishedAt) && shard.finishedAt >= shard.startedAt, 'Invalid shard timing');
     for (const file of ['suite.log', 'results.json', 'junit.xml', 'coverage-final.json']) nonempty(path.join(directory, `shards/full-${shard.index}`, file));
   }
+  const started = execution.shards.map(shard => shard.startedAt);
+  const finished = execution.shards.map(shard => shard.finishedAt);
+  assert(Math.max(...started) < Math.min(...finished), 'Local shards did not overlap');
   const expected = read(path.join(directory, 'expected.json'));
   assert.deepEqual(expected, read(path.join(directory, 'discovery.json')), 'Discovery manifest changed');
   const { coverage, totals, files } = collect(path.join(directory, 'shards'), expected, commit, process.cwd(), { fullOnly: true });
@@ -202,16 +298,18 @@ function verifyLocal(directory, commit) {
 }
 
 module.exports = { record, collect, aggregate, run, verifyLocal };
+async function main() {
+  const [action, ...args] = process.argv.slice(2);
+  assert(['record', 'aggregate', 'run', 'verify-local'].includes(action));
+  if (action === 'record') record(...args);
+  else if (action === 'aggregate') aggregate(...args);
+  else if (action === 'verify-local') console.log(verifyLocal(...args).join('\n'));
+  else process.exitCode = await run(args);
+}
+
 if (require.main === module) {
-  try {
-    const [action, ...args] = process.argv.slice(2);
-    assert(['record', 'aggregate', 'run', 'verify-local'].includes(action));
-    if (action === 'record') record(...args);
-    else if (action === 'aggregate') aggregate(...args);
-    else if (action === 'verify-local') console.log(verifyLocal(...args).join('\n'));
-    else process.exitCode = run(args);
-  } catch (error) {
+  main().catch(error => {
     console.error(`Incomplete sharded suite: ${error.message}`);
     process.exitCode = 1;
-  }
+  });
 }

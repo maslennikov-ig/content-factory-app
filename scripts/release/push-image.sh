@@ -52,7 +52,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # First, and cheapest to answer: did this commit's own test suite pass? Five
 # releases went out between 25.08.2026 and 30.08.2026 with fourteen guards red,
 # because `pnpm test` was a line in a checklist rather than a step that refuses.
-"$script_dir/check-suite-receipt.sh"
+"$script_dir/check-suite-receipt.sh" --hosted
 echo
 
 # Before anything is uploaded: is this image suddenly heavier than the release

@@ -19,7 +19,7 @@ case "$origin" in
   https://github.com/maslennikov-ig/content-factory-app|https://github.com/maslennikov-ig/content-factory-app.git|git@github.com:maslennikov-ig/content-factory-app|git@github.com:maslennikov-ig/content-factory-app.git) ;;
   *) echo 'Build only from the prepared public tree; see production-deploy.md' >&2; exit 1 ;;
 esac
-"$script_dir/check-suite-receipt.sh"
+"$script_dir/check-suite-receipt.sh" --hosted
 "$script_dir/make-source-archive.sh" >/dev/null
 python3 "$script_dir/check-local-build-capacity.py" --min-free-gib "$3"
 exec docker build --target runtime -t "content-factory-next:$tag" -f Dockerfile .

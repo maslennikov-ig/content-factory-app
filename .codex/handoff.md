@@ -2,46 +2,50 @@
 
 Current stage id: heygen-release-20261111
 
+## Release verification
+
+Task `content-factory-next-2vi4` runs the optional local complete suite with four
+concurrent Jest shards, each with its own disposable PostgreSQL and Redis.
+It verifies native discovery, coverage, JUnit and cleanup before the single
+Node and Python runs.
+
+Production builds and image publication use the verified Build artifact for the
+exact public checkout. Calendar CI and the pre-switch CodeQL check still apply.
+The importer was exercised against public Build `43238459016` for the existing
+production source. [Release procedure](../docs/operations/production-deploy.md#обновление-версии).
+
+The complete local run at `846869c222ab` passed 16,857 Jest tests in 958
+suites, 351 Node tests and 51 Python tests. The four Jest processes started
+within 6 ms, used eight distinct loopback ports, and removed their containers
+before Node and Python ran. Jest took 16m 18s versus 59m 42s for the previous
+sequential release on this machine. The complete local receipt took 16m 54s.
+The first parallel attempt hit the added 4 GiB heap limit. The passing run
+inherited the existing Jest heap configuration. The changes are on
+`codex/cf-release-speed`.
+
 ## Ready Telegram post through MCP
 
-Local delivery branch `codex/cf-mcp-ready-post` tracks
-`content-factory-next-u76d`. The MCP editor supplies an exact HTML caption, a
-connected Telegram channel and an owned image. The first call checks the
-caption and asks for confirmation. The normal post queue handles delivery
-after the one-time code is redeemed. The request ID maps to a create-only post
-ID so a repeated or concurrent call can read the first result. The status tool
-returns the Telegram URL after the worker records it.
+`content-factory-next-u76d` is live at public `2c59cd8ab84a` from private
+`b4c57fa52b30`. The exact release suite, public Build and CodeQL passed.
+The running digest, API, login, worker and source archive matched the release.
+The schema comparison was empty on both sides of the switch.
+[Production release](../docs/operations/production-deploy.md#current-release-12-november-2026-2c59cd8ab84a).
 
-The Fable and Carbon caption was checked locally through the production
-sanitizer and Telegram formatter. It renders as five paragraphs with seven
-links and a bold price comparison within the photo caption limit. Production
-rollout and the real channel post are pending. This change needs no Prisma
-migration and uses the current publication workflow.
+The authorized Fable and Carbon post with its approved cover and formatting
+was published through the live OAuth MCP tools. The provider reported
+`PUBLISHED` with a Telegram message URL. The private delivery record holds the
+channel and receipt. The previous version `688ea5901796` is the rollback image.
 
-Acceptance used eight focused Jest suites (167 tests), including the MCP
-transport, confirmation, repeated requests, queue writes and Telegram
-formatting. The backend TypeScript check and Nest build passed with the
-lockfile-matched dependencies and an isolated generated Prisma client. The release suite
-remains a rollout gate. The MCP connection guide was updated. No repository
-graph was available in the checkout or its Content Factory siblings.
-
-## Production status
+## Production history
 
 Production stage id: heygen-release-20261111
-
-Production serves the scoped reader cache fix at public `688ea5901796`, built
-from private `6c6b43f19dee`. Both regressions and the exact local suite passed.
-Public Build and CodeQL passed. The schema comparisons were empty, and the
-serving image, API, login, worker and source archive were verified. The host
-retains `71d44fed1588` for rollback.
-[Production release](../docs/operations/production-deploy.md#current-release-11-november-2026-688ea5901796).
 
 The scoped reader cache hashes the exact query. This preserves leading
 whitespace and date qualifiers after a common 5,000-character prefix.
 Release task `content-factory-next-u7zd` / HONEY-6459.
 [GitHub mirror](https://github.com/maslennikov-ig/content-factory-next/issues/1292).
 
-The previous HeyGen release remains the verified rollback.
+The previous HeyGen release remains part of the release history.
 [HeyGen release](../docs/operations/production-deploy.md#previous-release-11-november-2026-71d44fed1588).
 
 Release task `content-factory-next-ekqe.22.5` / HONEY-6420.
@@ -67,10 +71,9 @@ accepted epic. [Deferred task](https://github.com/maslennikov-ig/content-factory
 
 ## Next recommended
 
-Next stage id: cf-mcp-ready-post-rollout
+Next stage id: none
 
-Recommended action: Complete the authorized release for `content-factory-next-u76d`,
-followed by a real MCP publication and a Telegram receipt.
+Recommended action: Select the next scoped task in Hoba.
 
 ## Starter prompt for next orchestrator
 

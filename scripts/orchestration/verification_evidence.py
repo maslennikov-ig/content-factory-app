@@ -11,7 +11,7 @@ Failure is closed: a missing, malformed, edited, or renamed receipt means the
 check runs again. The kill switch only ever forces more work, never less.
 
 This is for intermediate orchestration checks. It does not touch and does not
-replace the release gate in scripts/release/record-suite-receipt.sh.
+replace the production gate in scripts/release/check-suite-receipt.sh.
 """
 
 from __future__ import annotations

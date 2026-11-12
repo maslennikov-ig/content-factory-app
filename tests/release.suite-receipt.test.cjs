@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
+const { setTimeout: delay } = require('node:timers/promises');
 
 const root = path.resolve(__dirname, '..');
 const releaseDir = path.join(root, 'scripts/release');
@@ -41,6 +42,7 @@ if [ "\${1:-}" != 'test' ]; then
   exit 127
 fi
 if [ "\${CF_STUB_MISSING:-}" = yes ]; then exit 0; fi
+if [ -n "\${CF_STUB_SIGNAL_READY:-}" ]; then exec node "$CF_STUB_SIGNAL_HELPER"; fi
 node "$CF_STUB_HELPER"
 if [ "\${CF_STUB_SUITE_STATUS:-}" = 134 ]; then exit 134; fi
 printf 'Node\\n' >> "$CF_RELEASE_JEST_ARTIFACT_DIR/order.log"
@@ -70,9 +72,15 @@ function writeNativeFixture() {
     write(path.join(d,'coverage-final.json'),{[file]:{path:file,statementMap:{0:{start:{line:1,column:0},end:{line:1,column:1}}},fnMap:{},branchMap:{},s:{0:1},f:{},b:{}}});
     fs.writeFileSync(path.join(d,'suite.log'),'Test Suites: 1 passed, 1 total\n');
     fs.writeFileSync(path.join(d,'junit.xml'),'<testsuites tests="1" failures="0"/>');
-    shards.push({index,startedAt:index*2,finishedAt:index*2+1,exitCode:0,signal:null});
+    shards.push({
+      index, startedAt:index, finishedAt:10+index, exitCode:0, signal:null,
+      fixtures:{
+        postgres:{id:String(index).repeat(64),port:15000+index},
+        redis:{id:String(index+4).repeat(64),port:16000+index},
+      },
+    });
   }
-  write(path.join(dir,'execution.json'),{commit,root,discoveryExitCode:0,shards});
+  write(path.join(dir,'execution.json'),{commit,root,discoveryExitCode:0,fixturesCleaned:true,shards});
   if(process.env.CF_STUB_FIRST_SHARD==='yes')console.log('Test Suites: 1 passed, 1 total\nTests:       1 passed, 1 total');
   aggregate(path.join(dir,'shards'),path.join(dir,'expected.json'),path.join(dir,'merged'),{fullOnly:true,commit});
   if(process.env.CF_STUB_DAMAGE==='coverage')fs.unlinkSync(path.join(dir,'shards/full-1/coverage-final.json'));
@@ -125,18 +133,21 @@ function makeRepository() {
   return { repo, git };
 }
 
+function environment(extraEnv) {
+  return {
+    ...process.env,
+    ...gitEnv,
+    // Scoped to this child only.
+    PATH: `${path.join(workspace, 'bin')}${path.delimiter}${process.env.PATH}`,
+    CF_STUB_HELPER: path.join(workspace, 'bin/native-fixture.cjs'),
+    CF_STUB_SIGNAL_HELPER: path.join(workspace, 'bin/signal-fixture.cjs'),
+    ...extraEnv,
+  };
+}
+
 function run(repo, script, extraEnv = {}) {
   return spawnSync('bash', [path.join(repo, 'scripts/release', script)], {
-    cwd: repo,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      ...gitEnv,
-      // Scoped to this child only.
-      PATH: `${path.join(workspace, 'bin')}${path.delimiter}${process.env.PATH}`,
-      CF_STUB_HELPER: path.join(workspace, 'bin/native-fixture.cjs'),
-      ...extraEnv,
-    },
+    cwd: repo, encoding: 'utf8', env: environment(extraEnv),
   });
 }
 
@@ -153,6 +164,16 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
     fs.mkdirSync(stubBin, { recursive: true });
     fs.writeFileSync(path.join(stubBin, 'pnpm'), PNPM_STUB, { mode: 0o755 });
     fs.writeFileSync(path.join(stubBin, 'native-fixture.cjs'), `(${writeNativeFixture.toString()})();`);
+    fs.writeFileSync(path.join(stubBin, 'signal-fixture.cjs'), `
+      const fs = require('node:fs');
+      const marker = process.env.CF_STUB_SIGNAL_READY;
+      for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => setTimeout(() => {
+        fs.writeFileSync(marker + '.cleaned', signal);
+        process.exit(1);
+      }, 200));
+      fs.writeFileSync(marker, 'ready');
+      setInterval(() => {}, 1000);
+    `);
   });
 
   afterAll(() => {
@@ -193,7 +214,7 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
 
     const checked = run(repo, 'check-suite-receipt.sh');
     expect(checked.status).toBe(0);
-    expect(checked.stdout).toContain('Suite receipt covers');
+    expect(checked.stdout).toContain('Local suite receipt covers');
     expect(checked.stdout).toContain('# fail 0');
   });
 
@@ -251,6 +272,27 @@ describeIfWritable('the release suite gate, executed against a throwaway reposit
     expect(recorded.status).not.toBe(0);
     expect(fs.existsSync(path.join(repo, 'var/release/suite-receipt.json'))).toBe(false);
   });
+
+  test.each([['SIGINT', 130], ['SIGTERM', 143]])('forwards recorder-only %s and waits for suite cleanup', async (signal, exitCode) => {
+    const { repo } = makeRepository();
+    const marker = path.join(repo, 'suite-started');
+    const child = spawn('bash', [path.join(repo, 'scripts/release/record-suite-receipt.sh')], {
+      cwd: repo, env: environment({ CF_STUB_SIGNAL_READY: marker }), stdio: 'ignore',
+    });
+    const exit = new Promise(resolve => child.once('close', (code, signal) => resolve({ code, signal })));
+    try {
+      const deadline = Date.now() + 5000;
+      while (!fs.existsSync(marker) && child.exitCode === null && Date.now() < deadline) await delay(25);
+      expect(fs.existsSync(marker)).toBe(true);
+      child.kill(signal);
+      expect(await exit).toEqual({ code: exitCode, signal: null });
+      expect(fs.readFileSync(marker + '.cleaned', 'utf8')).toBe(signal);
+      expect(fs.existsSync(path.join(repo, 'var/release/suite-receipt.json'))).toBe(false);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+      await exit;
+    }
+  }, 10000);
 
   test('the gate refuses an incomplete receipt even when it names HEAD', () => {
     const { repo, git } = makeRepository();
@@ -374,106 +416,5 @@ describe('the release order calls the suite gate', () => {
     expect(shared).toContain("':(exclude,top)var/release'");
     // Narrow on purpose: `var/docker` reaches the image.
     expect(shared).not.toContain("':(exclude,top)var'\n");
-  });
-});
-
-describeIfWritable('a receipt follows the tree into the public repository', () => {
-  /**
-   * The image is built in the clone of the public repository, which numbers its
-   * commits separately: the same bytes get a different id there. Comparing the
-   * receipt against HEAD would refuse every release, so a published commit
-   * records the private commit it was copied from and the gate reads that.
-   *
-   * The trailer defends against a mistake, not against forgery — anyone who can
-   * write it can write anything. These tests hold the mistake-shaped failures.
-   */
-  const publish = (repo, git, { trailer, receiptCommit }) => {
-    // Stand in for the published clone: same scripts, own commit, a receipt that
-    // names some private commit rather than this one.
-    fs.mkdirSync(path.join(repo, 'var/release'), { recursive: true });
-    fs.writeFileSync(
-      path.join(repo, 'var/release/suite-receipt.json'),
-      JSON.stringify({
-        commit: receiptCommit,
-        command: 'pnpm test',
-        jest: { suites: 'Test Suites: 225 passed', tests: 'Tests: 3095 passed' },
-        nodeTest: { pass: '# pass 93', fail: '# fail 0' },
-        python: 'OK',
-      })
-    );
-    fs.writeFileSync(path.join(repo, 'app.txt'), 'published tree\n');
-    git('add', '-A');
-    git('commit', '-qm', trailer ? `Publish the tree\n\n${trailer}` : 'Publish the tree');
-  };
-
-  const privateCommit = 'a'.repeat(40);
-
-  test('the gate accepts a receipt for the commit the trailer names', () => {
-    const { repo, git } = makeRepository();
-    publish(repo, git, {
-      trailer: `Source-Commit: ${privateCommit}`,
-      receiptCommit: privateCommit,
-    });
-
-    const checked = run(repo, 'check-suite-receipt.sh');
-
-    expect(checked.status).toBe(0);
-    expect(checked.stdout).toContain('was published from aaaaaaaaaaaa');
-    expect(checked.stdout).toContain('# fail 0');
-  });
-
-  test('a receipt for some other commit is still refused, and says which', () => {
-    const { repo, git } = makeRepository();
-    publish(repo, git, {
-      trailer: `Source-Commit: ${privateCommit}`,
-      receiptCommit: 'b'.repeat(40),
-    });
-
-    const checked = run(repo, 'check-suite-receipt.sh');
-
-    expect(checked.status).toBe(1);
-    expect(checked.stderr).toContain('bbbbbbbbbbbb');
-    expect(checked.stderr).toContain('published from aaaaaaaaaaaa');
-  });
-
-  test('a malformed trailer is refused rather than ignored', () => {
-    // Ignoring it would fall back to comparing against HEAD, which fails for a
-    // different reason and would send the reader looking in the wrong place.
-    const { repo, git } = makeRepository();
-    publish(repo, git, {
-      trailer: 'Source-Commit: not-a-commit',
-      receiptCommit: privateCommit,
-    });
-
-    const checked = run(repo, 'check-suite-receipt.sh');
-
-    expect(checked.status).toBe(1);
-    expect(checked.stderr).toContain('not a full');
-  });
-
-  test('the words in a commit body are not a trailer', () => {
-    // `%(trailers:key=…)` reads the trailer block only. A sentence mentioning
-    // Source-Commit in prose must not redirect the gate.
-    const { repo, git } = makeRepository();
-    publish(repo, git, {
-      trailer: `This commit mentions Source-Commit: ${privateCommit} in a sentence.\n\nAnd nothing else.`,
-      receiptCommit: privateCommit,
-    });
-
-    const checked = run(repo, 'check-suite-receipt.sh');
-
-    expect(checked.status).toBe(1);
-    expect(checked.stderr).not.toContain('published from');
-  });
-
-  test('without a trailer the gate behaves exactly as before', () => {
-    const { repo, git } = makeRepository();
-    publish(repo, git, { trailer: null, receiptCommit: privateCommit });
-
-    const checked = run(repo, 'check-suite-receipt.sh');
-
-    expect(checked.status).toBe(1);
-    expect(checked.stderr).toContain('and HEAD is');
-    expect(checked.stderr).not.toContain('published from');
   });
 });
