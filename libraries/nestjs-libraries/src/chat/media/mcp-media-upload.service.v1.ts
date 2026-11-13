@@ -16,11 +16,12 @@ import type { CapabilityIdentity } from '../capabilities/capability.types';
 const SESSION_SECONDS = 15 * 60;
 const TICKET_SECONDS = 2 * 60;
 const PREVIEW_SECONDS = 5 * 60;
-const key = (kind: string, value: string) => `cf:mcp-media:v1:${kind}:${createHash('sha256').update(value).digest('hex')}`;
+const digestKey = (kind: string, digest: string) => `cf:mcp-media:v1:${kind}:${digest}`;
+const key = (kind: string, value: string) => digestKey(kind, createHash('sha256').update(value).digest('hex'));
 type Identity = Pick<CapabilityIdentity, 'organizationId' | 'userId'>;
 export type McpUploadFileV1 = { name: string; size: number; nonce: string };
-type Session = Identity & { sessionId: string; expiresAt: string; state: 'waiting' | 'uploading' | 'ready' | 'failed'; mediaId?: string; sha256?: string; error?: string };
-type Ticket = { session: Session; file: McpUploadFileV1 };
+type Session = Identity & { sessionId: string; expiresAt: string; state: 'waiting' | 'uploading' | 'ready' | 'failed'; mediaId?: string; sha256?: string; error?: string; directPhoto?: boolean };
+type Ticket = { session: Session; file: McpUploadFileV1; fileSha256?: string };
 
 @Injectable()
 export class McpMediaUploadServiceV1 {
@@ -50,10 +51,11 @@ export class McpMediaUploadServiceV1 {
     if (!session || session.organizationId !== identity.organizationId || session.userId !== identity.userId || Date.parse(session.expiresAt) <= Date.now()) throw new NotFoundException();
     return session;
   }
-  async create(identity: Identity) {
+  async create(identity: Identity, directPhoto = false) {
     await this.active(identity, true);
     const session: Session = { organizationId: identity.organizationId, userId: identity.userId,
-      sessionId: randomUUID(), expiresAt: new Date(Date.now() + SESSION_SECONDS * 1000).toISOString(), state: 'waiting' };
+      sessionId: randomUUID(), expiresAt: new Date(Date.now() + SESSION_SECONDS * 1000).toISOString(),
+      state: 'waiting', ...(directPhoto ? { directPhoto: true } : {}) };
     await this.save(session);
     return { sessionId: session.sessionId, state: session.state, expiresAt: session.expiresAt,
       manualUploadUrl: `${process.env.FRONTEND_URL?.replace(/\/$/, '') || ''}/media`,
@@ -62,7 +64,7 @@ export class McpMediaUploadServiceV1 {
   async ticket(identity: Identity, sessionId: string, file: McpUploadFileV1) {
     await this.active(identity, true);
     const session = await this.session(identity, sessionId);
-    if (session.state !== 'waiting') throw new BadRequestException('This upload session already has a file. Open another upload.');
+    if (session.directPhoto || session.state !== 'waiting') throw new BadRequestException('This upload session is bound to another transfer. Open another upload.');
     if (!file || !Number.isSafeInteger(file.size) || file.size < 1 || file.size > MAX_VIDEO_UPLOAD_SIZE ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(file.nonce) || !file.name || file.name.length > 255 || /[\u0000-\u001f/\\]/.test(file.name)) throw new BadRequestException('Invalid file description');
     const binding = JSON.stringify({ name: file.name, size: file.size, nonce: file.nonce });
@@ -72,6 +74,21 @@ export class McpMediaUploadServiceV1 {
     const ticket = randomBytes(32).toString('base64url');
     await ioRedis.set(key('ticket', ticket), JSON.stringify({ session, file } satisfies Ticket), 'EX', TICKET_SECONDS);
     return { ticket, uploadUrl: `${this.base()}/mcp-media/upload`, expiresIn: TICKET_SECONDS };
+  }
+  async preparePhoto(
+    identity: Identity,
+    photo: { name: string; size: number; sha256: string; uploadProofSha256: string }
+  ) {
+    const uploadUrl = `${this.base()}/mcp-media/upload`;
+    const created = await this.create(identity, true);
+    const session = await this.session(identity, created.sessionId);
+    const file = { name: photo.name, size: photo.size, nonce: randomUUID() };
+    const ticket: Ticket = { session, file, fileSha256: photo.sha256 };
+    // The client keeps the preimage locally. Only its digest crosses MCP.
+    const stored = await ioRedis.set(digestKey('ticket', photo.uploadProofSha256),
+      JSON.stringify(ticket), 'EX', TICKET_SECONDS, 'NX');
+    if (stored !== 'OK') throw new BadRequestException('Generate a new upload proof.');
+    return { ...created, transport: 'multipart' as const, uploadUrl, uploadExpiresIn: TICKET_SECONDS };
   }
   /** Consume before parsing any binary; one session can accept exactly one file. */
   async claim(ticket: string | undefined): Promise<Ticket> {
@@ -98,9 +115,15 @@ export class McpMediaUploadServiceV1 {
       const source = await openDiskUploadV1({ path: file.path, size: file.size, originalname: originalName, mimetype: file.mimetype });
       const hash = createHash('sha256');
       try {
+        if (bound.fileSha256 && !source.mimetype.startsWith('image/')) {
+          throw new BadRequestException('The selected file must be an image.');
+        }
         for await (const chunk of source.stream) hash.update(chunk);
       } finally { await source.close(); }
       const sha256 = hash.digest('hex');
+      if (bound.fileSha256 && bound.fileSha256 !== sha256) {
+        throw new BadRequestException('The selected file does not match its upload digest.');
+      }
       const storage = UploadFactory.createStorage();
       if (!storage.uploadFileFromDiskV1) throw new BadRequestException('Disk upload is not supported by this storage provider');
       const stored = await storage.uploadFileFromDiskV1({ path: file.path, size: file.size, originalname: originalName, mimetype: file.mimetype });

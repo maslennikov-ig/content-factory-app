@@ -19,11 +19,16 @@ import {
 import { codedFailure } from './selection';
 
 const requestId = z.string().uuid().describe('Stable UUID for this one publication. Keep it after confirmation, errors and timeouts.');
+const photoLimit = 10;
 const publicationInput = z.object({
   requestId,
   channelId: z.string().min(1).max(128).describe('Connected Telegram channel ID from channels_list.'),
-  html: z.string().min(1).max(20000).describe('Exact final caption using p, br, strong, u and a with HTTPS links.'),
-  coverMediaId: z.string().uuid().describe('Owned image ID from media_inspect or a completed upload.'),
+  html: z.string().min(1).max(20000).describe('Exact final HTML. Rich format supports h1–h6, ul, ol, li, p, br, strong, u and HTTPS links. Supply photos through mediaIds.'),
+  coverMediaId: z.string().uuid().optional().describe('Legacy single owned image ID. Use mediaIds for new calls.'),
+  mediaIds: z.array(z.string().uuid()).min(1).max(photoLimit).optional()
+    .describe('Ordered, distinct workspace photo IDs from media_inspect or completed uploads. Up to ten. Omit for rich text without photos.'),
+  format: z.enum(['caption', 'rich']).optional()
+    .describe('caption uses a photo or album and a 1024-character caption. rich uses native headings and lists with optional embedded photos. Default: caption.'),
 });
 type PublicationInput = z.infer<typeof publicationInput>;
 
@@ -48,17 +53,26 @@ const receipt = (post: { id: string; integrationId: string; state: string; relea
 });
 
 async function prepare(ctx: ApprovalDescribeContext, input: PublicationInput) {
-  const [channel, cover] = await Promise.all([
+  const mediaIds = input.mediaIds ?? (input.coverMediaId ? [input.coverMediaId] : []);
+  const rich = input.format === 'rich';
+  if ((input.coverMediaId && input.mediaIds) || (!rich && !mediaIds.length) ||
+      new Set(mediaIds.map(id => id.toLowerCase())).size !== mediaIds.length) {
+    throw codedFailure('TELEGRAM_MEDIA_INVALID', 'Choose distinct photos using mediaIds or a single coverMediaId. Photos are required for caption format.');
+  }
+  const [channel, photos] = await Promise.all([
     ctx.service(IntegrationService).getIntegrationById(ctx.organizationId, input.channelId),
-    ctx.service(MediaService).getMediaById(ctx.organizationId, input.coverMediaId),
+    Promise.all(mediaIds.map(async (id) => {
+      const photo = await ctx.service(MediaService).getMediaById(ctx.organizationId, id);
+      if (!photo || photo.organizationId !== ctx.organizationId || photo.deletedAt ||
+          !mime.getType(photo.path)?.startsWith('image/')) {
+        throw codedFailure('TELEGRAM_COVER_UNAVAILABLE', 'Choose photos from this workspace media library.');
+      }
+      return photo;
+    })),
   ]);
   if (!channel || channel.organizationId !== ctx.organizationId || channel.deletedAt ||
       channel.disabled || channel.refreshNeeded || channel.providerIdentifier !== 'telegram') {
     throw codedFailure('TELEGRAM_CHANNEL_UNAVAILABLE', 'Choose an active Telegram channel in this workspace.');
-  }
-  if (!cover || cover.organizationId !== ctx.organizationId || cover.deletedAt ||
-      !mime.getType(cover.path)?.startsWith('image/')) {
-    throw codedFailure('TELEGRAM_COVER_UNAVAILABLE', 'Choose an image from this workspace media library.');
   }
   const posts = ctx.service(PostsService);
   const body = await posts.mapTypeToPost({
@@ -68,21 +82,23 @@ async function prepare(ctx: ApprovalDescribeContext, input: PublicationInput) {
     tags: [],
     posts: [{
       integration: { id: channel.id },
-      settings: { __type: 'telegram' },
+      settings: { __type: 'telegram', ...(rich ? { telegramFormat: 'rich' } : {}) },
       value: [{
         id: postIdFor(ctx, input.requestId),
         content: input.html,
         delay: 0,
-        image: [{ id: cover.id, path: cover.path }],
+        image: photos.map(({ id, path }) => ({ id, path })),
       }],
     }],
   }, ctx.organizationId);
   const content = body.posts[0].value[0].content;
-  const caption = stripHtmlValidation('none', telegramHtml(content));
-  if (!caption.trim() || caption.length > TELEGRAM_CAPTION_LIMIT) {
-    throw codedFailure('TELEGRAM_CAPTION_INVALID', `The photo caption must contain 1–${TELEGRAM_CAPTION_LIMIT} visible characters.`);
+  const caption = stripHtmlValidation('none', telegramHtml(content, rich));
+  if (!caption.trim() || (!rich && caption.length > TELEGRAM_CAPTION_LIMIT)) {
+    throw codedFailure('TELEGRAM_CAPTION_INVALID', rich
+      ? 'A rich post must contain visible text.'
+      : `The photo caption must contain 1–${TELEGRAM_CAPTION_LIMIT} visible characters.`);
   }
-  return { channel, cover, content, caption, body };
+  return { channel, photos, content, caption, body };
 }
 
 export const telegramPublishReady = defineCapability({
@@ -91,26 +107,32 @@ export const telegramPublishReady = defineCapability({
   group: 'plan',
   entrances: ['mcp'],
   input: publicationInput,
-  description: 'Publish one already-written Telegram post with one owned cover. Preserve the approved caption and links. The first call checks the post and asks for confirmation. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
+  description: 'Publish one already-written Telegram post. Use format rich for native headings, lists and optional inline photos. Use caption for a classic photo or album. Preserve the exact approved text, links and photo order. The first call checks the post and asks for confirmation. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
   risk: 'confirm',
   mcpConfirm: 'ask',
   door: door(PostsController, 'createPost'),
   untrusted: [],
   describeApproval: async (ctx, input) => {
-    const { channel, cover, caption } = await prepare(ctx, input);
+    const { channel, photos, caption } = await prepare(ctx, input);
     const name = channel.displayName || channel.name;
     const handle = /^[a-z][a-z0-9_]*$/i.test(channel.internalId) && channel.internalId !== 'undefined'
       ? ` (@${channel.internalId})`
       : '';
-    const filename = (cover.originalName || cover.name).slice(0, 80);
+    const filenames = photos.map(photo => `«${(photo.originalName || photo.name).slice(0, 80)}»`).join(', ');
     const excerpt = caption.trim().slice(0, 80);
+    const rich = input.format === 'rich';
     return ctx.language === 'ru'
-      ? `Опубликовать сейчас в Telegram-канале «${name}»${handle} пост «${excerpt}» с обложкой «${filename}»?`
-      : `Publish “${excerpt}” with the cover “${filename}” in Telegram channel “${name}”${handle} now?`;
+      ? `Опубликовать сейчас в Telegram-канале «${name}»${handle} ${rich ? 'форматированный пост' : 'пост'} «${excerpt}»${filenames ? ` с фото ${filenames}` : ''}?`
+      : `Publish ${rich ? 'the rich post ' : ''}“${excerpt}”${filenames ? ` with photos ${filenames}` : ''} in Telegram channel “${name}”${handle} now?`;
   },
   approvalContent: async (ctx, input) => {
-    const { channel, cover, content } = await prepare(ctx, input);
-    return { channel: channel.internalId, cover: cover.path, content };
+    const { channel, photos, content } = await prepare(ctx, input);
+    return {
+      channel: channel.internalId,
+      format: input.format ?? 'caption',
+      photos: photos.map(({ id, path }) => ({ id, path })),
+      content,
+    };
   },
   run: async (ctx, input) => {
     const id = postIdFor(ctx, input.requestId);

@@ -72,7 +72,7 @@ describe('publish a ready Telegram post over MCP', () => {
     });
     const services = {
       IntegrationService: { getIntegrationById: async () => channel },
-      MediaService: { getMediaById: async () => cover },
+      MediaService: { getMediaById: async (org, id) => id === cover.id ? cover : null },
       PostsRepository: { getPost: async (id, _includeIntegration, org) =>
         saved.get(id)?.org === org ? saved.get(id) : null },
       PostsService: {
@@ -142,6 +142,40 @@ describe('publish a ready Telegram post over MCP', () => {
     expect(await call(tool, { ...input, html: `<p>${'я'.repeat(1025)}</p>` }))
       .toMatchObject({ ok: false, code: 'TELEGRAM_CAPTION_INVALID' });
     expect(createPost).not.toHaveBeenCalled();
+  });
+
+  test('binds the rich format and ordered photos and keeps the full approved content', async () => {
+    const { cover, createPost, services } = fixture();
+    const second = { ...cover, id: '8770279b-ce14-43f8-91eb-d719029e1b0c',
+      name: 'diagram.png', path: '/uploads/diagram.png' };
+    const firstLookup = services.MediaService.getMediaById;
+    services.MediaService.getMediaById = (org, id) =>
+      id === second.id ? second : firstLookup(org, id);
+    const { tool } = setup('telegram.publish_ready', services);
+    const rich = {
+      requestId: input.requestId,
+      channelId: input.channelId,
+      format: 'rich',
+      mediaIds: [cover.id, second.id],
+      html: `<h1>Заголовок</h1><ol><li>${'я'.repeat(1025)}</li></ol>`,
+    };
+    const asked = await call(tool, rich);
+    expect(asked.summary.question.untrustedData.value).toContain('telegram-cover.png»');
+    expect(asked.summary.question.untrustedData.value).toContain('diagram.png»');
+    const confirmation = asked.summary.confirmation;
+    expect(await call(tool, { ...rich, mediaIds: [...rich.mediaIds].reverse(), confirmation }))
+      .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    expect(createPost).not.toHaveBeenCalled();
+    expect(await call(tool, { ...rich, confirmation })).toMatchObject({ ok: true });
+    expect(createPost).toHaveBeenCalledWith(ADMIN.organizationId, expect.objectContaining({
+      posts: [expect.objectContaining({
+        settings: { __type: 'telegram', telegramFormat: 'rich' },
+        value: [expect.objectContaining({
+          content: rich.html,
+          image: rich.mediaIds.map((id, index) => ({ id, path: [cover.path, second.path][index] })),
+        })],
+      })],
+    }), 'API', { createOnly: true });
   });
 });
 

@@ -36,7 +36,29 @@ PostgreSQL и Redis в Docker, с динамическими портами на
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 12 November 2026: `2c59cd8ab84a`
+## Current release 12 November 2026: `f7eca4e83263`
+
+Public source `f7eca4e83263dba11f5c110de908535ecf100bde` was copied from private
+`44af89093fc9ef1f5fe21127474b5943bcbf368e`. This release uses the public Build receipt
+at both the local image build and registry publication gates.
+
+The imported GitHub artifact matched its SHA-256 and the exact public
+source and private trailer. Build passed four ordinary Jest shards, two
+calendar shards, one complete-suite aggregation with 351 Node tests and
+Python, and 16856 ordinary Jest tests. The local release produced zero
+new complete-suite runs. CodeQL passed on the same public commit.
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43260294023) ·
+[CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43260293548).
+
+The switch completed at 2026-11-12T17:27:02Z. The serving image digest is
+`sha256:7bd051dba2ee1553a4a69331ee5fc54243be301d9561931bce196947fb4bed8f`. Read-only Prisma comparisons
+returned zero SQL lines before and after switching. The app and its three
+processes had zero restarts, the worker returned `ok`, and API, login and
+source returned HTTP 200. The 16,659,043-byte source archive matched SHA-256
+`2b3b93c0614c0c86d6e2bb72da166d3cb74f90ccee6d7bb5d9812836081fd66b`. The previous release `2c59cd8ab84a`
+remains available for rollback.
+
+## Previous release 12 November 2026: `2c59cd8ab84a`
 
 Public source `2c59cd8ab84a668a14f6c93ce653e60c85c944e9` was copied from private
 `b4c57fa52b30f67f930fad93e31c0ce1d93ade7d`. The release exposes ready Telegram

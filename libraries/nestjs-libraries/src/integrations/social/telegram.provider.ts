@@ -15,11 +15,20 @@ import { BadBody, RefreshToken, SocialAbstract } from '@contentfactory/nestjs-li
 import mime from 'mime';
 import TelegramBot from 'node-telegram-bot-api';
 import { Integration } from '@prisma/client';
+import type { Readable } from 'node:stream';
 import { TELEGRAM_CAPTION_LIMIT, telegramHtml } from './telegram-formatting';
 
 export { telegramHtml } from './telegram-formatting';
 
 const telegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!);
+
+type RichPhotoPart = {
+  value: Readable;
+  options: { filename?: string; contentType: string };
+};
+type RichRequest = { form: Record<string, string> } | {
+  formData: Record<string, string | RichPhotoPart>;
+};
 
 export const telegramReleaseUrl = (
   internalId: string,
@@ -201,17 +210,15 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     try {
     const processedMedia = this.processMedia(mediaFiles, opened.sources);
 
+    if (message.settings?.telegramFormat === 'rich') {
+      return await this.sendRichMessage(accessToken, message.message, processedMedia, replyToMessageId);
+    }
+
     // if there's no media, bot sends a text message only
     if (processedMedia.length === 0) {
       const structured = /<(?:h[1-6]|ol|ul)\b/iu.test(message.message || '');
       const response = structured
-        ? await (telegramBot as unknown as { _request: (method: string, options: object) => Promise<{ message_id: number }> })._request('sendRichMessage', {
-            form: {
-              chat_id: accessToken,
-              rich_message: JSON.stringify({ html: telegramHtml(message.message || '', true) }),
-              ...(replyToMessageId ? { reply_parameters: JSON.stringify({ message_id: replyToMessageId }) } : {}),
-            },
-          })
+        ? { message_id: await this.sendRichMessage(accessToken, message.message, [], replyToMessageId) }
         : await telegramBot.sendMessage(accessToken, text, {
             parse_mode: 'HTML',
             ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
@@ -278,6 +285,43 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
 
     return messageId;
     } finally { opened.close(); }
+  }
+
+  private async sendRichMessage(
+    chatId: string,
+    html: string,
+    photos: ReturnType<TelegramProvider['processMedia']>,
+    replyToMessageId?: number,
+  ): Promise<number> {
+    if (photos.length > 10 || photos.some(photo => photo.type !== 'photo')) {
+      throw new Error('A Telegram rich post supports up to ten photos.');
+    }
+
+    // The provider generates every reference from the owned media list.
+    const media = photos.map((_, index) => {
+      const id = `photo_${index}`;
+      return { id, media: { type: 'photo', media: `attach://${id}` } };
+    });
+    const images = media.map(({ id }) => `<img src="tg://photo?id=${id}"/>`).join('');
+    const photoBlock = images && (media.length > 1 ? `<tg-collage>${images}</tg-collage>` : images);
+    const fields = {
+      chat_id: chatId,
+      rich_message: JSON.stringify({
+        html: telegramHtml(html, true) + photoBlock,
+        ...(media.length ? { media } : {}),
+      }),
+      ...(replyToMessageId ? { reply_parameters: JSON.stringify({ message_id: replyToMessageId }) } : {}),
+    };
+    const formData: Record<string, string | RichPhotoPart> = { ...fields };
+    media.forEach(({ id }, index) => {
+      const photo = photos[index];
+      formData[id] = { value: photo.media, options: photo.fileOptions };
+    });
+    const request = telegramBot as unknown as {
+      _request(method: 'sendRichMessage', options: RichRequest): Promise<{ message_id: number }>;
+    };
+    const response = await request._request('sendRichMessage', media.length ? { formData } : { form: fields });
+    return response.message_id;
   }
 
   async post(

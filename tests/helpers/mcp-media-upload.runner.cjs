@@ -1,7 +1,7 @@
 'use strict';
 require('reflect-metadata');
 const assert = require('node:assert/strict');
-const { randomUUID, createHash } = require('node:crypto');
+const { randomUUID, randomBytes, createHash } = require('node:crypto');
 const { Readable } = require('node:stream');
 const { runInNewContext } = require('node:vm');
 const { webcrypto } = require('node:crypto');
@@ -174,5 +174,37 @@ let app, client;
   await until(async()=>(await uploads.status(IDENTITY,abortSession.sessionId)).state==='uploading');interrupted.destroy();
   await until(async()=>(await uploads.status(IDENTITY,abortSession.sessionId)).state==='failed'&&[...spools].every(directory=>!existsSync(directory)));
   assert.equal(storageWrites,2);report.diskSpool=true;
+  const localPhoto = async (name, digest) => {
+    const proof = randomBytes(32).toString('base64url');
+    const prepared = await call('media_upload', { photo: {
+      name, size: png.length, sha256: digest,
+      uploadProofSha256: createHash('sha256').update(proof).digest('hex'),
+    } });
+    assert(!JSON.stringify(prepared).includes(proof));
+    const session = unwrap(prepared);
+    assert.equal(session.transport, 'multipart');
+    assert.equal(session.uploadUrl, privateTicket.uploadUrl);
+    await assert.rejects(() => uploads.ticket(IDENTITY, session.sessionId, { ...fileSpec, name }));
+    const send = () => {
+      const body = new FormData();
+      body.append('file', new Blob([png], { type: 'image/png' }), name);
+      return fetch(session.uploadUrl, {
+        method: 'POST', headers: { Accept: 'application/json; cf-upload-ticket=' + proof }, body,
+      });
+    };
+    return { session, send };
+  };
+  const local = await localPhoto('local.png', createHash('sha256').update(png).digest('hex'));
+  assert.equal((await local.send()).status, 201);
+  const localReceipt = unwrap(await call('media_upload_status', { sessionId: local.session.sessionId }));
+  assert.equal(localReceipt.state, 'ready');
+  assert.equal(localReceipt.media.name, 'local.png');
+  assert.equal((await local.send()).status, 403);
+  const mismatch = await localPhoto('different.png', '0'.repeat(64));
+  assert.equal((await mismatch.send()).status, 400);
+  assert.equal(unwrap(await call('media_upload_status', { sessionId: mismatch.session.sessionId })).state, 'failed');
+  assert.equal(storageWrites, 3);
+  assert([...spools].every(directory => !existsSync(directory)));
+  report.directPhoto = true;
   await client.close();await app.close();console.log('REPORT '+JSON.stringify(report));
 })().catch(async error=>{console.error(error);await client?.close().catch(()=>{});await app?.close().catch(()=>{});process.exitCode=1;});

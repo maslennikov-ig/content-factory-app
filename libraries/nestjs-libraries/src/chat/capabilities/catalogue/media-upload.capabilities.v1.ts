@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MediaController } from '@contentfactory/backend/api/routes/media.controller';
 import { McpMediaUploadServiceV1 } from '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1';
+import { MAX_IMAGE_UPLOAD_SIZE } from '@contentfactory/nestjs-libraries/upload/upload.limits';
 import { defineCapability, door } from '../capability.types';
 import { codedFailure } from './selection';
 import { UPLOAD_WIDGET_URI_V1 } from '../../ui/media-upload.widget.v1';
@@ -8,10 +9,25 @@ import { UPLOAD_WIDGET_URI_V1 } from '../../ui/media-upload.widget.v1';
 export const mediaUploadV1 = defineCapability({
   id: 'media.upload', group: 'media', entrances: ['mcp'],
   label: { ru: 'Загрузить файл', en: 'Upload a file' },
-  description: 'Open a local-file upload widget. The person selects the file; binary, base64, URLs and server filesystem paths never go into tool arguments. One file per session. Supported MCP Apps hosts render the widget. If the client has no widget, ask the person to upload at manualUploadUrl (/media), then use media.library and media.inspect. Opening a widget does not mean a file was uploaded; check media.upload_status for ready and its actual mediaId.',
-  input: z.object({}).strict(), risk: 'write', door: door(MediaController, 'uploadSimple'), untrusted: [],
+  description: 'Upload one local file. With no arguments, open the file picker in supported MCP Apps hosts. For a photo in the current workspace and a local shell, pass photo metadata and SHA-256 of a locally generated 32-byte random base64url proof. Keep that proof local. Send the file as multipart field file to the returned uploadUrl with Accept: application/json; cf-upload-ticket=<proof>. Use the configured Content Factory origin only. Never pass file bytes, base64, local paths or the proof itself in tool arguments. Check media.upload_status for ready and its mediaId.',
+  input: z.object({
+    photo: z.object({
+      name: z.string().min(1).max(255).regex(/^[^\x00-\x1f/\\]+$/),
+      size: z.number().int().positive().max(MAX_IMAGE_UPLOAD_SIZE),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/),
+      uploadProofSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    }).strict().optional(),
+  }).strict(), risk: 'write', door: door(MediaController, 'uploadSimple'), untrusted: [],
   mcpApp: { resourceUri: UPLOAD_WIDGET_URI_V1 },
-  run: (ctx) => ctx.service(McpMediaUploadServiceV1).create(ctx),
+  run: (ctx, input) => {
+    const uploads = ctx.service(McpMediaUploadServiceV1);
+    if (!input.photo) return uploads.create(ctx);
+    const { name, size, sha256, uploadProofSha256 } = input.photo;
+    if (!name || !size || !sha256 || !uploadProofSha256) {
+      throw codedFailure('MEDIA_UPLOAD_INVALID', 'Supply the photo name, size and both digests.');
+    }
+    return uploads.preparePhoto(ctx, { name, size, sha256, uploadProofSha256 });
+  },
   summarize: output => ({ ...output }),
 });
 

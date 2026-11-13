@@ -1,4 +1,6 @@
 const {Readable}=require('node:stream');
+const { createServer } = require('node:http');
+const TelegramBotSdk = require('node-telegram-bot-api');
 const providerDiagnostic=require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/provider-error-diagnostic.ts');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
@@ -74,6 +76,82 @@ test('a failed rich request is propagated without an uncertain retry', async () 
   await expect(new TelegramProvider().post('channel', '-100123', [{ id: 'p', message: html, media: [] }])).rejects.toThrow('результат запроса не подтверждён');
   expect(request).toHaveBeenCalledTimes(1);
   expect(sendMessage).not.toHaveBeenCalled();
+});
+
+test('native rich posts send an ordered photo collage in one multipart request', async () => {
+  const message = {
+    id: 'p',
+    settings: { telegramFormat: 'rich' },
+    message: stripHtmlValidation('html', html),
+    media: [{ path: 'https://cdn.example/picker.png' }, { path: 'https://cdn.example/diagram.png' }],
+  };
+  const result = await new TelegramProvider().post('channel', '-100123', [message]);
+  expect(result[0]).toMatchObject({ postId: '42', releaseURL: 'https://t.me/channel/42' });
+  expect(request).toHaveBeenCalledTimes(1);
+  const [method, { formData }] = request.mock.calls[0];
+  expect(method).toBe('sendRichMessage');
+  expect(formData.chat_id).toBe('-100123');
+  expect(JSON.parse(formData.rich_message)).toEqual({
+    html: html.replace('<strong>', '<b>').replace('</strong>', '</b>') +
+      '<tg-collage><img src="tg://photo?id=photo_0"/><img src="tg://photo?id=photo_1"/></tg-collage>',
+    media: [
+      { id: 'photo_0', media: { type: 'photo', media: 'attach://photo_0' } },
+      { id: 'photo_1', media: { type: 'photo', media: 'attach://photo_1' } },
+    ],
+  });
+  expect(formData.photo_0).toEqual({ value: expect.any(Readable), options: { filename: 'picker.png', contentType: 'image/png' } });
+  expect(formData.photo_1.options.filename).toBe('diagram.png');
+  expect(sendPhoto).not.toHaveBeenCalled();
+  expect(sendMessage).not.toHaveBeenCalled();
+});
+
+test('Telegram SDK sends the rich message and both photo streams on the wire', async () => {
+  let received;
+  const server = createServer(async (req, res) => {
+    try {
+      const form = await new Response(Readable.toWeb(req), {
+        headers: { 'content-type': req.headers['content-type'] },
+      }).formData();
+      received = {
+        path: req.url,
+        chatId: form.get('chat_id'),
+        message: JSON.parse(form.get('rich_message')),
+        files: await Promise.all(['photo_0', 'photo_1'].map(async key => {
+          const file = form.get(key);
+          return [file.name, await file.text()];
+        })),
+      };
+      res.end(JSON.stringify({ ok: true, result: { message_id: 101 } }));
+    } catch {
+      res.writeHead(400).end(JSON.stringify({ ok: false, description: 'Invalid multipart' }));
+    }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const sdk = new TelegramBotSdk('fixture-token', {
+      baseApiUrl: `http://127.0.0.1:${server.address().port}`,
+    });
+    request.mockImplementationOnce((method, options) => sdk._request(method, options));
+    const result = await new TelegramProvider().post('channel', '-100123', [{
+      id: 'p',
+      settings: { telegramFormat: 'rich' },
+      message: html,
+      media: [{ path: '/uploads/picker.png' }, { path: '/uploads/diagram.png' }],
+    }]);
+    expect(result[0].releaseURL).toBe('https://t.me/channel/101');
+    expect(received).toMatchObject({
+      path: '/botfixture-token/sendRichMessage',
+      chatId: '-100123',
+      files: [['picker.png', 'synthetic-media'], ['diagram.png', 'synthetic-media']],
+    });
+    expect(received.message.html).toContain('<ol><li>Первый</li><li>Второй</li></ol>');
+    expect(received.message.media.map(({ media }) => media.media)).toEqual([
+      'attach://photo_0', 'attach://photo_1',
+    ]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
 });
 
 test('media retains its caption and readable structure without a second post', async () => {

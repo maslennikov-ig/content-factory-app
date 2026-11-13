@@ -1,4 +1,20 @@
-# Content Factory handoff — 12 November 2026
+# Content Factory handoff — 13 November 2026
+
+## Telegram rich posts and local photo transfer
+
+`content-factory-next-bqc9` is implemented on `codex/telegram-rich-mcp`.
+`telegram_publish_ready` accepts an ordered list of up to ten owned photos
+and supports a classic album caption or one Telegram rich message with
+headings, lists and a photo collage. Existing one-photo calls remain supported.
+The confirmation binds the destination, format, text and ordered photos.
+`media_upload` can reserve a two-minute multipart upload using a local proof
+and photo digest. The existing picker remains available.
+
+Verified 192 focused tests, the backend and worker builds, the stored HTML
+path and real multipart transmission to a loopback Telegram endpoint.
+The MCP SDK tests cover direct upload, authorization, checksums and replay.
+Production deployment and live Telegram delivery remain pending.
+[Operator instructions](../docs/operations/mcp-connect.md#опубликовать-готовый-пост-в-telegram).
 
 Current stage id: heygen-release-20261111
 
@@ -20,21 +36,28 @@ within 6 ms, used eight distinct loopback ports, and removed their containers
 before Node and Python ran. Jest took 16m 18s versus 59m 42s for the previous
 sequential release on this machine. The complete local receipt took 16m 54s.
 The first parallel attempt hit the added 4 GiB heap limit. The passing run
-inherited the existing Jest heap configuration. The changes are on
-`codex/cf-release-speed`.
+inherited the existing Jest heap configuration. The changes entered private `main` at `44af89093fc9` and shipped as public `f7eca4e83263`.
+
+Production Build `43260294023` and CodeQL `43260293548` passed for the
+deployed public commit. The hosted artifact supplied the receipt for both
+image gates. Four ordinary Jest shards, two calendar shards and one aggregate
+suite ran on GitHub, with zero new local complete-suite runs during rollout.
+The serving digest, API, login, worker, schema and source archive were verified.
+The previous image `2c59cd8ab84a` is available for rollback.
+[Production release](../docs/operations/production-deploy.md#current-release-12-november-2026-f7eca4e83263).
 
 ## Ready Telegram post through MCP
 
-`content-factory-next-u76d` is live at public `2c59cd8ab84a` from private
+`content-factory-next-u76d` was delivered at public `2c59cd8ab84a` from private
 `b4c57fa52b30`. The exact release suite, public Build and CodeQL passed.
 The running digest, API, login, worker and source archive matched the release.
 The schema comparison was empty on both sides of the switch.
-[Production release](../docs/operations/production-deploy.md#current-release-12-november-2026-2c59cd8ab84a).
+[Production release](../docs/operations/production-deploy.md#previous-release-12-november-2026-2c59cd8ab84a).
 
 The authorized Fable and Carbon post with its approved cover and formatting
 was published through the live OAuth MCP tools. The provider reported
 `PUBLISHED` with a Telegram message URL. The private delivery record holds the
-channel and receipt. The previous version `688ea5901796` is the rollback image.
+channel and receipt. That rollout retained `688ea5901796` as its rollback image.
 
 ## Production history
 

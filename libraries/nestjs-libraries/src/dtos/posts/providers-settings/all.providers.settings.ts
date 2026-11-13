@@ -11,7 +11,7 @@ import { KickDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-s
 import { TwitchDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/twitch.dto';
 import { InstagramDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { LinkedinDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/linkedin.dto';
-import { IsIn } from 'class-validator';
+import { IsIn, IsOptional } from 'class-validator';
 import { MediumSettingsDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/medium.settings.dto';
 import { DevToSettingsDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/dev.to.settings.dto';
 import { HashnodeSettingsDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/hashnode.settings.dto';
@@ -54,7 +54,7 @@ export type AllProvidersSettings =
   | ProviderExtension<'threads', None>
   | ProviderExtension<'mastodon', None>
   | ProviderExtension<'bluesky', None>
-  | ProviderExtension<'telegram', None>
+  | ProviderExtension<'telegram', TelegramSettings>
   | ProviderExtension<'nostr', None>
   | ProviderExtension<'moltbook', MoltbookDto>
   | ProviderExtension<'vk', None>
@@ -64,6 +64,12 @@ export type AllProvidersSettings =
   | ProviderExtension<'whop', WhopDto>;
 
 type None = NonNullable<unknown>;
+
+class TelegramSettings {
+  @IsOptional()
+  @IsIn(['rich'])
+  telegramFormat?: 'rich';
+}
 
 export const allProviders = (setEmpty?: any) => {
   return [
@@ -93,7 +99,7 @@ export const allProviders = (setEmpty?: any) => {
     { value: setEmpty, name: 'threads' },
     { value: setEmpty, name: 'mastodon' },
     { value: setEmpty, name: 'bluesky' },
-    { value: setEmpty, name: 'telegram' },
+    { value: TelegramSettings, name: 'telegram' },
     { value: setEmpty, name: 'nostr' },
     { value: setEmpty, name: 'vk' },
     { value: MoltbookDto, name: 'moltbook' },
