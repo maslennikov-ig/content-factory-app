@@ -1416,12 +1416,20 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Выберите активный канал, подключённый к этому рабочему пространству.',
         },
         TELEGRAM_COVER_UNAVAILABLE: {
-          what: 'Обложка недоступна.',
+          what: 'Изображение недоступно.',
           next: 'Выберите изображение из медиатеки этого рабочего пространства.',
         },
+        TELEGRAM_MEDIA_INVALID: {
+          what: 'Вложения поста указаны неверно.',
+          next: 'Выберите разные фото. Для альбома с подписью нужно хотя бы одно фото.',
+        },
+        MEDIA_UPLOAD_INVALID: {
+          what: 'Не хватает данных для загрузки фото.',
+          next: 'Передайте имя файла, размер и обе контрольные суммы.',
+        },
         TELEGRAM_CAPTION_INVALID: {
-          what: 'Подпись к обложке выходит за пределы Telegram.',
-          next: 'В подписи должно быть от 1 до 1 024 видимых символов.',
+          what: 'Telegram не принимает текст поста.',
+          next: 'Добавьте видимый текст. Для подписи к фото используйте до 1 024 символов.',
         },
         TELEGRAM_POST_INVALID: {
           what: 'Пост не прошёл проверку для выбранного канала.',
@@ -2457,12 +2465,20 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           next: 'Choose an active channel connected to this workspace.',
         },
         TELEGRAM_COVER_UNAVAILABLE: {
-          what: 'The cover image is unavailable.',
+          what: 'The image is unavailable.',
           next: 'Choose an image from this workspace’s media library.',
         },
+        TELEGRAM_MEDIA_INVALID: {
+          what: 'The post attachments are invalid.',
+          next: 'Choose distinct photos. An album with a caption requires at least one photo.',
+        },
+        MEDIA_UPLOAD_INVALID: {
+          what: 'Photo upload details are missing.',
+          next: 'Provide the file name, size, and both checksums.',
+        },
         TELEGRAM_CAPTION_INVALID: {
-          what: 'The caption is outside Telegram’s length limits.',
-          next: 'Use 1 to 1,024 visible characters in the caption.',
+          what: 'Telegram cannot accept the post text.',
+          next: 'Add visible text. For a photo caption, use up to 1,024 characters.',
         },
         TELEGRAM_POST_INVALID: {
           what: 'The post did not pass validation for the selected channel.',
