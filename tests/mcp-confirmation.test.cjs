@@ -169,7 +169,11 @@ describe('publish a ready Telegram post over MCP', () => {
     expect(await call(tool, { ...rich, confirmation })).toMatchObject({ ok: true });
     expect(createPost).toHaveBeenCalledWith(ADMIN.organizationId, expect.objectContaining({
       posts: [expect.objectContaining({
-        settings: { __type: 'telegram', telegramFormat: 'rich' },
+        settings: {
+          __type: 'telegram',
+          telegramFormat: 'rich',
+          telegramRichLayout: expect.objectContaining({ mediaIds: rich.mediaIds }),
+        },
         value: [expect.objectContaining({
           content: rich.html,
           image: rich.mediaIds.map((id, index) => ({ id, path: [cover.path, second.path][index] })),
@@ -177,6 +181,30 @@ describe('publish a ready Telegram post over MCP', () => {
       })],
     }), 'API', { createOnly: true });
   });
+  test('requires valid inline references before asking and binds their position to confirmation', async () => {
+    const { cover, createPost, services } = fixture();
+    const { tool } = setup('telegram.publish_ready', services);
+    const figure = '<figure><img src="tg://photo?id=media_1"/><figcaption>График</figcaption></figure>';
+    const rich = {
+      requestId: input.requestId, channelId: input.channelId,
+      format: 'rich', mediaIds: [cover.id],
+      html: '<h1>Новость</h1>' + figure + '<p>Продолжение.</p>',
+    };
+    expect(await call(tool, { ...rich, html: rich.html.replace('media_1', 'media_2') }))
+      .toMatchObject({ ok: false, code: 'TELEGRAM_RICH_LAYOUT_INVALID' });
+    const asked = await call(tool, rich);
+    expect(asked.summary.question.untrustedData.value).toContain('внутри текста');
+    const confirmation = asked.summary.confirmation;
+    const moved = '<h1>Новость</h1><p>Продолжение.</p>' + figure;
+    expect(await call(tool, { ...rich, html: moved, confirmation }))
+      .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+    expect(createPost).not.toHaveBeenCalled();
+    expect(await call(tool, { ...rich, confirmation })).toMatchObject({ ok: true });
+    expect(createPost.mock.calls[0][1].posts[0].settings.telegramRichLayout).toMatchObject({
+      html: rich.html, mediaIds: [cover.id],
+    });
+  });
+
 });
 
 /** `piece.adapt` into an autopilot channel, every service call recorded. */

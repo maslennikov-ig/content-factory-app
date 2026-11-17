@@ -36,7 +36,30 @@ PostgreSQL и Redis в Docker, с динамическими портами на
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 12 November 2026: `f7eca4e83263`
+## Current release 13 November 2026: `85b4b5501112`
+
+Public source `85b4b55011121ce8ecf99c313e89b6075e74dc28` was prepared from
+private `b67ee51bf62034642387d7c1db4768833f696d05`. The release adds native
+Telegram headings and lists with ordered photo attachments, plus a direct
+multipart route for locally selected photos through MCP. The old single-photo
+caption call remains supported.
+
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43416941616)
+and [CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/43416941697)
+passed on the exact public commit. The imported receipt records 16,859 Jest
+tests and 351 Node tests passed, plus Python OK. The first candidate failed
+the bilingual capability-error guard. The released candidate includes both
+missing translations.
+
+The production container started at 12:20:44 UTC on 13 November. The host
+verified digest `sha256:bcb8459a5b76582d9d6c69d47fed5e84ca8a3ee668e6f1e8f5e556609823a8b3`.
+The app became healthy with zero restarts and worker status `ok`. Prisma
+preflight before and after the switch returned zero SQL lines. The API, login
+and source routes returned HTTP 200. The served archive matched SHA-256
+`a1b91a63fbf2459f60807811d53dc07e6300038963d178e63fcd353b922a4d62`.
+The verified rollback tag is `f7eca4e83263`.
+
+## Previous release 12 November 2026: `f7eca4e83263`
 
 Public source `f7eca4e83263dba11f5c110de908535ecf100bde` was copied from private
 `44af89093fc9ef1f5fe21127474b5943bcbf368e`. This release uses the public Build receipt

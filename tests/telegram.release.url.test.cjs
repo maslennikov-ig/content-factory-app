@@ -42,6 +42,7 @@ class TelegramBot {
 const { TelegramProvider } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts',
   {
+    './telegram-rich-layout': require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/telegram-rich-layout.ts'),
     './telegram-formatting': require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/telegram-formatting.ts'),
     './provider-error-diagnostic':providerDiagnostic,
     './media-upload-sources':{openMediaUploadStreams:async paths=>({sources:paths.map(()=>({stream:Readable.from(['synthetic-media'])})),close:()=>{}})},

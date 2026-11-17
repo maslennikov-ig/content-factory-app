@@ -18,7 +18,11 @@ const sendPhoto = jest.fn();
 class TelegramBot { _request = request; sendMessage = sendMessage; sendPhoto = sendPhoto; }
 const filename = path.resolve(__dirname, '../libraries/nestjs-libraries/src/integrations/social/telegram.provider.ts');
 const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021, esModuleInterop: true } }).outputText;
+const richLayout = require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/integrations/social/telegram-rich-layout.ts'
+);
 const mocks = {
+    './telegram-rich-layout': richLayout,
     './telegram-formatting':require('./helpers/load-ts-module.cjs').loadTypeScriptModule('libraries/nestjs-libraries/src/integrations/social/telegram-formatting.ts'),
     './provider-error-diagnostic':providerDiagnostic,
     './media-upload-sources':{openMediaUploadStreams:async paths=>({sources:paths.map(()=>({stream:Readable.from(['synthetic-media'])})),close:()=>{}})},
@@ -176,4 +180,69 @@ test.each(['plain','rich','media'])('published %s content is sent unchanged with
   expect(JSON.stringify([...logs.mock.calls,...warnings.mock.calls,...errors.mock.calls])).not.toContain(authored);
   expect(result[0]).toMatchObject({id:'saved-post',status:'completed'});expect(result[0].postId).toBeTruthy();
  }finally{logs.mockRestore();warnings.mockRestore();errors.mockRestore();}
+});
+
+test('native layout sends ordered mixed attachments at authored positions in one request', async () => {
+  const preview = '<h1>Два теста</h1><p>Текст между вложениями.</p>';
+  const native = '<h1>Два теста</h1><figure><img src="tg://photo?id=media_2" tg-spoiler/>' +
+    '<figcaption>График <cite>OpenAI</cite></figcaption></figure><p>Текст между вложениями.</p>' +
+    '<video src="tg://video?id=media_1"></video>';
+  const media = [{ id: 'video', path: 'https://cdn.example/test.mp4' },
+    { id: 'chart', path: 'https://cdn.example/chart.png' }];
+  const post = {
+    id: 'p', message: preview, media,
+    settings: { telegramFormat: 'rich', telegramRichLayout: {
+      html: native, mediaIds: ['video', 'chart'], previewHash: richLayout.telegramRichTextHash(preview),
+    } },
+  };
+  await new TelegramProvider().post('channel', '-100123', [post]);
+  expect(request).toHaveBeenCalledTimes(1);
+  const [method, { formData }] = request.mock.calls[0];
+  expect(method).toBe('sendRichMessage');
+  expect(JSON.parse(formData.rich_message)).toEqual({
+    html: native,
+    media: [
+      { id: 'media_1', media: { type: 'video', media: 'attach://media_1' } },
+      { id: 'media_2', media: { type: 'photo', media: 'attach://media_2' } },
+    ],
+  });
+  expect(formData.media_1.options.filename).toBe('test.mp4');
+  expect(formData.media_2.options.filename).toBe('chart.png');
+
+  request.mockClear();
+  await expect(new TelegramProvider().post('channel', '-100123', [{
+    ...post, media: [...media].reverse(),
+  }])).rejects.toThrow();
+  await expect(new TelegramProvider().post('channel', '-100123', [{
+    ...post, message: '<p>Другой текст.</p>',
+  }])).rejects.toThrow();
+  expect(request).not.toHaveBeenCalled();
+});
+
+test('rich editorial formatting keeps documented blocks and safe attributes', () => {
+  const html = '<h3>Заголовок</h3><a name="note"></a><p><mark>Выделение</mark>' +
+    '<s>Старое</s><a href="#note">Сноска</a><tg-time unix="1647531900" format="wDT">Завтра</tg-time></p>' +
+    '<pre><code class="language-python">a &lt; b</code></pre>' +
+    '<blockquote expandable>Цитата<cite>Автор</cite></blockquote>' +
+    '<details open><summary>Методика</summary><table compact><caption>Итоги</caption>' +
+    '<tr><td align="right">9</td></tr></table></details>' +
+    '<ol start="3" reversed><li><input type="checkbox" checked>Проверено</li></ol>' +
+    '<tg-map lat="41.9" lon="12.5" zoom="14"/><p onclick="ignored()">После карты &amp; текст.</p>' +
+    '<tg-button type="url" url="https://example.org/">Подробнее</tg-button>';
+  const result = richLayout.compileTelegramRichLayout(html, []);
+  expect(result.html).toBe(html.replace('checked>', 'checked/>').replace(' onclick="ignored()"', ''));
+  expect(result.media).toEqual([]);
+});
+
+test.each([
+  ['<img src="https://example.org/image.png"/>', ['chart.png']],
+  ['<p><img src="tg://photo?id=media_1"/></p>', ['chart.png']],
+  ['<img src="tg://photo?id=media_2"/>', ['chart.png']],
+  ['<img src="tg://photo?id=media_1"/><img src="tg://photo?id=media_1"/>', ['chart.png']],
+  ['<img src="tg://photo?id=media_1"/>', ['chart.png', 'other.png']],
+  ['<img src="tg://photo?id=media_1"/>', ['clip.mp4']],
+  ['<a href="java&#x73;cript:alert(1)">Link</a>', []],
+  ['<script>bad()</script>', []],
+])('rich layout refuses unsupported placements or sources (%s)', (html, paths) => {
+  expect(() => richLayout.compileTelegramRichLayout(html, paths)).toThrow(richLayout.TelegramRichLayoutError);
 });

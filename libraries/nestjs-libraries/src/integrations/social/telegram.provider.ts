@@ -17,6 +17,11 @@ import TelegramBot from 'node-telegram-bot-api';
 import { Integration } from '@prisma/client';
 import type { Readable } from 'node:stream';
 import { TELEGRAM_CAPTION_LIMIT, telegramHtml } from './telegram-formatting';
+import {
+  compileTelegramRichLayout,
+  type StoredTelegramRichLayout,
+  telegramRichTextHash,
+} from './telegram-rich-layout';
 
 export { telegramHtml } from './telegram-formatting';
 
@@ -206,12 +211,15 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     const mediaFiles = message.media || [];
     const text = telegramHtml(message.message || '');
 
+    const layout = message.settings?.telegramFormat === 'rich'
+      ? this.checkedRichLayout(message, message.settings.telegramRichLayout)
+      : undefined;
     const opened = await openMediaUploadStreams(mediaFiles.map(media => media.path));
     try {
     const processedMedia = this.processMedia(mediaFiles, opened.sources);
 
     if (message.settings?.telegramFormat === 'rich') {
-      return await this.sendRichMessage(accessToken, message.message, processedMedia, replyToMessageId);
+      return await this.sendRichMessage(accessToken, message.message, processedMedia, replyToMessageId, layout);
     }
 
     // if there's no media, bot sends a text message only
@@ -287,18 +295,31 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     } finally { opened.close(); }
   }
 
+  private checkedRichLayout(message: PostDetails, settings: StoredTelegramRichLayout | undefined) {
+    if (settings === undefined) return;
+    const media = message.media ?? [];
+    if (!settings || typeof settings.html !== 'string' ||
+        settings.previewHash !== telegramRichTextHash(message.message || '') ||
+        !Array.isArray(settings.mediaIds) || settings.mediaIds.length !== media.length ||
+        media.some((file, index) => !('id' in file) || file.id !== settings.mediaIds[index])) {
+      throw new Error('Telegram rich layout no longer matches the approved post or its attachments.');
+    }
+    return compileTelegramRichLayout(settings.html, media.map(file => file.path));
+  }
+
   private async sendRichMessage(
     chatId: string,
     html: string,
     photos: ReturnType<TelegramProvider['processMedia']>,
     replyToMessageId?: number,
+    layout?: ReturnType<typeof compileTelegramRichLayout>,
   ): Promise<number> {
-    if (photos.length > 10 || photos.some(photo => photo.type !== 'photo')) {
+    if (!layout && (photos.length > 10 || photos.some(photo => photo.type !== 'photo'))) {
       throw new Error('A Telegram rich post supports up to ten photos.');
     }
 
     // The provider generates every reference from the owned media list.
-    const media = photos.map((_, index) => {
+    const media = layout?.media ?? photos.map((_, index) => {
       const id = `photo_${index}`;
       return { id, media: { type: 'photo', media: `attach://${id}` } };
     });
@@ -307,7 +328,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     const fields = {
       chat_id: chatId,
       rich_message: JSON.stringify({
-        html: telegramHtml(html, true) + photoBlock,
+        html: layout?.html ?? (telegramHtml(html, true) + photoBlock),
         ...(media.length ? { media } : {}),
       }),
       ...(replyToMessageId ? { reply_parameters: JSON.stringify({ message_id: replyToMessageId }) } : {}),

@@ -378,11 +378,17 @@ export class PostsService {
             );
           }
 
+          // This payload is populated only by the confirmed Telegram MCP
+          // publication route, after the general post DTO has been prepared.
+          const settings: Record<string, unknown> = { ...post.settings };
+          if (integration.providerIdentifier === 'telegram') {
+            delete settings.telegramRichLayout;
+          }
           return {
             type: replaceDraft ? 'schedule' : body?.type,
             ...post,
             settings: {
-              ...(post.settings || ({} as any)),
+              ...settings,
               __type: integration.providerIdentifier,
             },
           };

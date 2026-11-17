@@ -12,6 +12,13 @@ import {
   telegramHtml,
 } from '@contentfactory/nestjs-libraries/integrations/social/telegram-formatting';
 import {
+  compileTelegramRichLayout,
+  TELEGRAM_RICH_HTML_LIMIT,
+  TELEGRAM_RICH_MEDIA_LIMIT,
+  TelegramRichLayoutError,
+  telegramRichTextHash,
+} from '@contentfactory/nestjs-libraries/integrations/social/telegram-rich-layout';
+import {
   defineCapability,
   door,
   type ApprovalDescribeContext,
@@ -19,16 +26,16 @@ import {
 import { codedFailure } from './selection';
 
 const requestId = z.string().uuid().describe('Stable UUID for this one publication. Keep it after confirmation, errors and timeouts.');
-const photoLimit = 10;
 const publicationInput = z.object({
   requestId,
   channelId: z.string().min(1).max(128).describe('Connected Telegram channel ID from channels_list.'),
-  html: z.string().min(1).max(20000).describe('Exact final HTML. Rich format supports h1–h6, ul, ol, li, p, br, strong, u and HTTPS links. Supply photos through mediaIds.'),
+  html: z.string().min(1).max(TELEGRAM_RICH_HTML_LIMIT)
+    .describe('Exact final HTML. Rich supports native headings, emphasis, lists, quotes, tables, details, code, math, maps, and media blocks. For inline media use tg://photo?id=media_1 (or tg://video, tg://audio, tg://document) in the corresponding tag. Slot numbers are 1-based indexes into mediaIds.'),
   coverMediaId: z.string().uuid().optional().describe('Legacy single owned image ID. Use mediaIds for new calls.'),
-  mediaIds: z.array(z.string().uuid()).min(1).max(photoLimit).optional()
-    .describe('Ordered, distinct workspace photo IDs from media_inspect or completed uploads. Up to ten. Omit for rich text without photos.'),
+  mediaIds: z.array(z.string().uuid()).min(1).max(TELEGRAM_RICH_MEDIA_LIMIT).optional()
+    .describe('Up to ten distinct workspace media IDs. For explicit rich layout reference each ID once by its 1-based slot. Without slots, photos are appended at the end. Omit for text-only rich posts.'),
   format: z.enum(['caption', 'rich']).optional()
-    .describe('caption uses a photo or album and a 1024-character caption. rich uses native headings and lists with optional embedded photos. Default: caption.'),
+    .describe('caption uses a photo or album and a 1024-character caption. rich preserves native formatting and inline media layout. Default: caption.'),
 });
 type PublicationInput = z.infer<typeof publicationInput>;
 
@@ -64,8 +71,8 @@ async function prepare(ctx: ApprovalDescribeContext, input: PublicationInput) {
     Promise.all(mediaIds.map(async (id) => {
       const photo = await ctx.service(MediaService).getMediaById(ctx.organizationId, id);
       if (!photo || photo.organizationId !== ctx.organizationId || photo.deletedAt ||
-          !mime.getType(photo.path)?.startsWith('image/')) {
-        throw codedFailure('TELEGRAM_COVER_UNAVAILABLE', 'Choose photos from this workspace media library.');
+          (!rich && !mime.getType(photo.path)?.startsWith('image/'))) {
+        throw codedFailure('TELEGRAM_COVER_UNAVAILABLE', 'Choose the required media from this workspace library.');
       }
       return photo;
     })),
@@ -73,6 +80,15 @@ async function prepare(ctx: ApprovalDescribeContext, input: PublicationInput) {
   if (!channel || channel.organizationId !== ctx.organizationId || channel.deletedAt ||
       channel.disabled || channel.refreshNeeded || channel.providerIdentifier !== 'telegram') {
     throw codedFailure('TELEGRAM_CHANNEL_UNAVAILABLE', 'Choose an active Telegram channel in this workspace.');
+  }
+  let richLayout: ReturnType<typeof compileTelegramRichLayout> | undefined;
+  if (rich) {
+    try {
+      richLayout = compileTelegramRichLayout(input.html, photos.map(({ path }) => path));
+    } catch (error) {
+      if (!(error instanceof TelegramRichLayoutError)) throw error;
+      throw codedFailure('TELEGRAM_RICH_LAYOUT_INVALID', error.message);
+    }
   }
   const posts = ctx.service(PostsService);
   const body = await posts.mapTypeToPost({
@@ -92,13 +108,26 @@ async function prepare(ctx: ApprovalDescribeContext, input: PublicationInput) {
     }],
   }, ctx.organizationId);
   const content = body.posts[0].value[0].content;
-  const caption = stripHtmlValidation('none', telegramHtml(content, rich));
-  if (!caption.trim() || (!rich && caption.length > TELEGRAM_CAPTION_LIMIT)) {
+  const caption = stripHtmlValidation('none', richLayout?.html ?? telegramHtml(content));
+  const maximum = rich ? 4096 : TELEGRAM_CAPTION_LIMIT;
+  if (!caption.trim() || caption.length > maximum) {
     throw codedFailure('TELEGRAM_CAPTION_INVALID', rich
-      ? 'A rich post must contain visible text.'
+      ? 'A rich post must contain 1–4096 visible characters.'
       : `The photo caption must contain 1–${TELEGRAM_CAPTION_LIMIT} visible characters.`);
   }
-  return { channel, photos, content, caption, body };
+  if (richLayout) {
+    // Persist native HTML beside the standard browser-safe preview. Bind the
+    // layout to what the publication activity will hand to the provider.
+    const preview = stripHtmlValidation('html', content, true, false, !/<\/?[a-z][\s\S]*>/i.test(content));
+    Object.assign(body.posts[0].settings, {
+      telegramRichLayout: {
+        html: richLayout.html,
+        mediaIds: photos.map(photo => photo.id),
+        previewHash: telegramRichTextHash(preview),
+      },
+    });
+  }
+  return { channel, photos, content, caption, body, richLayout };
 }
 
 export const telegramPublishReady = defineCapability({
@@ -107,13 +136,13 @@ export const telegramPublishReady = defineCapability({
   group: 'plan',
   entrances: ['mcp'],
   input: publicationInput,
-  description: 'Publish one already-written Telegram post. Use format rich for native headings, lists and optional inline photos. Use caption for a classic photo or album. Preserve the exact approved text, links and photo order. The first call checks the post and asks for confirmation. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
+  description: 'Publish one already-written Telegram post. Use format rich for native Rich Message formatting and positioned workspace media (tg://photo?id=media_1). Use caption for a classic photo or album. Preserve the exact approved text, links and media placement. The first call checks the post and asks for confirmation. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
   risk: 'confirm',
   mcpConfirm: 'ask',
   door: door(PostsController, 'createPost'),
   untrusted: [],
   describeApproval: async (ctx, input) => {
-    const { channel, photos, caption } = await prepare(ctx, input);
+    const { channel, photos, caption, richLayout } = await prepare(ctx, input);
     const name = channel.displayName || channel.name;
     const handle = /^[a-z][a-z0-9_]*$/i.test(channel.internalId) && channel.internalId !== 'undefined'
       ? ` (@${channel.internalId})`
@@ -122,16 +151,16 @@ export const telegramPublishReady = defineCapability({
     const excerpt = caption.trim().slice(0, 80);
     const rich = input.format === 'rich';
     return ctx.language === 'ru'
-      ? `Опубликовать сейчас в Telegram-канале «${name}»${handle} ${rich ? 'форматированный пост' : 'пост'} «${excerpt}»${filenames ? ` с фото ${filenames}` : ''}?`
-      : `Publish ${rich ? 'the rich post ' : ''}“${excerpt}”${filenames ? ` with photos ${filenames}` : ''} in Telegram channel “${name}”${handle} now?`;
+      ? `Опубликовать сейчас в Telegram-канале «${name}»${handle} ${rich ? 'форматированный пост' : 'пост'} «${excerpt}»${filenames ? ` ${richLayout?.inline ? 'с вложениями внутри текста' : 'с фото'} ${filenames}` : ''}?`
+      : `Publish ${rich ? 'the rich post ' : ''}“${excerpt}”${filenames ? ` with ${richLayout?.inline ? 'media placed in the text' : 'photos'} ${filenames}` : ''} in Telegram channel “${name}”${handle} now?`;
   },
   approvalContent: async (ctx, input) => {
-    const { channel, photos, content } = await prepare(ctx, input);
+    const { channel, photos, content, richLayout } = await prepare(ctx, input);
     return {
       channel: channel.internalId,
       format: input.format ?? 'caption',
       photos: photos.map(({ id, path }) => ({ id, path })),
-      content,
+      content: richLayout?.html ?? content,
     };
   },
   run: async (ctx, input) => {

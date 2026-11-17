@@ -1427,6 +1427,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
           what: 'Не хватает данных для загрузки фото.',
           next: 'Передайте имя файла, размер и обе контрольные суммы.',
         },
+        TELEGRAM_RICH_LAYOUT_INVALID: {
+          what: 'Разметка форматированного сообщения Telegram не прошла проверку.',
+          next: 'Проверьте теги, позиции вложений и типы файлов, затем повторите проверку.',
+        },
         TELEGRAM_CAPTION_INVALID: {
           what: 'Telegram не принимает текст поста.',
           next: 'Добавьте видимый текст. Для подписи к фото используйте до 1 024 символов.',
@@ -2475,6 +2479,10 @@ export const agentCopy: Record<AgentCopyLocale, AgentWords> = {
         MEDIA_UPLOAD_INVALID: {
           what: 'Photo upload details are missing.',
           next: 'Provide the file name, size, and both checksums.',
+        },
+        TELEGRAM_RICH_LAYOUT_INVALID: {
+          what: 'This Telegram rich message layout did not pass validation.',
+          next: 'Check the tags, attachment positions and file types, then validate it again.',
         },
         TELEGRAM_CAPTION_INVALID: {
           what: 'Telegram cannot accept the post text.',

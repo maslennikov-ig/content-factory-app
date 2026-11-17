@@ -13,7 +13,15 @@ and photo digest. The existing picker remains available.
 Verified 192 focused tests, the backend and worker builds, the stored HTML
 path and real multipart transmission to a loopback Telegram endpoint.
 The MCP SDK tests cover direct upload, authorization, checksums and replay.
-Production deployment and live Telegram delivery remain pending.
+Production serves public `85b4b5501112` from private `b67ee51bf620`.
+The exact Build and CodeQL passed. API, worker, source archive, image identity
+and zero-diff Prisma checks passed after switching. The connected OAuth MCP
+advertises rich publishing and direct photo upload. Both authorized photos
+were uploaded and checked by SHA-256. The owner confirmed the exact post.
+The same MCP request returned `PUBLISHED` for
+[Telegram message 317](https://t.me/maslennikovigor/317). The public Telegram
+widget confirms the message and directs readers to the app for rich rendering.
+[Release record](../docs/operations/production-deploy.md#current-release-13-november-2026-85b4b5501112).
 [Operator instructions](../docs/operations/mcp-connect.md#опубликовать-готовый-пост-в-telegram).
 
 Current stage id: heygen-release-20261111
