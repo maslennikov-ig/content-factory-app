@@ -36,7 +36,33 @@ PostgreSQL и Redis в Docker, с динамическими портами на
 Метрики покрытия прежнего кода совпали по всем четырём категориям.
 [Измерение и доказательства](../../.codex/stages/ci-speed-20261101/outcome.md).
 
-## Current release 13 November 2026: `85b4b5501112`
+## Current release `cd2f0b72d654`
+
+Public source `cd2f0b72d6542d2f2ad2fc701c78628f2cea0764` was prepared from
+private `72efe2739d6e6f742f03fd858eb52bf3c17606ca`. The release adds native
+Telegram Rich HTML blocks and inline workspace media. Publish confirmation
+binds the media order and exact HTML. [Connector PR](https://github.com/maslennikov-ig/content-factory-next/pull/1297).
+
+The second Build attempt passed 16,870 Jest tests in 958 suites and 351
+Node tests. Python and the 400-day calendar suite passed. The first attempt
+lost its connection while installing Prisma in one shard.
+[Build](https://github.com/maslennikov-ig/content-factory-app/actions/runs/44158063107)
+[CodeQL](https://github.com/maslennikov-ig/content-factory-app/actions/runs/44158062982).
+
+Production started at 05:04:21 UTC on 18 November 2026. The running
+image matches digest
+`sha256:7875ca0faec79460b47cbd133750e8e6a00ad19c61d596b69d17041c922156df`.
+The container is healthy with zero restarts, all three PM2 processes are
+online with zero restarts, and the worker reports `ok`. Prisma checks before
+and after switching returned zero SQL lines. The API, login and public
+source routes returned HTTP 200. The served archive matched SHA-256
+`26f2876ee0b4f14736cf41afa732af9c48d49830b5d248bf5d8f550c0e7af517`.
+The verified rollback is `85b4b5501112`.
+[Serving source](https://factory.aidevteam.ru/api/public/source).
+
+<a id="current-release-13-november-2026-85b4b5501112"></a>
+
+## Previous release 13 November 2026: `85b4b5501112`
 
 Public source `85b4b55011121ce8ecf99c313e89b6075e74dc28` was prepared from
 private `b67ee51bf62034642387d7c1db4768833f696d05`. The release adds native

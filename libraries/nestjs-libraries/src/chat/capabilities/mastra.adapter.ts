@@ -54,6 +54,7 @@ import {
 } from '../conductor/agent-operation-receipts';
 import { approvalContentDigest, cleanApprovalSummary } from './approval-summary';
 import {
+  confirmationWindow,
   isConfirmationNeeded,
   mcpConfirmationInput,
   MCP_CONFIRMATION_FIELD,
@@ -282,10 +283,10 @@ const TOOL_PAYLOAD_TRANSFORM = {
  * after the person's own «да».
  */
 const CONFIRMATION_NEXT =
-  'Nothing was done or spent yet. Ask the person the question in `question` (its value) in your reply, word for word, and stop there. Only when their next message says yes, call this tool again with exactly the same arguments plus `confirmation` set to this code. If they say no or anything else, do not call it; a new question needs a new call without the code. Never answer the question yourself. The code works once, for 10 minutes.';
+  'Nothing was done or spent yet. Ask the person the question in `question` (its value) in your reply, word for word, and stop there. Only when their next message says yes, call this tool again with exactly the same arguments plus `confirmation` set to this code. If they say no or anything else, do not call it; a new question needs a new call without the code. Never answer the question yourself. The code works once.';
 
 const CONFIRMATION_INVALID =
-  'This confirmation code is not valid for this call: it was used already, expired (10 minutes), belongs to other arguments, or the post changed since the person was asked. Nothing was done. Call the tool again without `confirmation` to get a fresh question, and ask the person again.';
+  'This confirmation code is not valid for this call: it was used already, expired, belongs to other arguments, or the post changed since the person was asked. Nothing was done. Call the tool again without `confirmation` to get a fresh question, and ask the person again.';
 
 const CONFIRMATION_UNAVAILABLE =
   'Could not check the confirmation right now; nothing was done or spent. Tell the person it did not work and to try again in a minute.';
@@ -412,7 +413,7 @@ export const buildCapabilityTool = (
           // (premortem A4) — the web card showed it to the person only.
           question: wrapUntrusted(question, ['workspace-text']),
           confirmation: issued,
-          next: CONFIRMATION_NEXT,
+          next: CONFIRMATION_NEXT + ` It expires after ${confirmationWindow(name).label}.`,
         },
       };
     };

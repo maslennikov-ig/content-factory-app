@@ -1,4 +1,29 @@
-# Content Factory handoff — 13 November 2026
+# Content Factory handoff — 18 November 2026
+
+## Telegram confirmation in Codex (19 November 2026)
+
+Local fix for `content-factory-next-9iy7`. Prepare workspace photos through
+`media_prepare_photo` to avoid opening a picker. A final preview for immediate
+publication carries the server's confirmation question. The exact ready post
+can be confirmed once within 24 hours. Other MCP confirmations retain their
+ten-minute lifetime. The production connector still requires its original
+flow until released. The incident's Telegram request has no delivery receipt.
+
+## Telegram Rich Message layout (18 November 2026)
+
+Production serves public `cd2f0b72d654` from private `72efe2739d6e`
+(merged PR #1297). The release adds native Rich HTML and positioned
+workspace media via the MCP tool's 1-based `media_N` slots. Approval binds
+the exact HTML and ordered attachments. The canonical Telegram guide and
+its managed copy merged in Articles PR #2 and AiDevTeam PR #348.
+
+Build and CodeQL passed on the exact public commit. Production is healthy
+with zero restarts and reports worker status `ok`. The running image
+contains the updated MCP capability and an authenticated read through the
+connector succeeded. The tool description already loaded by the current
+chat still showed the earlier schema. No Telegram publication or client
+rendering was exercised. The verified rollback is `85b4b5501112`.
+[Release record](../docs/operations/production-deploy.md#current-release-cd2f0b72d654).
 
 ## Telegram rich posts and local photo transfer
 

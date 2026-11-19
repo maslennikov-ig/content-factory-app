@@ -136,7 +136,7 @@ export const telegramPublishReady = defineCapability({
   group: 'plan',
   entrances: ['mcp'],
   input: publicationInput,
-  description: 'Publish one already-written Telegram post. Use format rich for native Rich Message formatting and positioned workspace media (tg://photo?id=media_1). Use caption for a classic photo or album. Preserve the exact approved text, links and media placement. The first call checks the post and asks for confirmation. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
+  description: 'Publish one already-written Telegram post. Use format rich for native Rich Message formatting and positioned workspace media (tg://photo?id=media_1). Use caption for a classic photo or album. Preserve the exact approved text, links and media placement. When preparing the final preview for immediate publication, call once without confirmation before showing it. Present the checked post, destination, attachments and returned question together. After the person confirms in chat, repeat the same request with its one-time code. On a timeout use telegram.publication_status with the same requestId. Never create a replacement request to retry an uncertain publication.',
   risk: 'confirm',
   mcpConfirm: 'ask',
   door: door(PostsController, 'createPost'),

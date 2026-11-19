@@ -2,32 +2,43 @@ import { z } from 'zod';
 import { MediaController } from '@contentfactory/backend/api/routes/media.controller';
 import { McpMediaUploadServiceV1 } from '@contentfactory/nestjs-libraries/chat/media/mcp-media-upload.service.v1';
 import { MAX_IMAGE_UPLOAD_SIZE } from '@contentfactory/nestjs-libraries/upload/upload.limits';
-import { defineCapability, door } from '../capability.types';
+import { defineCapability, door, type CapabilityRunContext } from '../capability.types';
 import { codedFailure } from './selection';
 import { UPLOAD_WIDGET_URI_V1 } from '../../ui/media-upload.widget.v1';
+
+const localPhoto = z.object({
+  name: z.string().min(1).max(255).regex(/^[^\x00-\x1f/\\]+$/),
+  size: z.number().int().positive().max(MAX_IMAGE_UPLOAD_SIZE),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  uploadProofSha256: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict();
+
+function prepareLocalPhoto(ctx: CapabilityRunContext, photo: z.infer<typeof localPhoto>) {
+  const { name, size, sha256, uploadProofSha256 } = photo;
+  if (!name || !size || !sha256 || !uploadProofSha256) {
+    throw codedFailure('MEDIA_UPLOAD_INVALID', 'Supply the photo name, size and both digests.');
+  }
+  return ctx.service(McpMediaUploadServiceV1).preparePhoto(ctx, { name, size, sha256, uploadProofSha256 });
+}
 
 export const mediaUploadV1 = defineCapability({
   id: 'media.upload', group: 'media', entrances: ['mcp'],
   label: { ru: 'Загрузить файл', en: 'Upload a file' },
-  description: 'Upload one local file. With no arguments, open the file picker in supported MCP Apps hosts. For a photo in the current workspace and a local shell, pass photo metadata and SHA-256 of a locally generated 32-byte random base64url proof. Keep that proof local. Send the file as multipart field file to the returned uploadUrl with Accept: application/json; cf-upload-ticket=<proof>. Use the configured Content Factory origin only. Never pass file bytes, base64, local paths or the proof itself in tool arguments. Check media.upload_status for ready and its mediaId.',
-  input: z.object({
-    photo: z.object({
-      name: z.string().min(1).max(255).regex(/^[^\x00-\x1f/\\]+$/),
-      size: z.number().int().positive().max(MAX_IMAGE_UPLOAD_SIZE),
-      sha256: z.string().regex(/^[a-f0-9]{64}$/),
-      uploadProofSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    }).strict().optional(),
-  }).strict(), risk: 'write', door: door(MediaController, 'uploadSimple'), untrusted: [],
+  description: 'Open the manual file picker with no arguments. For a photo already available in the workspace, use media_prepare_photo. The photo argument remains supported for older clients.',
+  input: z.object({ photo: localPhoto.optional() }).strict(),
+  risk: 'write', door: door(MediaController, 'uploadSimple'), untrusted: [],
   mcpApp: { resourceUri: UPLOAD_WIDGET_URI_V1 },
-  run: (ctx, input) => {
-    const uploads = ctx.service(McpMediaUploadServiceV1);
-    if (!input.photo) return uploads.create(ctx);
-    const { name, size, sha256, uploadProofSha256 } = input.photo;
-    if (!name || !size || !sha256 || !uploadProofSha256) {
-      throw codedFailure('MEDIA_UPLOAD_INVALID', 'Supply the photo name, size and both digests.');
-    }
-    return uploads.preparePhoto(ctx, { name, size, sha256, uploadProofSha256 });
-  },
+  run: (ctx, input) => input.photo ? prepareLocalPhoto(ctx, input.photo) : ctx.service(McpMediaUploadServiceV1).create(ctx),
+  summarize: output => ({ ...output }),
+});
+
+export const mediaPreparePhotoV1 = defineCapability({
+  id: 'media.prepare_photo', group: 'media', entrances: ['mcp'],
+  label: { ru: 'Подготовить загрузку фото', en: 'Prepare a photo upload' },
+  description: 'Prepare a local photo for direct multipart upload without opening a file picker. Pass its basename, size, SHA-256 and the SHA-256 of a locally generated 32-byte random base64url proof. Keep the proof local. Send file as multipart field file to the returned uploadUrl on the configured Content Factory origin with Accept: application/json; cf-upload-ticket=<proof>. Never pass file bytes, base64, local paths or the proof itself as tool arguments. Check media_upload_status for ready and the mediaId.',
+  input: z.object({ photo: localPhoto }).strict(),
+  risk: 'write', door: door(MediaController, 'uploadSimple'), untrusted: [],
+  run: (ctx, input) => prepareLocalPhoto(ctx, input.photo),
   summarize: output => ({ ...output }),
 });
 
@@ -65,4 +76,4 @@ export const mediaInspectV1 = defineCapability({
   summarize: output => ({ ...output }),
 });
 
-export const MEDIA_UPLOAD_CAPABILITIES_V1 = [mediaUploadV1, mediaUploadTicketV1, mediaUploadStatusV1, mediaInspectV1] as const;
+export const MEDIA_UPLOAD_CAPABILITIES_V1 = [mediaUploadV1, mediaPreparePhotoV1, mediaUploadTicketV1, mediaUploadStatusV1, mediaInspectV1] as const;

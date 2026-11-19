@@ -23,7 +23,7 @@ import { approvalFingerprint } from './approval-fingerprint';
  * is, and after the person's «да» calls the same tool with the same arguments
  * and the code.
  *
- * The code is one-time, lives `MCP_CONFIRMATION_TTL_SECONDS`, and is bound to
+ * The code is one-time, has a tool-specific lifetime, and is bound to
  * the person, the workspace, the tool, its arguments and — for a post — the
  * text as it was when the question was asked: another call, another text or
  * a second use is refused and nothing runs. What the server cannot know is
@@ -35,6 +35,10 @@ import { approvalFingerprint } from './approval-fingerprint';
  */
 
 export const MCP_CONFIRMATION_TTL_SECONDS = 10 * 60;
+
+export const confirmationWindow = (toolName: string) => toolName === 'telegram_publish_ready'
+  ? { seconds: 24 * 60 * 60, label: '24 hours' }
+  : { seconds: MCP_CONFIRMATION_TTL_SECONDS, label: '10 minutes' };
 
 /** The argument an MCP call carries its code in; never a product field. */
 export const MCP_CONFIRMATION_FIELD = 'confirmation';
@@ -96,7 +100,7 @@ export class McpConfirmationService {
   /** A new code for this call; the question goes to the person. */
   async issue(scope: ConfirmationScope): Promise<string> {
     const code = `cf-${randomBytes(12).toString('base64url')}`;
-    await this.store.set(confirmationKey(code), bindingOf(scope), 'EX', MCP_CONFIRMATION_TTL_SECONDS);
+    await this.store.set(confirmationKey(code), bindingOf(scope), 'EX', confirmationWindow(scope.toolName).seconds);
     return code;
   }
 

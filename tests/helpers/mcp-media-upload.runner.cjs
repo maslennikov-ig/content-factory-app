@@ -81,6 +81,9 @@ let app, client;
   const call=(name,args={})=>client.callTool({name,arguments:args});
   const list=await client.listTools();
   assert.equal(list.tools.find(t=>t.name==='media_upload')._meta.ui.resourceUri,'ui://content-factory/media-upload/v1');
+  const directTool = list.tools.find(tool => tool.name === 'media_prepare_photo');
+  assert(directTool, 'the local photo route must be advertised separately');
+  assert(!directTool._meta?.ui?.resourceUri);
   assert.deepEqual(list.tools.find(t=>t.name==='media_upload_ticket')._meta.ui.visibility,['app']);
   const resource=await client.readResource({uri:'ui://content-factory/media-upload/v1'});
   assert(resource.contents[0].text.includes('credentials:\'omit\''));
@@ -155,6 +158,12 @@ let app, client;
     window,document:{getElementById:id=>elements[id],body:{scrollHeight:320}},crypto:webcrypto,FormData,fetch,AbortSignal,
     setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms);timer.unref();return timer;},clearTimeout,
   });
+  const legacyResult = await call('media_upload', { photo: {
+    name: 'local-legacy.png', size: png.length, sha256: 'a'.repeat(64), uploadProofSha256: 'b'.repeat(64),
+  } });
+  listeners.message({source:host,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:legacyResult}});
+  assert.equal(elements.file.hidden, true);
+  assert.equal(elements.status.dataset.error, 'false');
   const widgetSession=await call('media_upload');
   listeners.message({source:host,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:widgetSession}});
   assert.equal(elements.file.disabled,false);
@@ -176,7 +185,7 @@ let app, client;
   assert.equal(storageWrites,2);report.diskSpool=true;
   const localPhoto = async (name, digest) => {
     const proof = randomBytes(32).toString('base64url');
-    const prepared = await call('media_upload', { photo: {
+    const prepared = await call('media_prepare_photo', { photo: {
       name, size: png.length, sha256: digest,
       uploadProofSha256: createHash('sha256').update(proof).digest('hex'),
     } });

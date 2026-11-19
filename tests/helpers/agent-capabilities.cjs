@@ -1106,6 +1106,7 @@ const mediaFixtures = () => {
   const media = {
     McpMediaUploadServiceV1: {
       create: async () => ({sessionId,state:'waiting',manualUploadUrl:'https://frontend.example/media'}),
+      preparePhoto: async () => ({sessionId,transport:'multipart',uploadUrl:'https://backend.example/mcp-media/upload'}),
       ticket: async () => ({ticket:'host-only-fixture-ticket',uploadUrl:'https://backend.example/mcp-media/upload'}),
       status: async () => ({sessionId,state:'ready',media:{mediaId:sessionId,name:INJECTION,previewUrl:'https://backend.example/private-preview'}}),
       metadata: async () => ({mediaId:sessionId,name:INJECTION,previewUrl:'https://backend.example/private-preview'}),
@@ -1142,6 +1143,7 @@ const mediaFixtures = () => {
   };
   return {
     'media.upload': { input:{}, services:media },
+    'media.prepare_photo': { input:{photo:{name:'fixture.png',size:1,sha256:'a'.repeat(64),uploadProofSha256:'b'.repeat(64)}}, services:media },
     'media.upload_ticket': { input:{sessionId,file:{name:'fixture.png',size:1,nonce:'11111111-0000-4000-8000-000000000003'}}, services:media },
     'media.upload_status': { input:{sessionId}, services:media },
     'media.inspect': { input:{mediaId:sessionId}, services:media },

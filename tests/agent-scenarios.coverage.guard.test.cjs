@@ -22,7 +22,7 @@ describe('recorded scenario coverage of the capability registry', () => {
     const path = require('node:path');
     const mcpOnly = registry.CAPABILITY_CATALOGUE.filter(capability => capability.entrances && !capability.entrances.includes('chat')).map(capability => capability.id);
     const sdkCoverage = [
-      ['mcp.media-upload.test.cjs', 'mcp-media-upload.runner.cjs', ['media.upload', 'media.upload_ticket', 'media.upload_status', 'media.inspect']],
+      ['mcp.media-upload.test.cjs', 'mcp-media-upload.runner.cjs', ['media.upload', 'media.prepare_photo', 'media.upload_ticket', 'media.upload_status', 'media.inspect']],
       ['mcp.e2e.test.cjs', 'mcp-e2e.runner.cjs', ['telegram.publish_ready', 'telegram.publication_status']],
     ];
     expect(mcpOnly.sort()).toEqual(sdkCoverage.flatMap(([, , ids]) => ids).sort());

@@ -122,6 +122,29 @@ describe('publish a ready Telegram post over MCP', () => {
       .toMatchObject({ ok: true, summary: { state: 'NOT_FOUND' } });
   });
 
+  test('the same reviewed post can be confirmed after 19 minutes and expires after a day', async () => {
+    const start = Date.UTC(2026, 10, 19, 7, 50);
+    jest.useFakeTimers({ now: start });
+    try {
+      const { createPost, services } = fixture();
+      const { tool } = setup('telegram.publish_ready', services);
+      const first = await call(tool, input);
+      const stale = await call(tool, input);
+      expect(first.summary.next).toContain('24 hours');
+      expect(createPost).not.toHaveBeenCalled();
+      jest.setSystemTime(start + 19 * 60_000);
+      const approved = { ...input, confirmation: first.summary.confirmation };
+      expect(await call(tool, approved)).toMatchObject({ ok: true, summary: { state: 'QUEUE' } });
+      expect(await call(tool, approved)).toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+      jest.setSystemTime(start + 24 * 3_600_000 + 1);
+      expect(await call(tool, { ...input, confirmation: stale.summary.confirmation }))
+        .toMatchObject({ ok: false, code: 'CONFIRMATION_INVALID' });
+      expect(createPost).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('two confirmations for one request create one post and return the same receipt', async () => {
     const { saved, services } = fixture();
     const { tool } = setup('telegram.publish_ready', services);

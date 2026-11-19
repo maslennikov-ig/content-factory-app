@@ -881,7 +881,7 @@ describe('MCP tools from the same registry', () => {
   test('confirm, input and secret never reach MCP — but scheduling and moving, asked in the conversation (kcxz.49)', () => {
     const names = Object.keys(mcpTools('ADMIN'));
     expect(names).toEqual([
-      'media_upload', 'media_upload_ticket', 'media_upload_status', 'media_inspect',
+      'media_upload', 'media_prepare_photo', 'media_upload_ticket', 'media_upload_status', 'media_inspect',
       'telegram_publish_ready', 'telegram_publication_status',
       'campaign_create', 'campaign_open', 'campaign_list', 'campaign_stop', 'campaign_revoke', 'campaign_reconcile',
       'channel_editorial_profile', 'channel_editorial_profile_save', 'source_permission_revoke', 'channel_discover', 'campaign_decide_editorial', 'campaign_measure', 'campaign_findings', 'campaign_finding_review',
